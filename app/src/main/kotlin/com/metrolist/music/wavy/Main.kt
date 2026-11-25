@@ -92,6 +92,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
                 when (t) {
                     0 -> HomeScreen(pc, onSearch = { tab = 1 }, onSignOut = onSignOut, onProfile = { page = "profile" })
                     1 -> SearchScreen(pc, onLang = { l -> page = "lang:" + l.lang + ":" + l.title }, onProfile = { page = "profile" }, initial = "")
+                    2 -> MusicFeed(pc)
                     3 -> LibraryScreen(pc, onProfile = { page = "profile" }, onPlaylist = { id, n -> page = "pl:$id:$n" }, onAddArtists = { page = "picker" })
                     else -> Backdrop { Box(Modifier.fillMaxSize().statusBarsPadding(), contentAlignment = Alignment.Center) {
                         Text(tabs[t].first + " is coming in the next build.", style = ts(16, color = W.Dim)) } }
