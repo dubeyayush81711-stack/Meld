@@ -82,7 +82,7 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
         androidx.media3.exoplayer.ExoPlayer.Builder(ctx).build().apply {
             volume = 0f
             val http = androidx.media3.datasource.DefaultHttpDataSource.Factory().setUserAgent(cand.ua).setAllowCrossProtocolRedirects(true)
-            val dsf = if (cand.hls) http else androidx.media3.datasource.DataSource.Factory { ChunkedDS(http) }
+            val dsf = if (cand.hls || !cand.chunked) http else androidx.media3.datasource.DataSource.Factory { ChunkedDS(http) }
             val item = androidx.media3.common.MediaItem.fromUri(cand.url)
             if (cand.hls) setMediaSource(androidx.media3.exoplayer.hls.HlsMediaSource.Factory(dsf).createMediaSource(item))
             else setMediaSource(androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(dsf).createMediaSource(item))
@@ -94,7 +94,7 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
             override fun onRenderedFirstFrame() { ready = true; onDiag("") }
             override fun onVideoSizeChanged(vs: androidx.media3.common.VideoSize) { if (vs.height > 0 && vs.width > 0) arOv = vs.width * vs.pixelWidthHeightRatio / vs.height }
             override fun onPlayerError(e: androidx.media3.common.PlaybackException) { val code = (generateSequence(e as Throwable?) { it.cause }.filterIsInstance<androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException>().firstOrNull())?.responseCode
-                onDiag("video err ${e.errorCodeName} ${code ?: ""} ${cand.client} ${if (cand.hls) "HLS" else cand.h.toString() + "p"} (${idx + 1}/${cands.size})"); if (idx < cands.size - 1) idx++ }
+                onDiag("video err ${e.errorCodeName} ${code ?: ""} ${cand.client} ${if (cand.hls) "HLS" else cand.h.toString() + "p"}${if (cand.chunked) "" else " plain"} (${idx + 1}/${cands.size})"); if (idx < cands.size - 1) idx++ }
         }
         ex.addListener(l)
         onDispose { ex.removeListener(l); ex.release() }
@@ -113,7 +113,8 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
     val ar = if (arOv > 0f) arOv else cand.w.toFloat() / cand.h.coerceAtLeast(1)
     androidx.compose.foundation.layout.BoxWithConstraints(modifier.clipToBounds()) {
         val h = maxHeight
-        AndroidView(modifier = Modifier.align(Alignment.Center).requiredSize(h * ar, h), factory = { c -> android.view.TextureView(c).also { ex.setVideoTextureView(it) } })
+        val fw = minOf(maxWidth, h * ar); val fh = fw / ar
+        AndroidView(modifier = Modifier.align(Alignment.Center).requiredSize(fw, fh), factory = { c -> android.view.TextureView(c).also { ex.setVideoTextureView(it) } })
     }
 }
 
@@ -177,6 +178,25 @@ fun MusicFeed(pc: PlayerConnection?) {
         lastDriven = pager.settledPage
         if (queueOwned && pager.settledPage < pc.player.mediaItemCount && pc.player.getMediaItemAt(pager.settledPage).mediaId == cur.id) pc.player.seekTo(pager.settledPage, 0L).also { pc.player.play() }
         else { playTracks(pc, tracks, pager.settledPage, "Music"); queueOwned = true }
+    }
+    val hooked = remember { HashSet<String>() }
+    LaunchedEffect(pager.settledPage, meta?.id) {
+        val cur = tracks.getOrNull(pager.settledPage) ?: return@LaunchedEffect
+        val p = pc?.player ?: return@LaunchedEffect
+        if (meta?.id != cur.id) return@LaunchedEffect
+        var tries = 0
+        while (p.duration <= 0 && tries < 20) { delay(250); tries++ }
+        val dur = p.duration
+        var start = 0L
+        if (dur > 75_000 && hooked.add(cur.id)) { start = (dur * 0.30).toLong().coerceAtMost(dur - 40_000); p.seekTo(start) }
+        else if (dur > 75_000) start = (dur * 0.30).toLong().coerceAtMost(dur - 40_000)
+        if (dur <= 75_000) return@LaunchedEffect
+        // play only the hook (about 25 s), then move to the next song
+        while (true) {
+            delay(500)
+            if (meta?.id != cur.id) return@LaunchedEffect
+            if (p.isPlaying && p.currentPosition >= start + 25_000 && pager.settledPage < tracks.size - 1) { pager.animateScrollToPage(pager.settledPage + 1); return@LaunchedEffect }
+        }
     }
     Box(Modifier.fillMaxSize()) {
         VerticalPager(pager, Modifier.fillMaxSize().nestedScroll(nsc), userScrollEnabled = true) { page ->

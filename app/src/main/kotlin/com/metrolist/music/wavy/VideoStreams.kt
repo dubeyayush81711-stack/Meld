@@ -9,7 +9,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-class VCand(val url: String, val w: Int, val h: Int, val client: String, val ua: String, val hls: Boolean = false)
+class VCand(val url: String, val w: Int, val h: Int, val client: String, val ua: String, val hls: Boolean = false, val chunked: Boolean = true)
 
 private class VClient(val name: String, val id: String, val ua: String, val ctx: JSONObject, val embed: Boolean = false)
 
@@ -54,14 +54,14 @@ suspend fun fetchVideoCandidates(videoId: String): Pair<List<VCand>, String> = w
             if (ad != null) for (i in 0 until ad.length()) {
                 val f = ad.getJSONObject(i)
                 val mime = f.optString("mimeType")
-                if (!mime.startsWith("video/mp4")) continue
+                if (!mime.startsWith("video/mp4") || !mime.contains("avc1")) continue
                 nv++
                 val u = f.optString("url", "")
                 if (u.isEmpty()) continue
                 nUrl++
                 found.add(VCand(u, f.optInt("width", 16), f.optInt("height", 9), c.name, c.ua))
             }
-            found.sortedBy { when (it.h) { 720 -> 0; 1080 -> 1; in 481..719 -> 2; in 360..480 -> 3; else -> 4 } }.filter { it.h in 360..1080 }.take(2).forEach { prog.add(it) }
+            found.sortedBy { when (it.h) { 720 -> 0; 1080 -> 1; in 481..719 -> 2; in 360..480 -> 3; else -> 4 } }.filter { it.h in 360..1080 }.take(2).forEach { prog.add(it); prog.add(VCand(it.url, it.w, it.h, it.client, it.ua, chunked = false)) }
             val hu = sd.optString("hlsManifestUrl", "")
             if (hu.isNotEmpty()) hls.add(VCand(hu, 16, 9, c.name, c.ua, hls = true))
             if (fm != null) for (i in 0 until fm.length()) {
@@ -70,8 +70,9 @@ suspend fun fetchVideoCandidates(videoId: String): Pair<List<VCand>, String> = w
             }
             if (found.isEmpty() && hu.isEmpty()) notes.add("${c.name}:v$nv/url$nUrl")
         } catch (e: Exception) { notes.add("${c.name}:${e.javaClass.simpleName}") }
-        if (prog.size >= 2 && hls.isNotEmpty()) break
+        if (prog.size >= 2 && (hls.isNotEmpty() || muxed.isNotEmpty())) break
     }
-    val all = prog + hls + muxed.sortedByDescending { it.h }.take(2)
+    val mx = muxed.sortedByDescending { it.h }.take(2).flatMap { listOf(it, VCand(it.url, it.w, it.h, it.client, it.ua, chunked = false)) }
+    val all = mx.take(2) + prog + hls + mx.drop(2)
     all to (if (all.isEmpty()) "no stream (" + notes.joinToString(" ") + ")" else "")
 }
