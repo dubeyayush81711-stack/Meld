@@ -56,6 +56,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
     var drag by remember { mutableStateOf<Float?>(null) }
     var showQueue by remember { mutableStateOf(false) }
     var showAdv by remember { mutableStateOf(false) }
+    var showOpts by remember { mutableStateOf(false) }
     val scroll = rememberScrollState()
     var fullLy by remember { mutableStateOf<List<LyricLine>?>(null) }
     val scope = rememberCoroutineScope()
@@ -82,7 +83,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                     Text("Playing from", style = ts(12, color = Color(0xFFD6CCD3)))
                     Text(qTitle ?: "Wavy", style = ts(15, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Icon(painterResource(R.drawable.tune), null, Modifier.size(30.dp).clickable { showAdv = true }, tint = Color.White)
+                Icon(painterResource(R.drawable.tune), null, Modifier.size(30.dp).clickable { showOpts = true }, tint = Color.White)
             }
             Spacer(Modifier.height(10.dp))
             AsyncImage(m?.thumbnailUrl, null, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(W.Card), contentScale = ContentScale.Crop)
@@ -145,6 +146,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
         }
         fullLy?.let { FullLyrics(pc, m?.title ?: "", m?.artists?.joinToString { it.name } ?: "", it) { fullLy = null } }
         if (showQueue) QueueSheet(pc) { showQueue = false }
+        if (showOpts) PlayerOptions(pc, onBoost = { showOpts = false; showAdv = true }) { showOpts = false }
         if (showAdv) AdvancedPlayer(pc) { showAdv = false }
     }
 }

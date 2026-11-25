@@ -422,14 +422,6 @@ fun TrackRow(t: Track, pc: PlayerConnection?, onPlay: () -> Unit) {
             Text(t.title, style = ts(17, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(t.artist, style = ts(14, color = Color(0xFFB9B2C4)), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        val dls by (WDl.util?.downloads ?: kotlinx.coroutines.flow.MutableStateFlow(emptyMap())).collectAsState()
-        val dst = dls[t.id]?.state
-        Icon(painterResource(if (dst == androidx.media3.exoplayer.offline.Download.STATE_COMPLETED) R.drawable.offline else R.drawable.download), null,
-            Modifier.size(34.dp).clip(CircleShape).clickable {
-                if (dst == androidx.media3.exoplayer.offline.Download.STATE_COMPLETED) { WDl.remove(ctx, t.id); Toast.makeText(ctx, "Removed from Downloads", Toast.LENGTH_SHORT).show() }
-                else if (dst == null || dst == androidx.media3.exoplayer.offline.Download.STATE_FAILED) { WDl.start(t); Toast.makeText(ctx, "Downloading...", Toast.LENGTH_SHORT).show() }
-            }.padding(5.dp),
-            tint = when (dst) { androidx.media3.exoplayer.offline.Download.STATE_COMPLETED -> W.Pink; null -> Color(0xFFB9B2C4); else -> Color(0xFFFFB3D1) })
         Box {
             Icon(painterResource(R.drawable.more_vert), null, Modifier.size(34.dp).clip(CircleShape).clickable { menu = true }.padding(4.dp), tint = Color(0xFFB9B2C4))
             DropdownMenu(menu, { menu = false }) {
