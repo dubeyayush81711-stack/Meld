@@ -77,6 +77,9 @@ object WavyFx {
         p.player.addListener(object : Player.Listener {
             override fun onAudioSessionIdChanged(audioSessionId: Int) { rebuild() }
             override fun onIsPlayingChanged(isPlaying: Boolean) { if (isPlaying) refresh() }
+            override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
+                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && S.b("stop_after_song")) { pc?.player?.pause(); S.put("stop_after_song", false) }
+            }
         })
         val am = ctx!!.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         am.registerAudioDeviceCallback(object : AudioDeviceCallback() {
@@ -123,7 +126,6 @@ object WavyFx {
         val p = pc ?: return
         try { p.player.setPlaybackSpeed(S.f("speed", 1f).coerceIn(0.5f, 2f)) } catch (e: Exception) { }
         try { p.player.setHandleAudioBecomingNoisy(S.b("pause_unplug", true)) } catch (e: Exception) { }
-        try { p.service.sleepTimer?.pauseWhenSongEnd = S.b("stop_after_song") } catch (e: Exception) { }
         val (kind, _) = currentDevice()
         val auto = S.b("auto_switch", true)
         // profile values (per device kind), editable in Sound profiles

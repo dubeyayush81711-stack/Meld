@@ -125,7 +125,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
             }
         }
         Column(Modifier.align(Alignment.BottomCenter)) {
-            if (meta != null && pc != null) MiniPlayer(pc) { full = true }
+            if (meta != null && pc != null && tab != 2) MiniPlayer(pc) { full = true }
             NavBar(tab) { tab = it }
         }
         AnimatedVisibility(full && pc != null, enter = slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(200)),
