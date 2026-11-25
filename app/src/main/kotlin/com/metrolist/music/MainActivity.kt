@@ -684,9 +684,9 @@ class MainActivity : FragmentActivity() {
         }
 
         MetrolistTheme(
-            darkTheme = useDarkTheme,
-            pureBlack = pureBlack,
-            themeColor = themeColor,
+            darkTheme = true,
+            pureBlack = true,
+            themeColor = com.metrolist.music.ui.theme.DefaultThemeColor,
         ) {
             val currentDensity = LocalDensity.current
             val windowInfo = LocalWindowInfo.current
