@@ -91,16 +91,16 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         try { Api.post("plays", JSONObject().put("user_id", Api.uid).put("track_id", id)) } catch (e: Exception) { }
     }
     BackHandler(full) { full = false }
-    BackHandler(!full && page != null) { page = when { page == "set:hub" -> "profile"; page!!.startsWith("set:") -> "set:hub"; else -> null } }
+    BackHandler(!full && page != null) { page = when { page == "set:hub" -> null; page!!.startsWith("set:") -> "set:hub"; else -> null } }
     BackHandler(!full && tab != 0) { tab = 0 }
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize()) {
             AnimatedContent(tab, transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(160)) }, label = "tab") { t ->
                 when (t) {
-                    0 -> HomeScreen(pc, onSearch = { tab = 1 }, onSignOut = onSignOut, onProfile = { page = "profile" }, onParty = { page = "party" }, onSettings = { page = "set:hub" }, onPlaylist = { id, n -> page = "pl:$id:$n" })
-                    1 -> SearchScreen(pc, onLang = { l -> page = "lang:" + l.lang + ":" + l.title }, onProfile = { page = "profile" }, initial = "")
+                    0 -> HomeScreen(pc, onSearch = { tab = 1 }, onSignOut = onSignOut, onProfile = { page = "editprofile" }, onParty = { page = "party" }, onSettings = { page = "set:hub" }, onPlaylist = { id, n -> page = "pl:$id:$n" })
+                    1 -> SearchScreen(pc, onLang = { l -> page = "lang:" + l.lang + ":" + l.title }, onProfile = { page = "editprofile" }, initial = "")
                     2 -> MusicFeed(pc)
-                    3 -> LibraryScreen(pc, onProfile = { page = "profile" }, onPlaylist = { id, n -> page = "pl:$id:$n" }, onAddArtists = { page = "picker" })
+                    3 -> LibraryScreen(pc, onProfile = { page = "editprofile" }, onPlaylist = { id, n -> page = "pl:$id:$n" }, onAddArtists = { page = "picker" })
                     else -> Backdrop { Box(Modifier.fillMaxSize().statusBarsPadding(), contentAlignment = Alignment.Center) {
                         Text(tabs[t].first + " is coming in the next build.", style = ts(16, color = W.Dim)) } }
                 }
@@ -116,7 +116,8 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
                     p == "picker" -> ArtistPicker(null) { page = null }
                     p == "party" -> PartyScreen(pc) { page = null }
                     p == "profile" -> ProfileScreen(onBack = { page = null }, onSignOut = onSignOut, onSettings = { page = "set:hub" })
-                    p == "set:hub" -> SettingsHub({ page = "profile" }) { page = it }
+                    p == "editprofile" -> EditProfileRoute { page = null }
+                    p == "set:hub" -> SettingsHub({ page = null }, onSignOut) { page = it }
                     p == "set:content" -> ContentSettings { page = "set:hub" }
                     p == "set:playback" -> PlaybackSettings { page = "set:hub" }
                     p == "set:data" -> DataSettings { page = "set:hub" }

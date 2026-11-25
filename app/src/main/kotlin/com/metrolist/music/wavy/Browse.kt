@@ -64,6 +64,8 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
         } catch (e: Exception) { }
     }
     var sugg by remember { mutableStateOf<List<String>>(emptyList()) }
+    val ctxS = androidx.compose.ui.platform.LocalContext.current
+    var hist by remember { mutableStateOf(loadHistory(ctxS)) }
     LaunchedEffect(q) {
         if (q.trim().length < 2) { sugg = emptyList(); return@LaunchedEffect }
         delay(150)
@@ -80,7 +82,17 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 val alt = (sugg.firstOrNull() ?: autocomplete(q.trim()).firstOrNull())
                 if (alt != null) { val o2 = Api.rpc("search_all", JSONObject().put("p_q", alt).put("p_limit", 30)) as? JSONObject; if ((o2?.optJSONArray("songs")?.length() ?: 0) > (o?.optJSONArray("songs")?.length() ?: 0)) o = o2 }
             }
-            res = o } catch (e: ApiError) { err = humanErr(e) }
+            val live = liveSongs(q.trim())
+            if (live.length() > 0) {
+                if (o == null) o = JSONObject()
+                val have = HashSet<String>(); val arr = JSONArray()
+                o.optJSONArray("songs")?.let { a -> for (i in 0 until a.length()) { a.optJSONObject(i)?.let { x -> if (have.add(x.optString("yt_video_id"))) arr.put(x) } } }
+                for (i in 0 until live.length()) { val x = live.getJSONObject(i); if (have.add(x.optString("yt_video_id"))) arr.put(x) }
+                o.put("songs", arr)
+            }
+            res = o
+            if (o != null && (o.optJSONArray("songs")?.length() ?: 0) > 0) saveHistory(ctxS, q.trim())
+        } catch (e: ApiError) { err = humanErr(e) }
     }
     val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val playing by (pc?.isPlaying ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }).collectAsState()
@@ -110,6 +122,20 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                         Text(sg, Modifier.weight(1f).padding(start = 14.dp), style = ts(16), maxLines = 1)
                     }
                 }
+            }
+            if (q.isEmpty() && hist.isNotEmpty()) col {
+                Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Recent searches", Modifier.weight(1f), style = ts(20, FontWeight.SemiBold))
+                    Text("Clear all", Modifier.clickable { clearHistory(ctxS); hist = emptyList() }.padding(8.dp), style = ts(14, FontWeight.Medium, W.Pink))
+                }
+                hist.forEach { h ->
+                    Row(Modifier.fillMaxWidth().clickable { q = h }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painterResource(R.drawable.history), null, Modifier.size(20.dp), tint = W.Dim)
+                        Text(h, Modifier.weight(1f).padding(start = 14.dp), style = ts(16), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Icon(painterResource(R.drawable.close), null, Modifier.size(34.dp).clip(CircleShape).clickable { hist = removeHistory(ctxS, h) }.padding(7.dp), tint = W.Dim)
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
             }
             if (q.trim().length < 2 || r == null) {
                 val m = meta
@@ -172,7 +198,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 val albums = r.optJSONArray("albums")
                 if (filter == "All" || filter == "Songs") {
                     if (songs.isNotEmpty()) col { Text("Songs", Modifier.padding(bottom = 6.dp), style = ts(20, FontWeight.SemiBold)) }
-                    songs.forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, songs, i, "Search") } } }
+                    songs.forEachIndexed { i, t -> col { TrackRow(t, pc) { playRadio(pc, t) } } }
                 }
                 if ((filter == "All" || filter == "Artists") && artists.isNotEmpty()) col {
                     Text("Artists", Modifier.padding(top = 16.dp, bottom = 10.dp), style = ts(20, FontWeight.SemiBold))

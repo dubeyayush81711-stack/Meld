@@ -83,3 +83,12 @@ fun EditProfile(name: String, onClose: () -> Unit, onSave: (String) -> Unit) {
         Box(Modifier.fillMaxWidth().padding(top = 12.dp).height(1.dp).background(Color(0x33FFFFFF)))
     } }
 }
+
+@Composable
+fun EditProfileRoute(onClose: () -> Unit) {
+    var name by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) { name = try { (Api.rpc("profile_stats") as? JSONObject)?.optString("name").orEmpty().ifBlank { Api.email.substringBefore("@") } } catch (e: Exception) { Api.email.substringBefore("@") } }
+    val n = name ?: return
+    EditProfile(n, onClose = onClose) { v -> scope.launch { try { Api.rpc("set_profile", JSONObject().put("p_name", v)) } catch (e: Exception) { }; onClose() } }
+}

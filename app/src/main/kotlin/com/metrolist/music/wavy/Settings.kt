@@ -81,7 +81,7 @@ fun SSlider(title: String, v: Float, onChange: (Float) -> Unit) {
 }
 
 @Composable
-fun SettingsHub(onBack: () -> Unit, go: (String) -> Unit) {
+fun SettingsHub(onBack: () -> Unit, onSignOut: () -> Unit = {}, go: (String) -> Unit) {
     SPage("Settings", onBack) {
         Spacer(Modifier.height(10.dp))
         SNav("Content and display", "Videos, languages, explicit content and display") { go("set:content") }
@@ -93,6 +93,7 @@ fun SettingsHub(onBack: () -> Unit, go: (String) -> Unit) {
         SNav("Apps and devices", "Local files and car") { go("set:apps") }
         SNav("Notifications", "Choose what Wavy tells you") { go("set:notif") }
         SNav("About and support", "Version and licenses") { go("set:about") }
+        SNav("Sign out", "Leave this account on this phone") { onSignOut() }
     }
 }
 
