@@ -334,6 +334,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc
             Spacer(Modifier.height(28.dp))
         }
     }
+    col { MoodRow("Chill", "chill", pc) }
+    col { MoodRow("Party and dance", "party", pc) }
+    col { MoodRow("Top hits for you", "top", pc) }
     val mixes = f.sections.filter { it.type == "artist_mix" }
     if (mixes.isNotEmpty()) col {
         SectionHeader("To get you started")
