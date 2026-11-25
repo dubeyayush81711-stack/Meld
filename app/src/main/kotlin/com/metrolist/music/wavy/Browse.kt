@@ -32,6 +32,7 @@ import com.metrolist.music.playback.PlayerConnection
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -49,6 +50,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     var tiles by remember { mutableStateOf<List<LangTile>>(emptyList()) }
     var res by remember { mutableStateOf<JSONObject?>(null) }
     var filter by remember { mutableStateOf("All") }
+    val scopeS = rememberCoroutineScope()
     var err by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
         try {
@@ -73,31 +75,20 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
         val ac = autocomplete(q.trim())
         sugg = (ytm.take(3) + ac + ytm.drop(3)).map { it.trim() }.filter { it.isNotEmpty() && !it.equals(q.trim(), true) }.distinctBy { it.lowercase() }.take(6)
     }
-    LaunchedEffect(q) {
-        val qq = q.trim()
-        if (qq.length < 2) { res = null; return@LaunchedEffect }
-        searchCache[qq.lowercase()]?.let { res = it; return@LaunchedEffect }
-        delay(220); err = null
-        // live YouTube Music and the catalog run at the same time; whichever answers first is shown at once, the other is merged in
-        coroutineScope {
-            var live = JSONArray(); var cat: JSONObject? = null
-            fun publish() { res = rankSearch(qq, cat, live) }
-            val j1 = async { try { live = liveSongs(qq) } catch (e: Exception) { }; publish() }
-            val j2 = async {
-                try {
-                    var o = Api.rpc("search_all", JSONObject().put("p_q", qq).put("p_limit", 30)) as? JSONObject
-                    if ((o?.optJSONArray("songs")?.length() ?: 0) < 3) {
-                        val alt = (sugg.firstOrNull() ?: autocomplete(qq).firstOrNull())
-                        if (alt != null) { val o2 = Api.rpc("search_all", JSONObject().put("p_q", alt).put("p_limit", 30)) as? JSONObject; if ((o2?.optJSONArray("songs")?.length() ?: 0) > (o?.optJSONArray("songs")?.length() ?: 0)) o = o2 }
-                    }
-                    cat = o
-                } catch (e: ApiError) { err = humanErr(e) }
-                publish()
-            }
-            j1.await(); j2.await()
-            val o = res
-            if (o != null) { searchCache[qq.lowercase()] = o; if ((o.optJSONArray("songs")?.length() ?: 0) > 0 && qq.length >= 3) saveHistory(ctxS, qq) }
-        }
+    var submitted by remember { mutableStateOf<String?>(null) }
+    var summary by remember { mutableStateOf<List<SSection>?>(null) }
+    var typed by remember { mutableStateOf<List<YTItem>?>(null) }
+    var nextTok by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    fun go(text: String) { val t = text.trim(); if (t.length < 1) return; q = t; filter = "All"; submitted = t; saveHistory(ctxS, t); hist = loadHistory(ctxS) }
+    LaunchedEffect(submitted, filter) {
+        val sq = submitted ?: return@LaunchedEffect
+        err = null; busy = true
+        try {
+            if (filter == "All") { typed = null; summary = meldSummary(sq) }
+            else { summary = null; typed = null; val p = meldTyped(sq, filter); typed = p.items; nextTok = p.next }
+        } catch (e: Exception) { err = "Search failed. Check your connection." }
+        busy = false
     }
     val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val playing by (pc?.isPlaying ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }).collectAsState()
@@ -110,23 +101,14 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                         Spacer(Modifier.width(12.dp))
                         Box(Modifier.weight(1f)) {
                             if (q.isEmpty()) Text("Search", style = ts(18, color = Color(0xCCFFFFFF)))
-                            BasicTextField(q, { q = it }, singleLine = true, textStyle = ts(18), cursorBrush = SolidColor(W.Pink), modifier = Modifier.fillMaxWidth())
+                            BasicTextField(q, { q = it; submitted = null }, singleLine = true, textStyle = ts(18), cursorBrush = SolidColor(W.Pink), modifier = Modifier.fillMaxWidth(), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search), keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { go(q) }))
                         }
-                        if (q.isNotEmpty()) Icon(painterResource(R.drawable.close), null, Modifier.size(22.dp).clickable { q = "" }, tint = Color.White)
+                        if (q.isNotEmpty()) Icon(painterResource(R.drawable.close), null, Modifier.size(22.dp).clickable { q = ""; submitted = null }, tint = Color.White)
                     }
                     Spacer(Modifier.width(12.dp))
                     Avatar(40, onProfile)
                 }
                 Spacer(Modifier.height(16.dp))
-            }
-            val r = res
-            if (q.trim().length >= 2 && r == null && sugg.isNotEmpty()) col {
-                sugg.take(6).forEach { sg ->
-                    Row(Modifier.fillMaxWidth().clickable { q = sg }.padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(painterResource(R.drawable.search), null, Modifier.size(20.dp), tint = W.Dim)
-                        Text(sg, Modifier.weight(1f).padding(start = 14.dp), style = ts(16), maxLines = 1)
-                    }
-                }
             }
             if (q.isEmpty() && hist.isNotEmpty()) col {
                 Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -134,7 +116,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                     Text("Clear all", Modifier.clickable { clearHistory(ctxS); hist = emptyList() }.padding(8.dp), style = ts(14, FontWeight.Medium, W.Pink))
                 }
                 hist.forEach { h ->
-                    Row(Modifier.fillMaxWidth().clickable { q = h }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clickable { go(h) }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(painterResource(R.drawable.history), null, Modifier.size(20.dp), tint = W.Dim)
                         Text(h, Modifier.weight(1f).padding(start = 14.dp), style = ts(16), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Icon(painterResource(R.drawable.close), null, Modifier.size(34.dp).clip(CircleShape).clickable { hist = removeHistory(ctxS, h) }.padding(7.dp), tint = W.Dim)
@@ -179,46 +161,57 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                         }
                     }
                 }
+            } else if (submitted == null) {
+                val ql = q.trim().lowercase()
+                val hm = hist.filter { it.lowercase().contains(ql) && !it.equals(q.trim(), true) }.take(3)
+                val rows = (hm.map { it to true } + sugg.filter { s0 -> hm.none { it.equals(s0, true) } }.map { it to false }).take(8)
+                col {
+                    rows.forEach { (sg, isHist) ->
+                        Row(Modifier.fillMaxWidth().clickable { go(sg) }.padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(painterResource(if (isHist) R.drawable.history else R.drawable.search), null, Modifier.size(20.dp), tint = W.Dim)
+                            Text(sg, Modifier.weight(1f).padding(start = 14.dp), style = ts(16), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Icon(painterResource(R.drawable.arrow_forward), null, Modifier.size(18.dp).clickable { q = sg }, tint = W.Dim)
+                        }
+                    }
+                }
             } else {
                 col {
                     Row(Modifier.padding(bottom = 14.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        listOf("All", "Songs", "Artists", "Albums").forEach { f ->
-                            Text(f, Modifier.then(if (f == filter) Modifier.clip(RoundedCornerShape(50)).background(W.Pink) else Modifier.glass(RoundedCornerShape(50))).clickable { filter = f }.padding(horizontal = 18.dp, vertical = 9.dp), style = ts(15, FontWeight.Medium), maxLines = 1, softWrap = false)
+                        listOf("All", "Songs", "Videos", "Albums", "Artists", "Playlists").forEach { f ->
+                            Text(f, Modifier.then(if (f == filter) Modifier.clip(RoundedCornerShape(50)).background(Color.White) else Modifier.glass(RoundedCornerShape(50))).clickable { filter = f }.padding(horizontal = 18.dp, vertical = 9.dp), style = ts(15, FontWeight.Medium, if (f == filter) Color.Black else Color.White), maxLines = 1, softWrap = false)
                         }
                     }
                 }
-                if (sugg.isNotEmpty()) col {
-                    sugg.take(5).forEach { sg ->
-                        Row(Modifier.fillMaxWidth().clickable { q = sg }.padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(painterResource(R.drawable.search), null, Modifier.size(20.dp), tint = W.Dim)
-                            Text(sg, Modifier.weight(1f).padding(start = 14.dp), style = ts(16), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Icon(painterResource(R.drawable.arrow_forward), null, Modifier.size(18.dp), tint = W.Dim)
-                        }
+                val sm = summary; val ty = typed
+                if (filter == "All" && sm != null) {
+                    val songsAll = sm.flatMap { it.items }.mapNotNull { it.asTrack() }
+                    sm.forEach { sec ->
+                        col { Text(sec.title, Modifier.padding(top = 14.dp, bottom = 6.dp), style = ts(20, FontWeight.SemiBold)) }
+                        sec.items.forEach { it0 -> col { ResultRow(it0, pc, songsAll, onArtist = { n -> go(n); filter = "Songs" }) } }
                     }
-                    Box(Modifier.fillMaxWidth().padding(vertical = 6.dp).height(1.dp).background(Color(0x22FFFFFF)))
+                    if (sm.isEmpty() && !busy) col { Text(err ?: "No results.", style = ts(15, color = W.Dim)) }
+                } else if (ty != null) {
+                    val songsAll = ty.mapNotNull { it.asTrack() }
+                    ty.forEach { it0 -> col { ResultRow(it0, pc, songsAll, onArtist = { n -> go(n); filter = "Songs" }) } }
+                    if (nextTok != null) col { Text("Load more", Modifier.padding(vertical = 14.dp).clip(RoundedCornerShape(50)).glass(RoundedCornerShape(50)).clickable { val tk = nextTok; nextTok = null; if (tk != null) scopeS.launch { val p = meldMore(tk); typed = (typed.orEmpty() + p.items).distinctBy { it.id }; nextTok = p.next } }.padding(horizontal = 22.dp, vertical = 10.dp), style = ts(14, FontWeight.Medium)) }
+                    if (ty.isEmpty()) col { Text(err ?: "No results.", style = ts(15, color = W.Dim)) }
                 }
-                val songs = r.optJSONArray("songs").tracks()
-                val artists = r.optJSONArray("artists").artistItems()
-                val albums = r.optJSONArray("albums")
-                if (filter == "All" || filter == "Songs") {
-                    if (songs.isNotEmpty()) col { Text("Songs", Modifier.padding(bottom = 6.dp), style = ts(20, FontWeight.SemiBold)) }
-                    songs.forEachIndexed { i, t -> col { TrackRow(t, pc) { playRadio(pc, t) } } }
-                }
-                if ((filter == "All" || filter == "Artists") && artists.isNotEmpty()) col {
-                    Text("Artists", Modifier.padding(top = 16.dp, bottom = 10.dp), style = ts(20, FontWeight.SemiBold))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) { itemsIndexed(artists) { _, a ->
-                        Column(Modifier.width(100.dp), horizontalAlignment = Alignment.CenterHorizontally) { Cover(a.thumb, 100.dp, 50)
-                            Text(a.name, Modifier.padding(top = 6.dp), style = ts(13, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis) } } }
-                }
-                if ((filter == "All" || filter == "Albums") && albums != null && albums.length() > 0) col {
-                    Text("Albums", Modifier.padding(top = 16.dp, bottom = 10.dp), style = ts(20, FontWeight.SemiBold))
-                    val list = (0 until albums.length()).mapNotNull { albums.optJSONObject(it) }
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) { itemsIndexed(list) { _, a ->
-                        val tr = a.optJSONArray("tracks").tracks()
-                        MiniCard(a.optString("cover_url").ifBlank { tr.firstOrNull()?.cover }, a.optString("album", a.optString("title")), a.optString("artist")) { playTracks(pc, tr, 0, a.optString("album")) } } }
-                }
-                if (songs.isEmpty() && artists.isEmpty()) col { Text(err ?: "No results.", style = ts(15, color = W.Dim)) }
+                if (busy) col { Text("Searching...", Modifier.padding(vertical = 16.dp), style = ts(14, color = W.Dim)) }
             }
+        }
+    }
+}
+
+@Composable
+fun ResultRow(it0: com.metrolist.innertube.models.YTItem, pc: PlayerConnection?, songs: List<Track>, onArtist: (String) -> Unit) {
+    val t = it0.asTrack()
+    if (t != null) { TrackRow(t, pc) { playTracks(pc, songs, songs.indexOfFirst { it.id == t.id }.coerceAtLeast(0), "Search") }; return }
+    val artist = it0 is com.metrolist.innertube.models.ArtistItem
+    Row(Modifier.fillMaxWidth().clickable { if (artist) onArtist(it0.title) else playItem(pc, it0) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Cover(it0.thumbnail, 56.dp, if (artist) 50 else 10)
+        Column(Modifier.weight(1f).padding(start = 14.dp)) {
+            Text(it0.title, style = ts(16, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(it0.sub(), style = ts(13, color = W.Dim), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
