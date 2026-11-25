@@ -239,19 +239,19 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
         val f = feed
         LazyColumn(state = st, contentPadding = PaddingValues(bottom = 210.dp), modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             col {
-                Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Home", Modifier.weight(1f), style = ts(28, FontWeight.SemiBold))
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Home", Modifier.weight(1f), style = ts(26, FontWeight.Bold))
                     listOf(Triple(R.drawable.search, onSearch, 0), Triple(R.drawable.group_outlined, onParty, 1), Triple(R.drawable.settings, onSettings, 2)).forEach { (ic, f, _) ->
-                        Box(Modifier.padding(start = 8.dp).size(44.dp).glass(CircleShape).clickable(onClick = f), contentAlignment = Alignment.Center) {
-                            Icon(painterResource(ic), null, Modifier.size(22.dp), tint = Color.White) }
+                        Box(Modifier.padding(start = 6.dp).size(40.dp).glass(CircleShape).clickable(onClick = f), contentAlignment = Alignment.Center) {
+                            Icon(painterResource(ic), null, Modifier.size(20.dp), tint = Color.White) }
                     }
-                    Box(Modifier.padding(start = 8.dp).size(44.dp).clip(CircleShape).background(W.Grad).clickable(onClick = onProfile), contentAlignment = Alignment.Center) {
+                    Box(Modifier.padding(start = 6.dp).size(40.dp).clip(CircleShape).background(W.Grad).clickable(onClick = onProfile), contentAlignment = Alignment.Center) {
                         Text(name.take(1).uppercase().ifEmpty { "W" }, style = ts(20, FontWeight.Bold)) }
                 }
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     listOf("All", "Music", "Chill", "Podcasts").forEach { c ->
-                        Box(Modifier.height(40.dp).then(if (c == cat) Modifier.clip(RoundedCornerShape(50)).background(W.Pink) else Modifier.glass(RoundedCornerShape(50))).clickable { cat = c }.padding(horizontal = 22.dp), contentAlignment = Alignment.Center) {
-                            Text(c, style = ts(14, if (c == cat) FontWeight.SemiBold else FontWeight.Medium), maxLines = 1, softWrap = false)
+                        Box(Modifier.height(34.dp).then(if (c == cat) Modifier.clip(RoundedCornerShape(50)).background(W.Pink) else Modifier.glass(RoundedCornerShape(50))).clickable { cat = c }.padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+                            Text(c, style = ts(13, if (c == cat) FontWeight.SemiBold else FontWeight.Medium), maxLines = 1, softWrap = false)
                         }
                     }
                 }

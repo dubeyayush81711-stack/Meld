@@ -37,6 +37,13 @@ object W {
     val Grad = Brush.linearGradient(listOf(Color(0xFFFF3D8B), Color(0xFF8E3BEA)))
 }
 
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+val Figtree = FontFamily(
+    *listOf(FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold).map { w ->
+        Font(R.font.figtree, w, variationSettings = androidx.compose.ui.text.font.FontVariation.Settings(androidx.compose.ui.text.font.FontVariation.weight(w.weight)))
+    }.toTypedArray()
+)
+
 val Poppins = FontFamily(
     Font(R.font.poppins_regular, FontWeight.Normal),
     Font(R.font.poppins_medium, FontWeight.Medium),
@@ -45,7 +52,7 @@ val Poppins = FontFamily(
 )
 
 fun ts(size: Int, weight: FontWeight = FontWeight.Normal, color: Color = Color.White) =
-    TextStyle(fontFamily = Poppins, fontSize = (size * 0.86f).sp, fontWeight = weight, color = color, lineHeight = (size * 0.86f * 1.28f).sp)
+    TextStyle(fontFamily = Figtree, fontSize = (size * 0.92f).sp, fontWeight = weight, color = color, lineHeight = (size * 0.92f * 1.25f).sp)
 
 /** Liquid-glass surface (from Ayush's glass design): translucent gradient, light rim, soft shadow. Central place to restyle. */
 fun Modifier.glass(shape: androidx.compose.ui.graphics.Shape, strength: Float = 1f): Modifier = this
