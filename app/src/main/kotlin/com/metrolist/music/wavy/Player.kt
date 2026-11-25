@@ -52,6 +52,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
     var pos by remember { mutableLongStateOf(0L) }
     var drag by remember { mutableStateOf<Float?>(null) }
     var showQueue by remember { mutableStateOf(false) }
+    var showAdv by remember { mutableStateOf(false) }
     LaunchedEffect(m?.id) { while (true) { pos = pc.player.currentPosition; delay(400) } }
     val dur = pc.player.duration.takeIf { it > 0 } ?: ((m?.duration ?: 0) * 1000L)
     var tint by remember { mutableStateOf(Color(0xFF55091F)) }
@@ -75,7 +76,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                     Text("Playing from", style = ts(12, color = Color(0xFFD6CCD3)))
                     Text(qTitle ?: "Wavy", style = ts(15, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Spacer(Modifier.size(34.dp))
+                Icon(painterResource(R.drawable.tune), null, Modifier.size(30.dp).clickable { showAdv = true }, tint = Color.White)
             }
             Spacer(Modifier.height(10.dp))
             AsyncImage(m?.thumbnailUrl, null, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(W.Card), contentScale = ContentScale.Crop)
@@ -120,6 +121,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             }
         }
         if (showQueue) QueueSheet(pc) { showQueue = false }
+        if (showAdv) AdvancedPlayer(pc) { showAdv = false }
     }
 }
 
