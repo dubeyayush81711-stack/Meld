@@ -81,7 +81,7 @@ def src_ytmusic():
 def src_instagram():
     d = json.loads(http("https://tracygram.com/api/trending-audio?region=india"))
     t = d.get("tracks") or []
-    if len(t) < 5: raise RuntimeError("instagram list too short")
+    if len(t) < 5: raise RuntimeError("reel list too short")
     return [{"title": x.get("title", ""), "artist": x.get("artist", "")} for x in t]
 
 def src_spotify():
@@ -134,13 +134,14 @@ def build():
                 m = it
             vid = m["yt_video_id"]
             meta.setdefault(vid, m)
-            if name == "instagram" and vid not in IG_ONLY: IG_ONLY.append(vid)
+            if name in ("instagram", "spotify") and vid not in IG_ONLY: IG_ONLY.append(vid)
             seen_in.setdefault(vid, set()).add(name)
             scores[vid] = scores.get(vid, 0) + WEIGHT[name] * (101 - rank) / 100
     for vid, s in seen_in.items():
         if len(s) >= 2: scores[vid] += 1.0
         if "instagram" in s and len(s) >= 2: scores[vid] += 1.5
     global IG_ITEMS
+    IG_ONLY.sort(key=lambda v: -scores[v])
     IG_ITEMS = [{"yt_video_id": v, "title": meta[v]["title"], "artist": meta[v]["artist"], "cover_url": f"https://i.ytimg.com/vi/{v}/hqdefault.jpg"} for v in IG_ONLY]
     ranked = sorted(scores, key=lambda v: -scores[v])[:TOP_N]
     return [{"yt_video_id": v, "title": meta[v]["title"], "artist": meta[v]["artist"],
@@ -161,6 +162,6 @@ if __name__ == "__main__":
     print(http(url, body, hdr))
     ig = IG_ITEMS
     if len(ig) >= 10:
-        print("instagram", http(url, json.dumps({"p_token": os.environ["INGEST_TOKEN"], "p_region": "IN", "p_source": "instagram", "p_items": ig}).encode(), hdr))
+        print("reel", http(url, json.dumps({"p_token": os.environ["INGEST_TOKEN"], "p_region": "IN", "p_source": "reel", "p_items": ig}).encode(), hdr))
     else:
-        print("instagram list too short:", len(ig))
+        print("reel list too short:", len(ig))

@@ -2,6 +2,7 @@ package com.metrolist.music.wavy
 
 import android.content.Intent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -14,6 +15,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.draw.clipToBounds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -110,29 +114,53 @@ fun MusicFeed(pc: PlayerConnection?) {
     val meta by (pc?.mediaMetadata ?: remember { MutableStateFlow(null) }).collectAsState()
     var feed by remember { mutableStateOf<List<Track>>(emptyList()) }
     var err by remember { mutableStateOf<String?>(null) }
-    val seed = remember { System.currentTimeMillis().toString() }
+    var seed by remember { mutableStateOf(System.currentTimeMillis().toString()) }
+    var refreshN by remember { mutableIntStateOf(0) }
+    var loadingMore by remember { mutableStateOf(false) }
     // the song that is playing when the tab opens stays first, so nothing restarts
     val first = remember { meta?.let { m -> Track(m.id, m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, m.duration, m.artists.firstOrNull()?.id, m.album?.title) } }
-    LaunchedEffect(Unit) {
-        try { feed = (Api.rpc("player_feed", JSONObject().put("p_limit", 40).put("p_offset", 0).put("p_region", "IN").put("p_seed", seed)) as? JSONArray).tracks() }
+    LaunchedEffect(refreshN) {
+        try { feed = (Api.rpc("player_feed_ig", JSONObject().put("p_limit", 30).put("p_offset", 0).put("p_region", "IN").put("p_seed", seed)) as? JSONArray).tracks(); err = null}
         catch (e: ApiError) { err = humanErr(e) }
     }
-    val tracks = remember(feed) { (listOfNotNull(first) + feed.filter { it.id != first?.id }) }
+    val tracks = remember(feed, refreshN) { (if (refreshN == 0) listOfNotNull(first) else emptyList()) + feed.filter { it.id != first?.id || refreshN > 0 } }
     if (tracks.isEmpty()) {
         Backdrop { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(err ?: "Loading...", style = ts(15, color = W.Dim)) } }
         return
     }
-    val pager = rememberPagerState { tracks.size }
     var queueOwned by remember { mutableStateOf(false) }
+    val pager = rememberPagerState { tracks.size }
+    LaunchedEffect(pager.settledPage, tracks.size) {
+        if (tracks.size - pager.settledPage <= 5 && !loadingMore && feed.size < 200) {
+            loadingMore = true
+            try { val more = (Api.rpc("player_feed_ig", JSONObject().put("p_limit", 30).put("p_offset", feed.size).put("p_region", "IN").put("p_seed", seed)) as? JSONArray).tracks(); val have = feed.map { it.id }.toSet(); feed = feed + more.filter { it.id !in have } } catch (e: Exception) { }
+            loadingMore = false
+        }
+    }
+    LaunchedEffect(refreshN) { if (refreshN > 0) pager.scrollToPage(0) }
+    var pull by remember { mutableFloatStateOf(0f) }
+    val nsc = remember {
+        object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+            override fun onPostScroll(consumed: androidx.compose.ui.geometry.Offset, available: androidx.compose.ui.geometry.Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource): androidx.compose.ui.geometry.Offset {
+                if (pager.currentPage == 0 && available.y > 0) pull += available.y else if (available.y < 0) pull = 0f
+                return androidx.compose.ui.geometry.Offset.Zero
+            }
+            override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity {
+                if (pull > 160f) { seed = System.currentTimeMillis().toString(); queueOwned = false; refreshN++ }
+                pull = 0f
+                return androidx.compose.ui.unit.Velocity.Zero
+            }
+        }
+    }
     LaunchedEffect(pager.settledPage, pc != null) {
         if (pc == null) return@LaunchedEffect
         val cur = tracks[pager.settledPage]
         if (meta?.id == cur.id) return@LaunchedEffect
-        if (queueOwned && pc.player.mediaItemCount == tracks.size) pc.player.seekTo(pager.settledPage, 0L).also { pc.player.play() }
+        if (queueOwned && pager.settledPage < pc.player.mediaItemCount && pc.player.getMediaItemAt(pager.settledPage).mediaId == cur.id) pc.player.seekTo(pager.settledPage, 0L).also { pc.player.play() }
         else { playTracks(pc, tracks, pager.settledPage, "Music"); queueOwned = true }
     }
     Box(Modifier.fillMaxSize()) {
-        VerticalPager(pager, Modifier.fillMaxSize(), userScrollEnabled = true) { page ->
+        VerticalPager(pager, Modifier.fillMaxSize().nestedScroll(nsc), userScrollEnabled = true) { page ->
             val t = tracks[page]
             var tint by remember(t.id) { mutableStateOf(Color(0xFF7A1B3A)) }
             var liked by remember(t.id) { mutableStateOf(false) }
@@ -144,9 +172,14 @@ fun MusicFeed(pc: PlayerConnection?) {
                 } catch (e: Exception) { }
             }
             val bg by animateColorAsState(tint, tween(500), label = "fb")
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, Color(0xFF14080F), Color(0xFF0B0B0D))))) {
+            var burst by remember(t.id) { mutableIntStateOf(0) }
+            val hs by animateFloatAsState(if (burst > 0) 1f else 0f, tween(350), label = "h")
+            LaunchedEffect(burst) { if (burst > 0) { delay(700); burst = 0 } }
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, Color(0xFF14080F), Color(0xFF0B0B0D))))
+                .pointerInput(t.id) { detectTapGestures(onDoubleTap = { if (!liked) { liked = true; scope.launch { likeTrack(t.id) } }; burst++ }) }) {
                 AsyncImage(t.cover, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 if (page == pager.settledPage) StreamVideo(t.id, pc, Modifier.fillMaxSize())
+                if (hs > 0.01f) Icon(painterResource(R.drawable.favorite), null, Modifier.align(Alignment.Center).size((60 + 80 * hs).dp), tint = W.Pink.copy(alpha = hs))
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x66000000), 0.25f to Color.Transparent, 0.6f to Color.Transparent, 1f to Color(0xCC000000))))
                 Column(Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 170.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                     Icon(painterResource(if (liked) R.drawable.favorite else R.drawable.favorite_border), null, Modifier.size(34.dp).clickable { liked = true; scope.launch { likeTrack(t.id) } }, tint = if (liked) W.Pink else Color.White)
