@@ -54,7 +54,7 @@ fun Modifier.glass(shape: androidx.compose.ui.graphics.Shape, strength: Float = 
     .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.38f), Color.White.copy(alpha = 0.12f))), shape)
 
 val GlassSheet = Color(0xE60E0C16)
-val GlassBar = Color(0x990E0E16)
+val GlassBar = Color(0xF50C0B12)
 
 /** Midnight canvas with three drifting liquid orbs and a diagonal sheen, same as the glass design background. */
 @Composable

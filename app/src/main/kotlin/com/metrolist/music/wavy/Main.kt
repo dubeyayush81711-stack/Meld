@@ -165,7 +165,7 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
     var pos by remember { mutableLongStateOf(0L) }
     LaunchedEffect(m.id) { while (true) { pos = pc.player.currentPosition; delay(500) } }
     val dur = pc.player.duration.takeIf { it > 0 } ?: (m.duration * 1000L)
-    Column(Modifier.padding(horizontal = 14.dp).glass(RoundedCornerShape(16.dp), 1.4f).clickable(onClick = onOpen)) {
+    Column(Modifier.padding(horizontal = 14.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(Color(0xFF4A1230), Color(0xFF2A0D20)))).border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)).clickable(onClick = onOpen)) {
         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(m.thumbnailUrl, null, Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)).background(W.Card), contentScale = ContentScale.Crop)
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
