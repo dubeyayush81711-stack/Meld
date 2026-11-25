@@ -1,5 +1,8 @@
 package com.metrolist.music.wavy
 
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -106,10 +109,18 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                         Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             pair.forEach { t ->
                                 val c = langColors[t.lang] ?: listOf(W.Pink, W.Maroon)
-                                Column(Modifier.weight(1f).height(150.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(c)).clickable { onLang(t) }.padding(16.dp)) {
-                                    Text(t.title, style = ts(24, FontWeight.SemiBold))
-                                    Spacer(Modifier.weight(1f))
-                                    if (t.top.isNotEmpty()) Text("Top: " + t.top, style = ts(13, FontWeight.Medium, Color(0xEEFFFFFF)), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                val lctx = LocalContext.current
+                                val rid = remember(t.lang) { lctx.resources.getIdentifier("lang_" + t.lang, "drawable", lctx.packageName) }
+                                Box(Modifier.weight(1f).height(150.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(c)).clickable { onLang(t) }) {
+                                    if (rid != 0) {
+                                        Image(painterResource(rid), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x55000000), 1f to Color(0xCC000000))))
+                                    }
+                                    Column(Modifier.fillMaxSize().padding(16.dp)) {
+                                        Text(t.title, style = ts(22, FontWeight.SemiBold), maxLines = 1, softWrap = false)
+                                        Spacer(Modifier.weight(1f))
+                                        if (t.top.isNotEmpty()) Text("Top: " + t.top, style = ts(13, FontWeight.Medium, Color(0xEEFFFFFF)), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    }
                                 }
                             }
                             if (pair.size == 1) Spacer(Modifier.weight(1f))
