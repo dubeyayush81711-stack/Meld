@@ -217,6 +217,10 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
             }
             val bg by animateColorAsState(tint, tween(500), label = "fb")
             var diag by remember(t.id) { mutableStateOf("") }
+            var pos by remember(t.id) { mutableLongStateOf(0L) }
+            LaunchedEffect(page, meta?.id) { while (true) { pos = if (meta?.id == t.id) (pc?.player?.currentPosition ?: 0L) else 0L; delay(250) } }
+            var lyrics by remember(t.id) { mutableStateOf<List<LyricLine>>(emptyList()) }
+            LaunchedEffect(t.id) { lyrics = fetchLyrics(t.id, t.title, t.artist, t.dur) }
             LaunchedEffect(diag) { if (diag.startsWith("playing via")) { delay(5000); diag = "" } }
             var burst by remember(t.id) { mutableIntStateOf(0) }
             var flash by remember(t.id) { mutableIntStateOf(0) }
@@ -238,8 +242,13 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                     Box(Modifier.fillMaxSize().background(Color(0x66000000)))
                     if (page == pager.settledPage) StreamVideo(t.id, pc, Modifier.fillMaxSize()) { diag = it }
                 } else {
-                    AsyncImage(hiRes(t.cover), null, Modifier.fillMaxWidth().aspectRatio(1f).align(Alignment.TopStart).padding(top = 190.dp), contentScale = ContentScale.Crop)
-                    Box(Modifier.fillMaxWidth().aspectRatio(1f).align(Alignment.TopStart).padding(top = 190.dp).background(Brush.verticalGradient(0f to bg, 0.22f to Color.Transparent, 0.75f to Color.Transparent, 1f to Color(0xFF0B0B0D))))
+                    AsyncImage(hiRes(t.cover), null, Modifier.fillMaxWidth().aspectRatio(1f).align(Alignment.TopStart).padding(top = 120.dp), contentScale = ContentScale.Crop)
+                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to bg, 0.2f to bg.copy(alpha = 0.55f), 0.34f to Color.Transparent, 0.52f to Color.Transparent, 0.7f to Color(0xCC0B0B0D), 0.82f to Color(0xFF0B0B0D), 1f to Color(0xFF0B0B0D))))
+                    val ci = lyrics.indexOfLast { it.ms <= pos + 250 }
+                    if (lyrics.isNotEmpty() && ci >= 0) Column(Modifier.align(Alignment.TopStart).statusBarsPadding().padding(start = 24.dp, end = 24.dp, top = 84.dp)) {
+                        Text(lyrics[ci].text, style = ts(28, FontWeight.Bold), maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        lyrics.getOrNull(ci + 1)?.let { Text(it.text, Modifier.padding(top = 10.dp), style = ts(22, FontWeight.Bold, Color(0x88FFFFFF)), maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                    }
                 }
                 if (flash != 0) Text(when (flash) { 1 -> if (playing) "Playing" else "Paused"; 2 -> "-10s"; else -> "+10s" }, Modifier.align(when (flash) { 2 -> Alignment.CenterStart; 3 -> Alignment.CenterEnd; else -> Alignment.Center }).padding(horizontal = 40.dp).clip(RoundedCornerShape(50)).background(Color(0x88000000)).padding(horizontal = 18.dp, vertical = 10.dp), style = ts(18, FontWeight.SemiBold))
                 if (hs > 0.01f) Icon(painterResource(R.drawable.favorite), null, Modifier.align(Alignment.Center).size((60 + 80 * hs).dp), tint = W.Pink.copy(alpha = hs))
@@ -262,8 +271,6 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                         }, tint = Color.White)
                     }
                     Spacer(Modifier.height(10.dp))
-                    var pos by remember { mutableLongStateOf(0L) }
-                    LaunchedEffect(page, meta?.id) { while (true) { pos = if (meta?.id == t.id) (pc?.player?.currentPosition ?: 0L) else 0L; delay(250) } }
                     val dur = ((if (meta?.id == t.id) pc?.player?.duration?.takeIf { it > 0 } else null) ?: (t.dur * 1000L)).coerceAtLeast(1)
                     WavySeek((pos.toFloat() / dur).coerceIn(0f, 1f), playing && meta?.id == t.id, Color.White, onSeekTo = { f -> pc?.seekTo((f * dur).toLong()) })
                     Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.padding(top = 4.dp).size(40.dp).clickable { pc?.player?.let { p -> if (p.isPlaying) p.pause() else p.play() } }, tint = Color.White)
