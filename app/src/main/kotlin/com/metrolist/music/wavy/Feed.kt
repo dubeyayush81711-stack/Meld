@@ -1,5 +1,6 @@
 package com.metrolist.music.wavy
 
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import android.content.Intent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -226,7 +227,7 @@ fun MusicFeed(pc: PlayerConnection?) {
                     val fr = dragF ?: (pos.toFloat() / dur).coerceIn(0f, 1f)
                     Box(Modifier.fillMaxWidth().height(24.dp).onSizeChanged { wpx = it.width.coerceAtLeast(1) }
                         .pointerInput(dur) { detectTapGestures { pc?.seekTo(((it.x / wpx).coerceIn(0f, 1f) * dur).toLong()) } }
-                        .pointerInput(dur) { androidx.compose.foundation.gestures.detectHorizontalDragGestures(onDragStart = { dragF = (it.x / wpx).coerceIn(0f, 1f) }, onDragEnd = { dragF?.let { f -> pc?.seekTo((f * dur).toLong()) }; dragF = null }, onDragCancel = { dragF = null }) { c, _ -> dragF = (c.position.x / wpx).coerceIn(0f, 1f) } },
+                        .pointerInput(dur) { detectHorizontalDragGestures(onDragStart = { dragF = (it.x / wpx).coerceIn(0f, 1f) }, onDragEnd = { dragF?.let { f -> pc?.seekTo((f * dur).toLong()) }; dragF = null }, onDragCancel = { dragF = null }) { c, _ -> dragF = (c.position.x / wpx).coerceIn(0f, 1f) } },
                         contentAlignment = Alignment.CenterStart) {
                         Box(Modifier.fillMaxWidth().height(3.dp).background(Color(0x55FFFFFF)))
                         Box(Modifier.fillMaxWidth(fr).height(3.dp).background(Color.White))
