@@ -51,14 +51,17 @@ object WEq {
 
 @Composable
 private fun OptRow(icon: Int, title: String, sub: String? = null, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp).glass(RoundedCornerShape(18.dp), 0.8f).clickable(onClick = onClick).padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(painterResource(icon), null, Modifier.size(24.dp), tint = W.Pink)
-        Column(Modifier.padding(start = 18.dp)) {
-            Text(title, style = ts(17, FontWeight.SemiBold))
-            if (sub != null) Text(sub, style = ts(13, color = Color(0xFFC9C1D3)))
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 24.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(painterResource(icon), null, Modifier.size(24.dp), tint = Color(0xFFE9E4EE))
+        Column(Modifier.padding(start = 20.dp)) {
+            Text(title, style = ts(16, FontWeight.Medium))
+            if (sub != null) Text(sub, style = ts(12, color = Color(0xFF9F98AB)))
         }
     }
 }
+
+@Composable
+private fun OptDivider() { Box(Modifier.padding(horizontal = 24.dp, vertical = 4.dp).fillMaxWidth().height(1.dp).background(Color(0x1FFFFFFF))) }
 
 @Composable
 fun PlayerOptions(pc: PlayerConnection, onBoost: () -> Unit, onClose: () -> Unit) {
@@ -90,17 +93,20 @@ fun PlayerOptions(pc: PlayerConnection, onBoost: () -> Unit, onClose: () -> Unit
                     if (dst != null) { WDl.remove(ctx, t.id); Toast.makeText(ctx, "Removed from Downloads", Toast.LENGTH_SHORT).show() }
                     else Toast.makeText(ctx, "This song is not downloaded", Toast.LENGTH_SHORT).show()
                 }
+                OptDivider()
                 var three by remember { mutableStateOf(false) }
-                OptRow(R.drawable.graphic_eq, if (three) "3D music: on" else "3D music", "Surround effect, best with headphones") {
+                OptRow(R.drawable.graphic_eq, if (three) "3D music (on)" else "3D music", "Surround effect, best with headphones") {
                     val e = WEq.bind(pc)
                     if (e != null && WEq.vz == null) Toast.makeText(ctx, "3D effect is not supported on this phone", Toast.LENGTH_SHORT).show()
                     else { three = !three; try { WEq.vz?.setStrength((if (three) 1000 else 0).toShort()) } catch (_: Exception) {} }
                 }
+                OptDivider()
                 OptRow(R.drawable.radio, "Start radio", "Similar songs, same style") { playRadio(pc, t); onClose() }
                 OptRow(R.drawable.link, "Copy link") {
                     (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("link", "https://music.youtube.com/watch?v=${t.id}"))
                     Toast.makeText(ctx, "Link copied", Toast.LENGTH_SHORT).show()
                 }
+                OptDivider()
                 OptRow(R.drawable.equalizer, "Equalizer", "Bands, bass, surround, clear voice") { sub = "eq" }
                 OptRow(R.drawable.graphic_eq, "System equalizer", "Open Android's built-in equalizer") {
                     try {
