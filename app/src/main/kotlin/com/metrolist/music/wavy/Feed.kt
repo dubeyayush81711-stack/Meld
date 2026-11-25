@@ -129,6 +129,7 @@ fun MusicFeed(pc: PlayerConnection?) {
         return
     }
     var queueOwned by remember { mutableStateOf(false) }
+    var lastDriven by remember { mutableIntStateOf(-1) }
     val pager = rememberPagerState { tracks.size }
     LaunchedEffect(pager.settledPage, tracks.size) {
         if (tracks.size - pager.settledPage <= 5 && !loadingMore && feed.size < 200) {
@@ -137,7 +138,12 @@ fun MusicFeed(pc: PlayerConnection?) {
             loadingMore = false
         }
     }
-    LaunchedEffect(refreshN) { if (refreshN > 0) pager.scrollToPage(0) }
+    LaunchedEffect(refreshN) { if (refreshN > 0) { lastDriven = 0; pager.scrollToPage(0) } }
+    // when the song changes by itself (auto next, notification, screen off/on), the pager follows it; it never forces a song
+    LaunchedEffect(meta?.id) {
+        val idx = tracks.indexOfFirst { it.id == meta?.id }
+        if (idx >= 0 && idx != pager.currentPage && !pager.isScrollInProgress) { lastDriven = idx; pager.scrollToPage(idx) }
+    }
     var pull by remember { mutableFloatStateOf(0f) }
     val nsc = remember {
         object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
@@ -155,7 +161,9 @@ fun MusicFeed(pc: PlayerConnection?) {
     LaunchedEffect(pager.settledPage, pc != null) {
         if (pc == null) return@LaunchedEffect
         val cur = tracks[pager.settledPage]
-        if (meta?.id == cur.id) return@LaunchedEffect
+        if (meta?.id == cur.id) { lastDriven = pager.settledPage; return@LaunchedEffect }
+        if (lastDriven == pager.settledPage) return@LaunchedEffect
+        lastDriven = pager.settledPage
         if (queueOwned && pager.settledPage < pc.player.mediaItemCount && pc.player.getMediaItemAt(pager.settledPage).mediaId == cur.id) pc.player.seekTo(pager.settledPage, 0L).also { pc.player.play() }
         else { playTracks(pc, tracks, pager.settledPage, "Music"); queueOwned = true }
     }
