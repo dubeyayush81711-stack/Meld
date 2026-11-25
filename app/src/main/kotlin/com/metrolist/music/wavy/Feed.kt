@@ -64,44 +64,33 @@ class VideoBridge(val onTime: (Float) -> Unit, val onErr: (Int) -> Unit) {
     @JavascriptInterface fun onState(c: Int) {}
 }
 
-private class VCand(val url: String, val w: Int, val h: Int, val client: String, val ua: String)
-
 @Composable
 fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (String) -> Unit = {}) {
     val ctx = LocalContext.current
     var cands by remember(id) { mutableStateOf<List<VCand>>(emptyList()) }
     var idx by remember(id) { mutableIntStateOf(0) }
     var ready by remember(id) { mutableStateOf(false) }
+    var arOv by remember(id) { mutableFloatStateOf(0f) }
     LaunchedEffect(id) {
-        val out = ArrayList<VCand>(); val notes = ArrayList<String>()
-        val clients = listOf("IOS" to com.metrolist.innertube.models.YouTubeClient.IOS, "VR" to com.metrolist.innertube.models.YouTubeClient.ANDROID_VR_NO_AUTH)
-        for ((nm, c) in clients) {
-            val res = withContext(Dispatchers.IO) { com.metrolist.innertube.YouTube.player(id, null, c, null, null) }
-            val r = res.getOrNull()
-            if (r == null) { notes.add("$nm:${res.exceptionOrNull()?.javaClass?.simpleName ?: "null"}"); continue }
-            val sd = r.streamingData
-            if (sd == null) { notes.add("$nm:${r.playabilityStatus.status}"); continue }
-            val vids = (sd.adaptiveFormats).filter { it.url != null && it.width != null && it.mimeType.startsWith("video/mp4") }
-            // HD first: 720p, then 1080p, then lower
-            val order = vids.sortedBy { f -> val h = f.height ?: 0; when { h == 720 -> 0; h == 1080 -> 1; h in 481..719 -> 2; h in 360..480 -> 3; else -> 4 } }
-            order.take(3).forEach { f -> out.add(VCand(f.url!!, f.width!!, f.height ?: 360, nm, c.userAgent)) }
-            (sd.formats.orEmpty()).filter { it.url != null && it.width != null }.maxByOrNull { it.height ?: 0 }?.let { f -> out.add(VCand(f.url!!, f.width!!, f.height ?: 360, nm, c.userAgent)) }
-            if (vids.isEmpty()) notes.add("$nm:no-video-formats")
-        }
-        if (out.isEmpty()) onDiag("no stream (" + notes.joinToString(" ") + ")")
-        cands = out
+        val (list, why) = fetchVideoCandidates(id)
+        if (list.isEmpty()) onDiag(why)
+        cands = list
     }
     val cand = cands.getOrNull(idx) ?: return
     val ex = remember(cand.url) {
         androidx.media3.exoplayer.ExoPlayer.Builder(ctx).build().apply {
             volume = 0f
-            setMediaSource(androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(androidx.media3.datasource.DefaultHttpDataSource.Factory().setUserAgent(cand.ua).setAllowCrossProtocolRedirects(true)).createMediaSource(androidx.media3.common.MediaItem.fromUri(cand.url)))
+            val dsf = androidx.media3.datasource.DefaultHttpDataSource.Factory().setUserAgent(cand.ua).setAllowCrossProtocolRedirects(true)
+            val item = androidx.media3.common.MediaItem.fromUri(cand.url)
+            if (cand.hls) setMediaSource(androidx.media3.exoplayer.hls.HlsMediaSource.Factory(dsf).createMediaSource(item))
+            else setMediaSource(androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(dsf).createMediaSource(item))
             prepare()
         }
     }
     DisposableEffect(ex) {
         val l = object : androidx.media3.common.Player.Listener {
             override fun onRenderedFirstFrame() { ready = true; onDiag("") }
+            override fun onVideoSizeChanged(vs: androidx.media3.common.VideoSize) { if (vs.height > 0 && vs.width > 0) arOv = vs.width * vs.pixelWidthHeightRatio / vs.height }
             override fun onPlayerError(e: androidx.media3.common.PlaybackException) { onDiag("video err ${e.errorCodeName} ${cand.client} ${cand.h}p"); if (idx < cands.size - 1) idx++ }
         }
         ex.addListener(l)
@@ -118,7 +107,7 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
             delay(500)
         }
     }
-    val ar = cand.w.toFloat() / cand.h.coerceAtLeast(1)
+    val ar = if (arOv > 0f) arOv else cand.w.toFloat() / cand.h.coerceAtLeast(1)
     androidx.compose.foundation.layout.BoxWithConstraints(modifier.clipToBounds()) {
         val h = maxHeight
         AndroidView(modifier = Modifier.align(Alignment.Center).requiredSize(h * ar, h), factory = { c -> android.view.TextureView(c).also { ex.setVideoTextureView(it) } })
@@ -201,12 +190,23 @@ fun MusicFeed(pc: PlayerConnection?) {
             val bg by animateColorAsState(tint, tween(500), label = "fb")
             var diag by remember(t.id) { mutableStateOf("") }
             var burst by remember(t.id) { mutableIntStateOf(0) }
+            var flash by remember(t.id) { mutableIntStateOf(0) }
+            var flashN by remember(t.id) { mutableIntStateOf(0) }
+            LaunchedEffect(flashN) { if (flashN > 0) { delay(700); flash = 0 } }
             val hs by animateFloatAsState(if (burst > 0) 1f else 0f, tween(350), label = "h")
             LaunchedEffect(burst) { if (burst > 0) { delay(700); burst = 0 } }
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, Color(0xFF14080F), Color(0xFF0B0B0D))))
-                .pointerInput(t.id) { detectTapGestures(onDoubleTap = { if (!liked) { liked = true; scope.launch { likeTrack(t.id) } }; burst++ }) }) {
+                .pointerInput(t.id) { detectTapGestures(
+                    onTap = { pc?.player?.let { p -> if (p.isPlaying) p.pause() else p.play() }; flash = 1; flashN++ },
+                    onDoubleTap = { o ->
+                        val p = pc?.player
+                        if (o.x < size.width * 0.33f) { p?.seekTo((p.currentPosition - 10000).coerceAtLeast(0)); flash = 2; flashN++ }
+                        else if (o.x > size.width * 0.67f) { p?.seekTo(p.currentPosition + 10000); flash = 3; flashN++ }
+                        else { if (!liked) { liked = true; scope.launch { likeTrack(t.id) } }; burst++ }
+                    }) }) {
                 AsyncImage(t.cover, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 if (page == pager.settledPage) StreamVideo(t.id, pc, Modifier.fillMaxSize()) { diag = it }
+                if (flash != 0) Text(when (flash) { 1 -> if (playing) "Playing" else "Paused"; 2 -> "-10s"; else -> "+10s" }, Modifier.align(when (flash) { 2 -> Alignment.CenterStart; 3 -> Alignment.CenterEnd; else -> Alignment.Center }).padding(horizontal = 40.dp).clip(RoundedCornerShape(50)).background(Color(0x88000000)).padding(horizontal = 18.dp, vertical = 10.dp), style = ts(18, FontWeight.SemiBold))
                 if (hs > 0.01f) Icon(painterResource(R.drawable.favorite), null, Modifier.align(Alignment.Center).size((60 + 80 * hs).dp), tint = W.Pink.copy(alpha = hs))
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x66000000), 0.25f to Color.Transparent, 0.6f to Color.Transparent, 1f to Color(0xCC000000))))
                 Column(Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 170.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -231,12 +231,6 @@ fun MusicFeed(pc: PlayerConnection?) {
                         contentAlignment = Alignment.CenterStart) {
                         Box(Modifier.fillMaxWidth().height(3.dp).background(Color(0x55FFFFFF)))
                         Box(Modifier.fillMaxWidth(fr).height(3.dp).background(Color.White))
-                    }
-                    Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                        Icon(painterResource(R.drawable.skip_previous), null, Modifier.size(40.dp).clickable { scope.launch { pager.animateScrollToPage((pager.currentPage - 1).coerceAtLeast(0)) } }, tint = Color.White)
-                        Box(Modifier.padding(horizontal = 26.dp).size(56.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color.White).clickable { pc?.player?.let { if (it.isPlaying) it.pause() else it.play() } }, contentAlignment = Alignment.Center) {
-                            Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(30.dp), tint = Color.Black) }
-                        Icon(painterResource(R.drawable.skip_next), null, Modifier.size(40.dp).clickable { scope.launch { pager.animateScrollToPage((pager.currentPage + 1).coerceAtMost(tracks.size - 1)) } }, tint = Color.White)
                     }
                     if (diag.isNotEmpty()) Text(diag, Modifier.padding(top = 4.dp), style = ts(11, color = Color(0xFFFFB4C8)))
                 }
