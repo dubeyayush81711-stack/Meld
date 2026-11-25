@@ -20,7 +20,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -149,7 +149,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
 
 @Composable
 fun NavBar(sel: Int, haze: dev.chrisbanes.haze.HazeState? = null, onSel: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth().then(if (haze != null) Modifier.hazeEffect(haze) { blurRadius = 24.dp } else Modifier).background(GlassBar).navigationBarsPadding().padding(top = 10.dp, bottom = 8.dp)) {
+    Row(Modifier.fillMaxWidth().then(if (haze != null) Modifier.hazeBlur(input = dev.chrisbanes.haze.HazeInput.Sources(haze), style = dev.chrisbanes.haze.blur.HazeBlurStyle { blurRadius(24.dp) }) else Modifier).background(GlassBar).navigationBarsPadding().padding(top = 10.dp, bottom = 8.dp)) {
         tabs.forEachIndexed { i, (name, icon) ->
             val on = i == sel
             val col by animateColorAsState(if (on) W.Pink else Color(0xFFBDB8C4), tween(200), label = "c")

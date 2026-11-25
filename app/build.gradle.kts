@@ -293,6 +293,7 @@ dependencies {
 
     implementation(libs.coil)
     implementation("dev.chrisbanes.haze:haze:2.1.0")
+    implementation("dev.chrisbanes.haze:haze-blur:2.1.0")
     implementation(libs.coil.network.okhttp)
     implementation(libs.browser)
 

@@ -40,7 +40,7 @@ suspend fun meldTyped(q: String, name: String): SPage = withContext(Dispatchers.
     typeCache[key]?.let { return@withContext it }
     val f = filterOf(name) ?: return@withContext SPage(emptyList(), null)
     val r = YouTube.search(q, f).getOrNull() ?: return@withContext SPage(emptyList(), null)
-    val p = SPage(r.items.distinctBy { it.id }, r.continuation)
+    val p = SPage(rankTyped(q, r.items.distinctBy { it.id }), r.continuation)
     if (p.items.isNotEmpty()) typeCache[key] = p
     p
 }
@@ -68,4 +68,24 @@ fun playItem(pc: PlayerConnection?, it: YTItem) {
         is YPlaylist -> pc.playQueue(YouTubeQueue(it.playEndpoint ?: WatchEndpoint(playlistId = it.id)))
         else -> {}
     }
+}
+
+private fun fold(x: String) = java.text.Normalizer.normalize(x.lowercase(), java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "").replace(Regex("\\s+"), " ").trim()
+
+/** Same idea Spotifeur uses: how closely the title matches what was typed (65%), plus the rank YouTube Music gave it (35%). */
+fun rankTyped(q: String, items: List<YTItem>): List<YTItem> {
+    val want = fold(q); if (want.isEmpty()) return items
+    val words = want.split(' ')
+    fun rel(x: YTItem): Double {
+        val t = fold(x.title)
+        val all = t + " " + fold(x.sub())
+        return when {
+            t == want -> 1.0
+            t.startsWith(want) -> 0.9
+            words.all { t.contains(it) } -> 0.8
+            words.all { all.contains(it) } -> 0.75
+            else -> 0.4 * words.count { all.contains(it) } / words.size
+        }
+    }
+    return items.withIndex().sortedByDescending { (i, x) -> rel(x) * 0.65 + 0.35 / (1 + i * 0.15) }.map { it.value }
 }
