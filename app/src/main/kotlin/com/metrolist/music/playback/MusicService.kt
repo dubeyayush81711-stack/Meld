@@ -757,7 +757,7 @@ class MusicService :
                     PendingIntent.getActivity(
                         this,
                         0,
-                        Intent(this, MainActivity::class.java),
+                        Intent(this, com.metrolist.music.wavy.WavyActivity::class.java),
                         PendingIntent.FLAG_IMMUTABLE,
                     ),
                 ).setBitmapLoader(CoilBitmapLoader(this, scope))
@@ -5106,7 +5106,7 @@ class MusicService :
             PendingIntent.getActivity(
                 this,
                 0,
-                Intent(this, MainActivity::class.java),
+                Intent(this, com.metrolist.music.wavy.WavyActivity::class.java),
                 PendingIntent.FLAG_IMMUTABLE,
             )
         return NotificationCompat
@@ -5353,7 +5353,7 @@ class MusicService :
     }
 
     private fun openPlaylistWidgetTarget(source: Intent) {
-        val activityIntent = Intent(this, MainActivity::class.java).apply {
+        val activityIntent = Intent(this, com.metrolist.music.wavy.WavyActivity::class.java).apply {
             action = MainActivity.ACTION_OPEN_WIDGET_TARGET
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(

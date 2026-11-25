@@ -45,7 +45,7 @@ class WavyActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        Api.init(this)
+        Api.init(this); S.init(this)
         setContent { WavyApp(pc) }
     }
 

@@ -36,7 +36,7 @@ class RecognitionLaunchActivity : Activity() {
 
     private fun openRecognitionPermissionFlow() {
         val intent =
-            Intent(this, MainActivity::class.java).apply {
+            Intent(this, com.metrolist.music.wavy.WavyActivity::class.java).apply {
                 action = MainActivity.ACTION_RECOGNITION
                 putExtra(MainActivity.EXTRA_AUTO_START_RECOGNITION, true)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP

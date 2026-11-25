@@ -112,7 +112,7 @@ class PlaylistWidgetReceiver : AppWidgetProvider() {
     }
 
     private fun openTargetInApp(context: Context, source: Intent) {
-        val activityIntent = Intent(context, MainActivity::class.java).apply {
+        val activityIntent = Intent(context, com.metrolist.music.wavy.WavyActivity::class.java).apply {
             action = MainActivity.ACTION_OPEN_WIDGET_TARGET
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(

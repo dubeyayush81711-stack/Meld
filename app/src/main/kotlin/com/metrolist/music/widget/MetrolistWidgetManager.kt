@@ -393,7 +393,7 @@ class MetrolistWidgetManager @Inject constructor(
         PendingIntent.getActivity(
             context,
             0,
-            Intent(context, MainActivity::class.java),
+            Intent(context, com.metrolist.music.wavy.WavyActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }

@@ -114,6 +114,8 @@ object Api {
 
     private fun parse(s: String): Any? {
         val t = s.trim(); if (t.isEmpty() || t == "null") return null
+        if (t == "true") return true
+        if (t == "false") return false
         return if (t.startsWith("[")) JSONArray(t) else if (t.startsWith("{")) JSONObject(t) else null
     }
 }
@@ -142,4 +144,26 @@ fun parseFeed(j: JSONObject): Feed {
             s.optJSONArray("tracks").tracks(), albs, s.optJSONArray("artists").artistItems())
     }
     return Feed(secs, if (j.isNull("favourites_playlist_id")) null else j.optLong("favourites_playlist_id"))
+}
+
+/** Server-side flag (once per account). A failed network call must never throw the user back to the picker. */
+suspend fun onboardingDone(): Boolean {
+    val flag = "onb_" + (Api.uid ?: "")
+    if (S.b(flag)) return true
+    val r = Api.rpc("onboarding_done")
+    val done = r == true || r?.toString() == "true"
+    if (done) S.put(flag, true)
+    return done
+}
+
+fun humanErr(e: Exception): String {
+    val m = (e.message ?: "").lowercase()
+    return when {
+        "row-level security" in m || "not allowed" in m -> "This account is not allowed yet. Ask Ayush to add your email."
+        "at least 3" in m -> "Pick at least 3 artists."
+        "network" in m || "unable to resolve" in m || "timeout" in m || "failed to connect" in m -> "No connection. Check your internet and try again."
+        "invalid login" in m || "invalid_credentials" in m -> "Wrong email or password."
+        "already registered" in m || "already been registered" in m -> "This email already has an account. Sign in instead."
+        else -> "Something went wrong. Please try again."
+    }
 }

@@ -128,7 +128,7 @@ fun LoginScreen(onDone: (needsPicker: Boolean) -> Unit) {
                 Spacer(Modifier.weight(1f))
                 Text("Forgot password?", Modifier.clickable {
                     if (email.isBlank()) { err = "Enter your email first." } else scope.launch {
-                        try { Api.recover(email); Toast.makeText(ctx, "If this email has an account, a reset link was sent.", Toast.LENGTH_LONG).show() } catch (e: ApiError) { err = e.message }
+                        try { Api.recover(email); Toast.makeText(ctx, "If this email has an account, a reset link was sent.", Toast.LENGTH_LONG).show() } catch (e: ApiError) { err = humanErr(e) }
                     }
                 }, style = ts(13, color = Color(0xCCFFFFFF)))
             }
@@ -140,10 +140,8 @@ fun LoginScreen(onDone: (needsPicker: Boolean) -> Unit) {
                 scope.launch {
                     try {
                         if (signup) Api.signUp(email, pw) else Api.signIn(email, pw)
-                        val prefs = Api.get("user_prefs?select=onboarded") as? JSONArray
-                        val done = prefs != null && prefs.length() > 0 && prefs.getJSONObject(0).optBoolean("onboarded")
-                        onDone(!done)
-                    } catch (e: ApiError) { err = e.message; busy = false }
+                        onDone(!onboardingDone())
+                    } catch (e: ApiError) { err = humanErr(e); busy = false }
                 }
             }, contentAlignment = Alignment.Center) { Text(if (busy) "Please wait..." else if (signup) "Create account" else "Sign in", style = ts(17, FontWeight.Medium)) }
             Spacer(Modifier.height(30.dp))
@@ -177,7 +175,7 @@ fun ArtistPicker(onDone: () -> Unit) {
     LaunchedEffect(q, limit) {
         if (q.isNotEmpty()) delay(300)
         try { artists = (Api.rpc("search_artists", JSONObject().put("p_q", q).put("p_limit", if (q.isEmpty()) limit else 60)) as? JSONArray).artistItems() }
-        catch (e: ApiError) { err = e.message }
+        catch (e: ApiError) { err = humanErr(e) }
     }
     Backdrop(streaks = false, tint = Color(0xFF3A1060)) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
@@ -224,10 +222,9 @@ fun ArtistPicker(onDone: () -> Unit) {
                     busy = true; err = null
                     scope.launch {
                         try {
-                            val rows = JSONArray(); picked.forEach { rows.put(JSONObject().put("user_id", Api.uid).put("artist_id", it)) }
-                            Api.post("user_artists", rows, upsert = true)
-                            Api.rpc("complete_onboarding"); onDone()
-                        } catch (e: ApiError) { err = e.message; busy = false }
+                            val ids = JSONArray(); picked.forEach { ids.put(it) }
+                            Api.rpc("save_artists", JSONObject().put("p_ids", ids)); onDone()
+                        } catch (e: ApiError) { err = humanErr(e); busy = false }
                     }
                 }.padding(horizontal = 64.dp, vertical = 16.dp)) {
                     Text(if (ready) "Next" else "Pick ${3 - picked.size} more", style = ts(20, FontWeight.Bold, Color.Black))

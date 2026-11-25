@@ -81,7 +81,7 @@ fun MusicFeed(pc: PlayerConnection?) {
     val first = remember { meta?.let { m -> Track(m.id, m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, m.duration, m.artists.firstOrNull()?.id, m.album?.title) } }
     LaunchedEffect(Unit) {
         try { feed = (Api.rpc("player_feed", JSONObject().put("p_limit", 40).put("p_offset", 0).put("p_region", "IN").put("p_seed", seed)) as? JSONArray).tracks() }
-        catch (e: ApiError) { err = e.message }
+        catch (e: ApiError) { err = humanErr(e) }
     }
     val tracks = remember(feed) { (listOfNotNull(first) + feed.filter { it.id != first?.id }) }
     if (tracks.isEmpty()) {

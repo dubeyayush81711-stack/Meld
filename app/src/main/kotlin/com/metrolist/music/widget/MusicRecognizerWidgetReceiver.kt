@@ -114,7 +114,7 @@ class MusicRecognizerWidgetReceiver : AppWidgetProvider() {
         // No mic permission → open the app so the user can grant it
         if (!MusicRecognitionService.hasRecordPermission(context)) {
             context.startActivity(
-                Intent(context, MainActivity::class.java).apply {
+                Intent(context, com.metrolist.music.wavy.WavyActivity::class.java).apply {
                     action = MainActivity.ACTION_RECOGNITION
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
@@ -326,7 +326,7 @@ class MusicRecognizerWidgetReceiver : AppWidgetProvider() {
     private fun getInfoAreaIntent(context: Context): PendingIntent =
         PendingIntent.getActivity(
             context, 21,
-            Intent(context, MainActivity::class.java).apply {
+            Intent(context, com.metrolist.music.wavy.WavyActivity::class.java).apply {
                 action = MainActivity.ACTION_RECOGNITION
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             },

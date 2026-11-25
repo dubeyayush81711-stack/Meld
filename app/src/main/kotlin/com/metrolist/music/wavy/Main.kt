@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.widget.Toast
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -51,9 +52,8 @@ fun WavyApp(pc: PlayerConnection?) {
     LaunchedEffect(Unit) {
         delay(1500)
         stage = if (!Api.signedIn) "welcome" else try {
-            val p = Api.get("user_prefs?select=onboarded") as? JSONArray
-            if (p != null && p.length() > 0 && p.getJSONObject(0).optBoolean("onboarded")) "main" else "picker"
-        } catch (e: ApiError) { if (Api.signedIn) "main" else "welcome" }
+            if (onboardingDone()) "main" else "picker"
+        } catch (e: Exception) { if (Api.signedIn) "main" else "welcome" }
     }
     Box(Modifier.fillMaxSize().background(W.Bg)) {
         AnimatedContent(stage, transitionSpec = { (fadeIn(tween(450)) + slideInVertically(tween(450)) { it / 14 }) togetherWith fadeOut(tween(250)) }, label = "stage") { s ->
@@ -126,7 +126,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         }
         Column(Modifier.align(Alignment.BottomCenter)) {
             if (meta != null && pc != null && tab != 2) MiniPlayer(pc) { full = true }
-            NavBar(tab) { tab = it }
+            NavBar(tab) { page = null; full = false; tab = it }
         }
         AnimatedVisibility(full && pc != null, enter = slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(200)),
             exit = slideOutVertically(tween(300)) { it } + fadeOut(tween(200))) {
@@ -192,7 +192,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
             feed = parseFeed(Api.rpc("home_feed") as JSONObject)
             val p = Api.get("profiles?id=eq.${Api.uid}&select=name") as? JSONArray
             name = p?.optJSONObject(0)?.optString("name").orEmpty().ifBlank { Api.email.substringBefore("@") }
-        } catch (e: ApiError) { err = e.message } catch (e: Exception) { err = "Something went wrong." }
+        } catch (e: ApiError) { err = humanErr(e) } catch (e: Exception) { err = "Something went wrong." }
     }
     val st = rememberLazyListState()
     val shift = if (st.firstVisibleItemIndex == 0) st.firstVisibleItemScrollOffset else 4000
@@ -314,6 +314,10 @@ fun MiniCard(cover: String?, title: String, sub: String, onClick: () -> Unit) {
 @Composable
 fun TrackRow(t: Track, pc: PlayerConnection?, onPlay: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
+    var pick by remember { mutableStateOf(false) }
+    var pls by remember { mutableStateOf<List<Pair<Long, String>>>(emptyList()) }
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     Row(Modifier.fillMaxWidth().clickable(onClick = onPlay).padding(horizontal = 20.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
         Cover(t.cover, 62.dp, 8)
         Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
@@ -321,10 +325,37 @@ fun TrackRow(t: Track, pc: PlayerConnection?, onPlay: () -> Unit) {
             Text(t.artist, style = ts(14, color = Color(0xFFB9B2C4)), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Box {
-            Icon(painterResource(R.drawable.more_vert), null, Modifier.size(30.dp).clip(CircleShape).clickable { menu = true }.padding(3.dp), tint = Color(0xFFB9B2C4))
+            Icon(painterResource(R.drawable.more_vert), null, Modifier.size(34.dp).clip(CircleShape).clickable { menu = true }.padding(4.dp), tint = Color(0xFFB9B2C4))
             DropdownMenu(menu, { menu = false }) {
                 DropdownMenuItem(text = { Text("Play next") }, onClick = { menu = false; pc?.playNext(t.toMeta().toMediaItem()) })
                 DropdownMenuItem(text = { Text("Add to queue") }, onClick = { menu = false; pc?.addToQueue(t.toMeta().toMediaItem()) })
+                DropdownMenuItem(text = { Text("Add to playlist") }, onClick = {
+                    menu = false; pick = true
+                    scope.launch {
+                        try {
+                            val a = (Api.rpc("profile_stats") as? JSONObject)?.optJSONArray("playlists")
+                            pls = (0 until (a?.length() ?: 0)).map { a!!.getJSONObject(it) }.filter { !it.optBoolean("is_favourite") }.map { it.optLong("id") to it.optString("name") }
+                        } catch (e: Exception) { }
+                    }
+                })
+                DropdownMenuItem(text = { Text("Like") }, onClick = { menu = false; scope.launch { Toast.makeText(ctx, if (likeTrack(t.id)) "Added to Favourites" else "Could not add. Try again.", Toast.LENGTH_SHORT).show() } })
+                DropdownMenuItem(text = { Text("Share") }, onClick = {
+                    menu = false
+                    ctx.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
+                        .putExtra(android.content.Intent.EXTRA_TEXT, "${t.title} - ${t.artist}\nhttps://music.youtube.com/watch?v=${t.id}"), "Share").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                })
+            }
+            DropdownMenu(pick, { pick = false }) {
+                if (pls.isEmpty()) DropdownMenuItem(text = { Text("No playlists yet") }, onClick = { pick = false })
+                pls.forEach { (id, name) ->
+                    DropdownMenuItem(text = { Text(name) }, onClick = {
+                        pick = false
+                        scope.launch {
+                            val ok = try { Api.post("playlist_tracks", JSONObject().put("playlist_id", id).put("track_id", t.id).put("position", (System.currentTimeMillis() / 1000).toInt()).put("added_by", Api.uid)); true } catch (e: Exception) { false }
+                            Toast.makeText(ctx, if (ok) "Added to $name" else "Could not add. Try again.", Toast.LENGTH_SHORT).show()
+                        }
+                    })
+                }
             }
         }
     }

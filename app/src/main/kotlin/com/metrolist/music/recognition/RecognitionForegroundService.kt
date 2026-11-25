@@ -126,7 +126,7 @@ class RecognitionForegroundService : Service() {
                 PendingIntent.getActivity(
                     this,
                     0,
-                    Intent(this, MainActivity::class.java),
+                    Intent(this, com.metrolist.music.wavy.WavyActivity::class.java),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 )
             } else {
@@ -490,7 +490,7 @@ class RecognitionForegroundService : Service() {
         PendingIntent.getActivity(
             this,
             RESULT_PENDING_INTENT_REQUEST_CODE,
-            Intent(this, MainActivity::class.java).apply {
+            Intent(this, com.metrolist.music.wavy.WavyActivity::class.java).apply {
                 action = MainActivity.ACTION_RECOGNITION
                 putExtra(EXTRA_RECOGNITION_TRACK_ID, result.trackId)
                 putExtra(EXTRA_RECOGNITION_TITLE, result.title)

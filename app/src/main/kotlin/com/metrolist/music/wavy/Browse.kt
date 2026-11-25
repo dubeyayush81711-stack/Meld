@@ -63,7 +63,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     LaunchedEffect(q) {
         if (q.trim().length < 2) { res = null; return@LaunchedEffect }
         delay(350); err = null
-        try { res = Api.rpc("search_all", JSONObject().put("p_q", q.trim()).put("p_limit", 30)) as? JSONObject } catch (e: ApiError) { err = e.message }
+        try { res = Api.rpc("search_all", JSONObject().put("p_q", q.trim()).put("p_limit", 30)) as? JSONObject } catch (e: ApiError) { err = humanErr(e) }
     }
     val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val playing by (pc?.isPlaying ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }).collectAsState()
@@ -171,7 +171,7 @@ fun BackBar(title: String, onBack: () -> Unit) {
 fun TrackListScreen(title: String, pc: PlayerConnection?, onBack: () -> Unit, load: suspend () -> List<Track>) {
     var list by remember { mutableStateOf<List<Track>?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(Unit) { try { list = load() } catch (e: ApiError) { err = e.message } }
+    LaunchedEffect(Unit) { try { list = load() } catch (e: ApiError) { err = humanErr(e) } }
     Backdrop(tint = Color(0xFF2B0B3A)) {
         Column(Modifier.fillMaxSize()) {
             BackBar(title, onBack)
