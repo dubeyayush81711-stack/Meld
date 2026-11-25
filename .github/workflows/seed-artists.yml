@@ -1,0 +1,32 @@
+name: Seed artist catalog
+on:
+  schedule:
+    - cron: "0 */3 * * *"   # every 3 hours: top up artists users picked that have too few songs
+  workflow_dispatch:
+    inputs:
+      names:
+        description: "Comma-separated artist names to seed (leave empty to only top up picked artists)"
+        required: false
+        default: ""
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Seed named artists
+        if: ${{ github.event.inputs.names != '' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+          NAMES: ${{ github.event.inputs.names }}
+        run: |
+          cd backend/refresh
+          IFS=',' read -ra A <<< "$NAMES"
+          python3 seed_artists.py --seed "${A[@]}"
+      - name: Top up picked artists
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+        run: cd backend/refresh && python3 seed_artists.py --missing
