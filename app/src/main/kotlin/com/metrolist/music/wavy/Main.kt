@@ -97,7 +97,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         Box(Modifier.fillMaxSize()) {
             AnimatedContent(tab, transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(160)) }, label = "tab") { t ->
                 when (t) {
-                    0 -> HomeScreen(pc, onSearch = { tab = 1 }, onSignOut = onSignOut, onProfile = { page = "profile" }, onParty = { page = "party" }, onSettings = { page = "set:hub" })
+                    0 -> HomeScreen(pc, onSearch = { tab = 1 }, onSignOut = onSignOut, onProfile = { page = "profile" }, onParty = { page = "party" }, onSettings = { page = "set:hub" }, onPlaylist = { id, n -> page = "pl:$id:$n" })
                     1 -> SearchScreen(pc, onLang = { l -> page = "lang:" + l.lang + ":" + l.title }, onProfile = { page = "profile" }, initial = "")
                     2 -> MusicFeed(pc)
                     3 -> LibraryScreen(pc, onProfile = { page = "profile" }, onPlaylist = { id, n -> page = "pl:$id:$n" }, onAddArtists = { page = "picker" })
@@ -186,7 +186,7 @@ fun Cover(url: String?, size: androidx.compose.ui.unit.Dp, radius: Int = 10, mod
 }
 
 @Composable
-fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Unit, onProfile: () -> Unit, onParty: () -> Unit = {}, onSettings: () -> Unit = {}) {
+fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Unit, onProfile: () -> Unit, onParty: () -> Unit = {}, onSettings: () -> Unit = {}, onPlaylist: (Long, String) -> Unit = { _, _ -> }) {
     var feed by remember { mutableStateOf<Feed?>(null) }
     var name by remember { mutableStateOf("") }
     var err by remember { mutableStateOf<String?>(null) }
@@ -198,6 +198,19 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
             val p = Api.get("profiles?id=eq.${Api.uid}&select=name") as? JSONArray
             name = p?.optJSONObject(0)?.optString("name").orEmpty().ifBlank { Api.email.substringBefore("@") }
         } catch (e: ApiError) { err = humanErr(e) } catch (e: Exception) { err = "Something went wrong." }
+    }
+    var cat by remember { mutableStateOf("All") }
+    var tiles by remember { mutableStateOf<List<Triple<Long, String, String?>>>(emptyList()) }
+    var chill by remember { mutableStateOf<List<Track>>(emptyList()) }
+    LaunchedEffect(reload) {
+        try {
+            val a = (Api.rpc("profile_stats") as? JSONObject)?.optJSONArray("playlists")
+            tiles = (0 until (a?.length() ?: 0)).map { a!!.getJSONObject(it) }.filter { !it.optBoolean("is_favourite") }
+                .map { Triple(it.getLong("id"), it.optString("name"), if (it.isNull("cover_url")) null else it.optString("cover_url")) }
+        } catch (e: Exception) { }
+    }
+    LaunchedEffect(cat) {
+        if (cat == "Chill" && chill.isEmpty()) try { chill = (Api.rpc("search_all", JSONObject().put("p_q", "chill").put("p_limit", 30)) as? JSONObject)?.optJSONArray("songs").tracks() } catch (e: Exception) { }
     }
     val st = rememberLazyListState()
     val shift = if (st.firstVisibleItemIndex == 0) st.firstVisibleItemScrollOffset else 4000
@@ -215,20 +228,79 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                             Icon(painterResource(ic), null, Modifier.size(22.dp), tint = Color.White) }
                     }
                 }
-                Row(Modifier.padding(start = 20.dp, top = 44.dp, bottom = 40.dp)) {
-                    Text("Hey, ", style = ts(34, color = Color(0xFFCFC8D9))); Text(name, style = ts(34, FontWeight.Medium))
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    listOf("All", "Music", "Chill", "Podcasts").forEach { c ->
+                        Text(c, Modifier.glass(RoundedCornerShape(50), if (c == cat) 2.2f else 1f).clickable { cat = c }.padding(horizontal = 20.dp, vertical = 9.dp), style = ts(14, if (c == cat) FontWeight.SemiBold else FontWeight.Medium))
+                    }
+                }
+                val shortName = name.trim().substringBefore(' ').trimEnd { it.isDigit() }.ifEmpty { name.take(12) }.take(14).replaceFirstChar { it.uppercase() }
+                Row(Modifier.padding(start = 20.dp, top = 30.dp, bottom = 26.dp)) {
+                    Text("Hey, ", style = ts(34, color = Color(0xFFCFC8D9))); Text(shortName, style = ts(34, FontWeight.Medium), maxLines = 1)
                 }
             }
-            if (f == null) item {
-                Box(Modifier.fillMaxWidth().padding(60.dp), contentAlignment = Alignment.Center) {
-                    if (err != null) Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(err!!, style = ts(14, color = W.Dim)); Spacer(Modifier.height(12.dp))
-                        Text("Try again", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { reload++ }.padding(20.dp, 10.dp), style = ts(14, FontWeight.SemiBold))
-                    } else Text("Loading...", style = ts(14, color = W.Dim))
+            if (cat == "Podcasts") item {
+                Text("Podcasts are not available yet. Music is what Wavy plays for now.", Modifier.padding(horizontal = 28.dp, vertical = 40.dp), style = ts(15, color = W.Dim))
+            } else if (cat == "Chill") item {
+                Column {
+                    Text("Chill", Modifier.padding(start = 20.dp, bottom = 12.dp), style = ts(24, FontWeight.SemiBold))
+                    if (chill.isEmpty()) Text("Loading...", Modifier.padding(24.dp), style = ts(14, color = W.Dim))
+                    chill.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, chill, i, "Chill") } }
                 }
-            } else feedItems(f, pc)
+            } else {
+                if (cat == "All" && f != null) item { QuickTiles(f.favouritesId, tiles, onPlaylist) }
+                if (f != null) item { Hero(f, pc) }
+                if (f == null) item {
+                    Box(Modifier.fillMaxWidth().padding(60.dp), contentAlignment = Alignment.Center) {
+                        if (err != null) Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(err!!, style = ts(14, color = W.Dim)); Spacer(Modifier.height(12.dp))
+                            Text("Try again", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { reload++ }.padding(20.dp, 10.dp), style = ts(14, FontWeight.SemiBold))
+                        } else Text("Loading...", style = ts(14, color = W.Dim))
+                    }
+                } else feedItems(f, pc)
+            }
         }
     }
+}
+
+@Composable
+fun QuickTiles(favId: Long?, tiles: List<Triple<Long, String, String?>>, onPlaylist: (Long, String) -> Unit) {
+    val all = buildList { if (favId != null) add(Triple(favId, "Liked Songs", null as String?)); addAll(tiles) }.take(6)
+    if (all.isEmpty()) return
+    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        all.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                pair.forEach { (id, n, cover) ->
+                    Row(Modifier.weight(1f).height(64.dp).glass(RoundedCornerShape(20.dp)).clickable { onPlaylist(id, if (n == "Liked Songs") "Favourites" else n) }, verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(64.dp).background(W.Grad), contentAlignment = Alignment.Center) {
+                            if (cover != null) Cover(cover, 64.dp, 0)
+                            else Icon(painterResource(if (n == "Liked Songs") R.drawable.favorite else R.drawable.library_music), null, Modifier.size(26.dp), tint = Color.White)
+                        }
+                        Text(n, Modifier.padding(horizontal = 12.dp), style = ts(14, FontWeight.SemiBold), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+    Spacer(Modifier.height(24.dp))
+}
+
+@Composable
+fun Hero(f: Feed, pc: PlayerConnection?) {
+    val s = f.sections.firstOrNull { it.type == "made_for_you" && it.tracks.isNotEmpty() } ?: f.sections.firstOrNull { it.type == "trending" && it.tracks.isNotEmpty() } ?: return
+    Column(Modifier.padding(horizontal = 16.dp)) {
+        Text("Picked For You", Modifier.padding(bottom = 10.dp), style = ts(20, FontWeight.Bold))
+        Row(Modifier.fillMaxWidth().glass(RoundedCornerShape(26.dp)).clickable { playTracks(pc, s.tracks, 0, s.title) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Cover(s.tracks.first().cover ?: s.cover, 96.dp, 18)
+            Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                Text("Playlist", Modifier.glass(RoundedCornerShape(50)).padding(horizontal = 9.dp, vertical = 2.dp), style = ts(10, FontWeight.SemiBold, Color(0xFFFFD6E4)))
+                Text(s.title, Modifier.padding(top = 6.dp), style = ts(16, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(s.tracks.take(3).joinToString(", ") { it.artist }, style = ts(12, color = Color(0xFFB9B2C4)), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            Box(Modifier.size(44.dp).glass(CircleShape, 2.2f), contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.play), null, Modifier.size(24.dp), tint = Color.White) }
+        }
+    }
+    Spacer(Modifier.height(26.dp))
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc: PlayerConnection?) {

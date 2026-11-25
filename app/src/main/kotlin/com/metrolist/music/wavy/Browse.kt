@@ -234,19 +234,17 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                 listOf("Playlists", "Artists", "Downloads").forEach { c -> Text(c, Modifier.clip(RoundedCornerShape(50)).background(if (c == chip) W.Pink else Color(0x2EFFFFFF)).clickable { chip = c }.padding(horizontal = 20.dp, vertical = 10.dp), style = ts(15, FontWeight.Medium)) }
             }
             Spacer(Modifier.height(14.dp)) }
-            if (chip == "Downloads") {
+            if (chip == "Downloads") col {
                 val dls by (WDl.util?.downloads ?: kotlinx.coroutines.flow.MutableStateFlow(emptyMap())).collectAsState()
                 val ids = WDl.doneIds(dls)
                 val tl = remember(ids) { ids.mapNotNull { WDl.toTrack(it) } }
-                col {
-                    if (tl.isEmpty()) Text("Download songs with the arrow on any song. They play offline.", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
-                    else {
-                        Row(Modifier.padding(20.dp, 4.dp, 20.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("${tl.size} downloaded", Modifier.weight(1f), style = ts(14, color = W.Dim))
-                            Text("Play all", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { playTracks(pc, tl, 0, "Downloads") }.padding(20.dp, 9.dp), style = ts(14, FontWeight.SemiBold))
-                        }
-                        tl.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, tl, i, "Downloads") } }
+                if (tl.isEmpty()) Text("Download songs with the arrow on any song. They play offline.", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
+                else {
+                    Row(Modifier.padding(20.dp, 4.dp, 20.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("${tl.size} downloaded", Modifier.weight(1f), style = ts(14, color = W.Dim))
+                        Text("Play all", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { playTracks(pc, tl, 0, "Downloads") }.padding(20.dp, 9.dp), style = ts(14, FontWeight.SemiBold))
                     }
+                    tl.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, tl, i, "Downloads") } }
                 }
             } else if (chip == "Playlists") {
                 lists.forEach { (id, name, cover) -> col {

@@ -18,6 +18,9 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.runtime.getValue
 import com.metrolist.music.R
 
 object W {
