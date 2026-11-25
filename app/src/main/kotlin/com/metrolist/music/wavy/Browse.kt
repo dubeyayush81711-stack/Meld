@@ -190,6 +190,7 @@ fun TrackListScreen(title: String, pc: PlayerConnection?, onBack: () -> Unit, lo
             if (l == null) Text(err ?: "Loading...", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
             else if (l.isEmpty()) Text("Nothing here yet.", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
             else LazyColumn(contentPadding = PaddingValues(bottom = 190.dp)) {
+                if (title == "Favourites" && pc != null) col { FavPlayer(pc) }
                 col { Row(Modifier.padding(20.dp, 4.dp, 20.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("${l.size} songs", Modifier.weight(1f), style = ts(14, color = W.Dim))
                     Text("Play all", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { playTracks(pc, l, 0, title) }.padding(20.dp, 9.dp), style = ts(14, FontWeight.SemiBold)) } }
@@ -255,5 +256,32 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                 }
             }
         }
+    }
+}
+
+
+// Player strip shown on top of the Favourites page.
+@Composable
+fun FavPlayer(pc: PlayerConnection) {
+    val meta by pc.mediaMetadata.collectAsState()
+    val playing by pc.isPlaying.collectAsState()
+    var pos by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(meta?.id) { while (true) { pos = pc.player.currentPosition; kotlinx.coroutines.delay(500) } }
+    val m = meta ?: return
+    val dur = (pc.player.duration.takeIf { it > 0 } ?: (m.duration * 1000L)).coerceAtLeast(1)
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp).clip(RoundedCornerShape(18.dp)).background(Color(0x33FFFFFF)).padding(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            coil3.compose.AsyncImage(m.thumbnailUrl, null, Modifier.size(72.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(m.title, style = ts(18, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(m.artists.joinToString { it.name }, style = ts(14, color = W.Dim), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Icon(painterResource(R.drawable.skip_previous), null, Modifier.size(34.dp).clickable { pc.seekToPrevious() }, tint = Color.White)
+            Box(Modifier.padding(horizontal = 8.dp).size(48.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color.White).clickable { if (pc.player.isPlaying) pc.player.pause() else pc.player.play() }, contentAlignment = Alignment.Center) {
+                Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(26.dp), tint = Color.Black) }
+            Icon(painterResource(R.drawable.skip_next), null, Modifier.size(34.dp).clickable { pc.seekToNext() }, tint = Color.White)
+        }
+        Spacer(Modifier.height(10.dp))
+        Box(Modifier.fillMaxWidth().height(3.dp).background(Color(0x55FFFFFF))) { Box(Modifier.fillMaxWidth((pos.toFloat() / dur).coerceIn(0f, 1f)).fillMaxHeight().background(W.Pink)) }
     }
 }
