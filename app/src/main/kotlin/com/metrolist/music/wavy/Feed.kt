@@ -238,7 +238,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                     Box(Modifier.fillMaxSize().background(Color(0x66000000)))
                     if (page == pager.settledPage) StreamVideo(t.id, pc, Modifier.fillMaxSize()) { diag = it }
                 } else {
-                    AsyncImage(t.cover, null, Modifier.fillMaxWidth().aspectRatio(1f).align(Alignment.TopStart).padding(top = 190.dp), contentScale = ContentScale.Crop)
+                    AsyncImage(hiRes(t.cover), null, Modifier.fillMaxWidth().aspectRatio(1f).align(Alignment.TopStart).padding(top = 190.dp), contentScale = ContentScale.Crop)
                     Box(Modifier.fillMaxWidth().aspectRatio(1f).align(Alignment.TopStart).padding(top = 190.dp).background(Brush.verticalGradient(0f to bg, 0.22f to Color.Transparent, 0.75f to Color.Transparent, 1f to Color(0xFF0B0B0D))))
                 }
                 if (flash != 0) Text(when (flash) { 1 -> if (playing) "Playing" else "Paused"; 2 -> "-10s"; else -> "+10s" }, Modifier.align(when (flash) { 2 -> Alignment.CenterStart; 3 -> Alignment.CenterEnd; else -> Alignment.Center }).padding(horizontal = 40.dp).clip(RoundedCornerShape(50)).background(Color(0x88000000)).padding(horizontal = 18.dp, vertical = 10.dp), style = ts(18, FontWeight.SemiBold))

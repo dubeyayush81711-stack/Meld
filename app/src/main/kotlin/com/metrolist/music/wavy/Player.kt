@@ -89,7 +89,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             }
             Spacer(Modifier.height(10.dp))
             Box(Modifier.fillMaxWidth().glass(RoundedCornerShape(26.dp), 1f).padding(6.dp)) {
-                AsyncImage(m?.thumbnailUrl, null, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(20.dp)).background(W.Card), contentScale = ContentScale.Crop)
+                AsyncImage(hiRes(m?.thumbnailUrl), null, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(20.dp)).background(W.Card), contentScale = ContentScale.Crop)
             }
             Spacer(Modifier.height(26.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {

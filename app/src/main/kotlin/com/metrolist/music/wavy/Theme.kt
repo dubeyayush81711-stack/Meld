@@ -23,7 +23,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.runtime.getValue
 import com.metrolist.music.R
 
-const val WAVY_BUILD = "dev-18"
+const val WAVY_BUILD = "dev-19"
 
 object W {
     val Pink = Color(0xFFFF2D78)
@@ -81,4 +81,10 @@ fun Backdrop(modifier: Modifier = Modifier.fillMaxSize(), streaks: Boolean = tru
         }
         content()
     }
+}
+
+/** Highest-resolution square art: Google-hosted covers accept a size suffix, so ask for a large square. */
+fun hiRes(u: String?): String? {
+    if (u == null) return null
+    return if ((u.contains("googleusercontent.com") || u.contains("ggpht.com")) && u.contains("=")) u.substringBeforeLast("=") + "=w1024-h1024-l90-rj" else u
 }

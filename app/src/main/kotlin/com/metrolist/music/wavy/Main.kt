@@ -186,7 +186,7 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
     val tintA by androidx.compose.animation.animateColorAsState(tint, label = "tint")
     Column(Modifier.padding(horizontal = 12.dp).clip(RoundedCornerShape(22.dp)).background(tintA).clickable(onClick = onOpen)) {
         Row(Modifier.padding(start = 10.dp, end = 6.dp, top = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(m.thumbnailUrl, null, Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(W.Card), contentScale = ContentScale.Crop)
+            AsyncImage(hiRes(m.thumbnailUrl), null, Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(W.Card), contentScale = ContentScale.Crop)
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text(m.title, style = ts(16, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(m.artists.joinToString { it.name }, style = ts(13, color = Color(0xFFD6CCD3)), maxLines = 1, overflow = TextOverflow.Ellipsis)
