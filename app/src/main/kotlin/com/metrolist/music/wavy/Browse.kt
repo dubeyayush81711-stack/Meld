@@ -172,7 +172,6 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                                     Column(Modifier.fillMaxSize().padding(16.dp)) {
                                         Text(t.title, style = ts(22, FontWeight.SemiBold), maxLines = 1, softWrap = false)
                                         Spacer(Modifier.weight(1f))
-                                        if (t.top.isNotEmpty()) Text("Top: " + t.top, style = ts(13, FontWeight.Medium, Color(0xEEFFFFFF)), maxLines = 2, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                             }
