@@ -120,6 +120,8 @@ def build():
             log(f"{name} FAILED, skipped: {e}")
     if "ytmusic" in lists: known = list(lists["ytmusic"])
     scores, meta, seen_in = {}, {}, {}
+    global IG_ONLY
+    IG_ONLY = []
     for name, items in lists.items():
         for rank, it in enumerate(items[:100], 1):
             if name != "ytmusic":
@@ -132,11 +134,14 @@ def build():
                 m = it
             vid = m["yt_video_id"]
             meta.setdefault(vid, m)
+            if name == "instagram" and vid not in IG_ONLY: IG_ONLY.append(vid)
             seen_in.setdefault(vid, set()).add(name)
             scores[vid] = scores.get(vid, 0) + WEIGHT[name] * (101 - rank) / 100
     for vid, s in seen_in.items():
         if len(s) >= 2: scores[vid] += 1.0
         if "instagram" in s and len(s) >= 2: scores[vid] += 1.5
+    global IG_ITEMS
+    IG_ITEMS = [{"yt_video_id": v, "title": meta[v]["title"], "artist": meta[v]["artist"], "cover_url": f"https://i.ytimg.com/vi/{v}/hqdefault.jpg"} for v in IG_ONLY]
     ranked = sorted(scores, key=lambda v: -scores[v])[:TOP_N]
     return [{"yt_video_id": v, "title": meta[v]["title"], "artist": meta[v]["artist"],
              "cover_url": f"https://i.ytimg.com/vi/{v}/hqdefault.jpg", "_lists": sorted(seen_in[v]), "_score": round(scores[v], 2)} for v in ranked]
@@ -152,4 +157,10 @@ if __name__ == "__main__":
     url = os.environ["SUPABASE_URL"].rstrip("/") + "/rest/v1/rpc/ingest_charts"
     key = os.environ["SUPABASE_ANON_KEY"]
     body = json.dumps({"p_token": os.environ["INGEST_TOKEN"], "p_region": "IN", "p_source": "ytmusic", "p_items": items}).encode()
-    print(http(url, body, {"Content-Type": "application/json", "apikey": key, "Authorization": "Bearer " + key}))
+    hdr = {"Content-Type": "application/json", "apikey": key, "Authorization": "Bearer " + key}
+    print(http(url, body, hdr))
+    ig = IG_ITEMS
+    if len(ig) >= 10:
+        print("instagram", http(url, json.dumps({"p_token": os.environ["INGEST_TOKEN"], "p_region": "IN", "p_source": "instagram", "p_items": ig}).encode(), hdr))
+    else:
+        print("instagram list too short:", len(ig))
