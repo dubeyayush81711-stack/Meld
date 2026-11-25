@@ -31,7 +31,7 @@ fun SPage(title: String, onBack: () -> Unit, content: @Composable ColumnScope.()
     Backdrop(streaks = false) {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxWidth().background(GlassBar)) { BackBar(title, onBack) }
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = 190.dp), content = content)
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = 210.dp), content = content)
         }
     }
 }

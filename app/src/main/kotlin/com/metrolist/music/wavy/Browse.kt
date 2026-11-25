@@ -97,7 +97,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val playing by (pc?.isPlaying ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }).collectAsState()
     Backdrop(tint = Color(0xFF2B0B3A)) {
-        LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 190.dp)) {
+        LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 210.dp)) {
             col {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Row(Modifier.weight(1f).height(56.dp).glass(RoundedCornerShape(50)).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -247,7 +247,7 @@ fun TrackListScreen(title: String, pc: PlayerConnection?, onBack: () -> Unit, lo
             val l = list
             if (l == null) Text(err ?: "Loading...", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
             else if (l.isEmpty()) Text("Nothing here yet.", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
-            else LazyColumn(contentPadding = PaddingValues(bottom = 190.dp)) {
+            else LazyColumn(contentPadding = PaddingValues(bottom = 210.dp)) {
                 if (title == "Favourites" && pc != null) col { FavPlayer(pc) }
                 col { Row(Modifier.padding(20.dp, 4.dp, 20.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("${l.size} songs", Modifier.weight(1f), style = ts(14, color = W.Dim))
@@ -283,7 +283,7 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
         } catch (e: Exception) { }
     }
     Backdrop(streaks = false) {
-        LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(bottom = 190.dp)) {
+        LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(bottom = 210.dp)) {
             col { Row(Modifier.padding(16.dp, 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Avatar(44, onProfile)
                 Text("Your Library", Modifier.padding(start = 14.dp).weight(1f), style = ts(28, FontWeight.SemiBold))

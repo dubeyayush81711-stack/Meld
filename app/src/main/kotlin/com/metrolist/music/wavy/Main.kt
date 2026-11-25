@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.geometry.Offset
 import coil3.compose.AsyncImage
+import coil3.toBitmap
 import com.metrolist.music.R
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.playback.PlayerConnection
@@ -143,7 +144,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
 
 @Composable
 fun NavBar(sel: Int, onSel: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth().background(GlassBar).navigationBarsPadding().padding(top = 8.dp, bottom = 6.dp)) {
+    Row(Modifier.fillMaxWidth().background(GlassBar).navigationBarsPadding().padding(top = 10.dp, bottom = 8.dp)) {
         tabs.forEachIndexed { i, (name, icon) ->
             val on = i == sel
             val col by animateColorAsState(if (on) W.Pink else Color(0xFFBDB8C4), tween(200), label = "c")
@@ -165,9 +166,26 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
     var pos by remember { mutableLongStateOf(0L) }
     LaunchedEffect(m.id) { while (true) { pos = pc.player.currentPosition; delay(500) } }
     val dur = pc.player.duration.takeIf { it > 0 } ?: (m.duration * 1000L)
-    Column(Modifier.padding(horizontal = 14.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(Color(0xFF4A1230), Color(0xFF2A0D20)))).border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)).clickable(onClick = onOpen)) {
-        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(m.thumbnailUrl, null, Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)).background(W.Card), contentScale = ContentScale.Crop)
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var tint by remember { mutableStateOf(Color(0xFF3A1428)) }
+    LaunchedEffect(m.thumbnailUrl) {
+        val u = m.thumbnailUrl ?: return@LaunchedEffect
+        try {
+            val r = coil3.SingletonImageLoader.get(ctx).execute(coil3.request.ImageRequest.Builder(ctx).data(u).allowHardware(false).build())
+            val b = (r as? coil3.request.SuccessResult)?.image?.toBitmap()
+            if (b != null) {
+                val p = androidx.palette.graphics.Palette.from(b).generate()
+                val c = p.getDarkMutedColor(p.getMutedColor(p.getDominantColor(0xFF3A1428.toInt())))
+                val hsv = FloatArray(3); android.graphics.Color.colorToHSV(c, hsv)
+                hsv[2] = hsv[2].coerceAtMost(0.32f); hsv[1] = hsv[1].coerceAtMost(0.75f)
+                tint = Color(android.graphics.Color.HSVToColor(hsv))
+            }
+        } catch (_: Exception) {}
+    }
+    val tintA by androidx.compose.animation.animateColorAsState(tint, label = "tint")
+    Column(Modifier.padding(horizontal = 12.dp).clip(RoundedCornerShape(12.dp)).background(tintA).clickable(onClick = onOpen)) {
+        Row(Modifier.padding(start = 10.dp, end = 6.dp, top = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            AsyncImage(m.thumbnailUrl, null, Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(W.Card), contentScale = ContentScale.Crop)
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text(m.title, style = ts(16, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(m.artists.joinToString { it.name }, style = ts(13, color = Color(0xFFD6CCD3)), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -175,7 +193,7 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
             Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(40.dp).clip(CircleShape).clickable { pc.togglePlayPause() }.padding(6.dp), tint = Color.White)
             Icon(painterResource(R.drawable.skip_next), null, Modifier.size(40.dp).clip(CircleShape).clickable { pc.seekToNext() }.padding(6.dp), tint = Color.White)
         }
-        Box(Modifier.padding(horizontal = 10.dp).padding(bottom = 6.dp).fillMaxWidth().height(2.dp).background(Color(0x55FFFFFF))) {
+        Box(Modifier.padding(horizontal = 8.dp).padding(bottom = 4.dp).fillMaxWidth().height(2.dp).background(Color(0x55FFFFFF))) {
             Box(Modifier.fillMaxWidth((pos.toFloat() / dur.coerceAtLeast(1)).coerceIn(0f, 1f)).fillMaxHeight().background(Color.White))
         }
     }
@@ -218,7 +236,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
     Box(Modifier.fillMaxSize().background(W.Bg)) {
         Backdrop(Modifier.fillMaxWidth().height(1400.dp).offset { IntOffset(0, -shift) }, tint = Color(0xFF2B0B3A)) {}
         val f = feed
-        LazyColumn(state = st, contentPadding = PaddingValues(bottom = 190.dp), modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+        LazyColumn(state = st, contentPadding = PaddingValues(bottom = 210.dp), modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             col {
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(44.dp).clip(CircleShape).background(W.Grad).clickable(onClick = onProfile), contentAlignment = Alignment.Center) {
