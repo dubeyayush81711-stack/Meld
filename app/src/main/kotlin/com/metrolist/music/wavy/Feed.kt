@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -62,34 +63,49 @@ class VideoBridge(val onTime: (Float) -> Unit, val onErr: (Int) -> Unit) {
     @JavascriptInterface fun onState(c: Int) {}
 }
 
+private class VCand(val url: String, val w: Int, val h: Int, val client: String, val ua: String)
+
 @Composable
-fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier) {
+fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (String) -> Unit = {}) {
     val ctx = LocalContext.current
-    var url by remember(id) { mutableStateOf<String?>(null) }
-    var ar by remember(id) { mutableFloatStateOf(16f / 9f) }
+    var cands by remember(id) { mutableStateOf<List<VCand>>(emptyList()) }
+    var idx by remember(id) { mutableIntStateOf(0) }
     var ready by remember(id) { mutableStateOf(false) }
     LaunchedEffect(id) {
-        val clients = listOf(com.metrolist.innertube.models.YouTubeClient.IOS, com.metrolist.innertube.models.YouTubeClient.ANDROID_VR_NO_AUTH)
-        for (c in clients) {
-            val r = withContext(Dispatchers.IO) { com.metrolist.innertube.YouTube.player(id, null, c, null, null).getOrNull() } ?: continue
-            val sd = r.streamingData ?: continue
-            val all = (sd.formats.orEmpty() + sd.adaptiveFormats).filter { it.url != null && it.width != null && it.mimeType.startsWith("video/mp4") }
-            val f = all.filter { (it.height ?: 0) in 360..720 }.minByOrNull { it.height ?: 0 } ?: all.minByOrNull { it.height ?: 9999 } ?: continue
-            ar = (f.width!!.toFloat() / (f.height ?: 360).coerceAtLeast(1)); url = f.url; break
+        val out = ArrayList<VCand>(); val notes = ArrayList<String>()
+        val clients = listOf("IOS" to com.metrolist.innertube.models.YouTubeClient.IOS, "VR" to com.metrolist.innertube.models.YouTubeClient.ANDROID_VR_NO_AUTH)
+        for ((nm, c) in clients) {
+            val res = withContext(Dispatchers.IO) { com.metrolist.innertube.YouTube.player(id, null, c, null, null) }
+            val r = res.getOrNull()
+            if (r == null) { notes.add("$nm:${res.exceptionOrNull()?.javaClass?.simpleName ?: "null"}"); continue }
+            val sd = r.streamingData
+            if (sd == null) { notes.add("$nm:${r.playabilityStatus.status}"); continue }
+            val vids = (sd.adaptiveFormats).filter { it.url != null && it.width != null && it.mimeType.startsWith("video/mp4") }
+            // HD first: 720p, then 1080p, then lower
+            val order = vids.sortedBy { f -> val h = f.height ?: 0; when { h == 720 -> 0; h == 1080 -> 1; h in 481..719 -> 2; h in 360..480 -> 3; else -> 4 } }
+            order.take(3).forEach { f -> out.add(VCand(f.url!!, f.width!!, f.height ?: 360, nm, c.userAgent)) }
+            (sd.formats.orEmpty()).filter { it.url != null && it.width != null }.maxByOrNull { it.height ?: 0 }?.let { f -> out.add(VCand(f.url!!, f.width!!, f.height ?: 360, nm, c.userAgent)) }
+            if (vids.isEmpty()) notes.add("$nm:no-video-formats")
         }
+        if (out.isEmpty()) onDiag("no stream (" + notes.joinToString(" ") + ")")
+        cands = out
     }
-    val u = url ?: return
-    val ex = remember(u) {
+    val cand = cands.getOrNull(idx) ?: return
+    val ex = remember(cand.url) {
         androidx.media3.exoplayer.ExoPlayer.Builder(ctx).build().apply {
             volume = 0f
-            setMediaSource(androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(androidx.media3.datasource.DefaultHttpDataSource.Factory().setUserAgent("com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)")).createMediaSource(androidx.media3.common.MediaItem.fromUri(u)))
+            setMediaSource(androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(androidx.media3.datasource.DefaultHttpDataSource.Factory().setUserAgent(cand.ua).setAllowCrossProtocolRedirects(true)).createMediaSource(androidx.media3.common.MediaItem.fromUri(cand.url)))
             prepare()
-            addListener(object : androidx.media3.common.Player.Listener {
-                override fun onRenderedFirstFrame() { ready = true }
-            })
         }
     }
-    DisposableEffect(ex) { onDispose { ex.release() } }
+    DisposableEffect(ex) {
+        val l = object : androidx.media3.common.Player.Listener {
+            override fun onRenderedFirstFrame() { ready = true; onDiag("") }
+            override fun onPlayerError(e: androidx.media3.common.PlaybackException) { onDiag("video err ${e.errorCodeName} ${cand.client} ${cand.h}p"); if (idx < cands.size - 1) idx++ }
+        }
+        ex.addListener(l)
+        onDispose { ex.removeListener(l); ex.release() }
+    }
     LaunchedEffect(ex, pc) {
         while (true) {
             val p = pc?.player
@@ -101,6 +117,7 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier) {
             delay(500)
         }
     }
+    val ar = cand.w.toFloat() / cand.h.coerceAtLeast(1)
     androidx.compose.foundation.layout.BoxWithConstraints(modifier.clipToBounds()) {
         val h = maxHeight
         AndroidView(modifier = Modifier.align(Alignment.Center).requiredSize(h * ar, h), factory = { c -> android.view.TextureView(c).also { ex.setVideoTextureView(it) } })
@@ -111,6 +128,7 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier) {
 fun MusicFeed(pc: PlayerConnection?) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    val playing by (pc?.isPlaying ?: remember { MutableStateFlow(false) }).collectAsState()
     val meta by (pc?.mediaMetadata ?: remember { MutableStateFlow(null) }).collectAsState()
     var feed by remember { mutableStateOf<List<Track>>(emptyList()) }
     var err by remember { mutableStateOf<String?>(null) }
@@ -180,13 +198,14 @@ fun MusicFeed(pc: PlayerConnection?) {
                 } catch (e: Exception) { }
             }
             val bg by animateColorAsState(tint, tween(500), label = "fb")
+            var diag by remember(t.id) { mutableStateOf("") }
             var burst by remember(t.id) { mutableIntStateOf(0) }
             val hs by animateFloatAsState(if (burst > 0) 1f else 0f, tween(350), label = "h")
             LaunchedEffect(burst) { if (burst > 0) { delay(700); burst = 0 } }
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, Color(0xFF14080F), Color(0xFF0B0B0D))))
                 .pointerInput(t.id) { detectTapGestures(onDoubleTap = { if (!liked) { liked = true; scope.launch { likeTrack(t.id) } }; burst++ }) }) {
                 AsyncImage(t.cover, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                if (page == pager.settledPage) StreamVideo(t.id, pc, Modifier.fillMaxSize())
+                if (page == pager.settledPage) StreamVideo(t.id, pc, Modifier.fillMaxSize()) { diag = it }
                 if (hs > 0.01f) Icon(painterResource(R.drawable.favorite), null, Modifier.align(Alignment.Center).size((60 + 80 * hs).dp), tint = W.Pink.copy(alpha = hs))
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x66000000), 0.25f to Color.Transparent, 0.6f to Color.Transparent, 1f to Color(0xCC000000))))
                 Column(Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 170.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -195,14 +214,30 @@ fun MusicFeed(pc: PlayerConnection?) {
                         ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "${t.title} - ${t.artist}\nhttps://music.youtube.com/watch?v=${t.id}"), "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     }, tint = Color.White)
                 }
-                Column(Modifier.align(Alignment.BottomStart).padding(start = 24.dp, end = 80.dp, bottom = 108.dp)) {
+                Column(Modifier.align(Alignment.BottomStart).padding(start = 24.dp, end = 80.dp, bottom = 100.dp)) {
                     Text(t.title, style = ts(24, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(t.artist, style = ts(18, color = Color(0xDDFFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(14.dp))
                     var pos by remember { mutableLongStateOf(0L) }
+                    var dragF by remember { mutableStateOf<Float?>(null) }
+                    var wpx by remember { mutableIntStateOf(1) }
                     LaunchedEffect(page, meta?.id) { while (true) { pos = if (meta?.id == t.id) (pc?.player?.currentPosition ?: 0L) else 0L; delay(400) } }
-                    val dur = (t.dur * 1000L).coerceAtLeast(1)
-                    Box(Modifier.fillMaxWidth().height(3.dp).background(Color(0x55FFFFFF))) { Box(Modifier.fillMaxWidth((pos.toFloat() / dur).coerceIn(0f, 1f)).fillMaxHeight().background(Color.White)) }
+                    val dur = ((if (meta?.id == t.id) pc?.player?.duration?.takeIf { it > 0 } else null) ?: (t.dur * 1000L)).coerceAtLeast(1)
+                    val fr = dragF ?: (pos.toFloat() / dur).coerceIn(0f, 1f)
+                    Box(Modifier.fillMaxWidth().height(24.dp).onSizeChanged { wpx = it.width.coerceAtLeast(1) }
+                        .pointerInput(dur) { detectTapGestures { pc?.seekTo(((it.x / wpx).coerceIn(0f, 1f) * dur).toLong()) } }
+                        .pointerInput(dur) { androidx.compose.foundation.gestures.detectHorizontalDragGestures(onDragStart = { dragF = (it.x / wpx).coerceIn(0f, 1f) }, onDragEnd = { dragF?.let { f -> pc?.seekTo((f * dur).toLong()) }; dragF = null }, onDragCancel = { dragF = null }) { c, _ -> dragF = (c.position.x / wpx).coerceIn(0f, 1f) } },
+                        contentAlignment = Alignment.CenterStart) {
+                        Box(Modifier.fillMaxWidth().height(3.dp).background(Color(0x55FFFFFF)))
+                        Box(Modifier.fillMaxWidth(fr).height(3.dp).background(Color.White))
+                    }
+                    Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painterResource(R.drawable.skip_previous), null, Modifier.size(40.dp).clickable { scope.launch { pager.animateScrollToPage((pager.currentPage - 1).coerceAtLeast(0)) } }, tint = Color.White)
+                        Box(Modifier.padding(horizontal = 26.dp).size(56.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color.White).clickable { pc?.player?.let { if (it.isPlaying) it.pause() else it.play() } }, contentAlignment = Alignment.Center) {
+                            Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(30.dp), tint = Color.Black) }
+                        Icon(painterResource(R.drawable.skip_next), null, Modifier.size(40.dp).clickable { scope.launch { pager.animateScrollToPage((pager.currentPage + 1).coerceAtMost(tracks.size - 1)) } }, tint = Color.White)
+                    }
+                    if (diag.isNotEmpty()) Text(diag, Modifier.padding(top = 4.dp), style = ts(11, color = Color(0xFFFFB4C8)))
                 }
             }
         }
