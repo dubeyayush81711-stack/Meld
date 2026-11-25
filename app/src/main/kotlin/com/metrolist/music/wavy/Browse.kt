@@ -77,7 +77,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     }
     var submitted by remember { mutableStateOf<String?>(null) }
     var summary by remember { mutableStateOf<List<SSection>?>(null) }
-    var typed by remember { mutableStateOf<List<YTItem>?>(null) }
+    var typed by remember { mutableStateOf<List<com.metrolist.innertube.models.YTItem>?>(null) }
     var nextTok by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     fun go(text: String) { val t = text.trim(); if (t.length < 1) return; q = t; filter = "All"; submitted = t; saveHistory(ctxS, t); hist = loadHistory(ctxS) }
@@ -124,7 +124,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 }
                 Spacer(Modifier.height(14.dp))
             }
-            if (q.trim().length < 2 || r == null) {
+            if (q.isEmpty()) {
                 val m = meta
                 if (m != null) col {
                     Text("Continue Listening", style = ts(24, FontWeight.SemiBold)); Spacer(Modifier.height(12.dp))

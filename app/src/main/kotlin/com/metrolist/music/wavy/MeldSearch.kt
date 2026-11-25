@@ -1,7 +1,12 @@
 package com.metrolist.music.wavy
 
 import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.*
+import com.metrolist.innertube.models.YTItem
+import com.metrolist.innertube.models.WatchEndpoint
+import com.metrolist.innertube.models.SongItem
+import com.metrolist.innertube.models.AlbumItem as YAlbum
+import com.metrolist.innertube.models.ArtistItem as YArtist
+import com.metrolist.innertube.models.PlaylistItem as YPlaylist
 import com.metrolist.music.playback.PlayerConnection
 import com.metrolist.music.playback.queues.YouTubeQueue
 import kotlinx.coroutines.Dispatchers
@@ -48,9 +53,9 @@ suspend fun meldMore(cont: String): SPage = withContext(Dispatchers.IO) {
 fun YTItem.asTrack(): Track? = (this as? SongItem)?.let { s -> Track(s.id, s.title, s.artists.joinToString { it.name }, s.thumbnail, s.duration ?: 0, s.artists.firstOrNull()?.id, s.album?.name) }
 
 fun YTItem.sub(): String = when (this) {
-    is AlbumItem -> listOfNotNull("Album", artists?.joinToString { it.name }, year?.toString()).joinToString(" \u00B7 ")
-    is ArtistItem -> "Artist"
-    is PlaylistItem -> listOfNotNull("Playlist", author?.name, songCountText).joinToString(" \u00B7 ")
+    is YAlbum -> listOfNotNull("Album", artists?.joinToString { it.name }, year?.toString()).joinToString(" \u00B7 ")
+    is YArtist -> "Artist"
+    is YPlaylist -> listOfNotNull("Playlist", author?.name, songCountText).joinToString(" \u00B7 ")
     is SongItem -> artists.joinToString { it.name }
     else -> ""
 }
@@ -59,8 +64,8 @@ fun YTItem.sub(): String = when (this) {
 fun playItem(pc: PlayerConnection?, it: YTItem) {
     if (pc == null) return
     when (it) {
-        is AlbumItem -> pc.playQueue(YouTubeQueue(WatchEndpoint(playlistId = it.playlistId)))
-        is PlaylistItem -> pc.playQueue(YouTubeQueue(it.playEndpoint ?: WatchEndpoint(playlistId = it.id)))
+        is YAlbum -> pc.playQueue(YouTubeQueue(WatchEndpoint(playlistId = it.playlistId)))
+        is YPlaylist -> pc.playQueue(YouTubeQueue(it.playEndpoint ?: WatchEndpoint(playlistId = it.id)))
         else -> {}
     }
 }
