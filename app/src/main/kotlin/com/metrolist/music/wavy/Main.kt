@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.geometry.Offset
 import coil3.compose.AsyncImage
 import coil3.toBitmap
+import coil3.request.allowHardware
 import com.metrolist.music.R
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.playback.PlayerConnection
@@ -239,13 +240,13 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
         LazyColumn(state = st, contentPadding = PaddingValues(bottom = 210.dp), modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             col {
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(44.dp).clip(CircleShape).background(W.Grad).clickable(onClick = onProfile), contentAlignment = Alignment.Center) {
-                        Text(name.take(1).uppercase().ifEmpty { "W" }, style = ts(20, FontWeight.Bold)) }
-                    Text("Home", Modifier.padding(start = 14.dp).weight(1f), style = ts(28, FontWeight.SemiBold))
+                    Text("Home", Modifier.weight(1f), style = ts(28, FontWeight.SemiBold))
                     listOf(Triple(R.drawable.search, onSearch, 0), Triple(R.drawable.group_outlined, onParty, 1), Triple(R.drawable.settings, onSettings, 2)).forEach { (ic, f, _) ->
                         Box(Modifier.padding(start = 8.dp).size(44.dp).glass(CircleShape).clickable(onClick = f), contentAlignment = Alignment.Center) {
                             Icon(painterResource(ic), null, Modifier.size(22.dp), tint = Color.White) }
                     }
+                    Box(Modifier.padding(start = 8.dp).size(44.dp).clip(CircleShape).background(W.Grad).clickable(onClick = onProfile), contentAlignment = Alignment.Center) {
+                        Text(name.take(1).uppercase().ifEmpty { "W" }, style = ts(20, FontWeight.Bold)) }
                 }
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     listOf("All", "Music", "Chill", "Podcasts").forEach { c ->
@@ -254,10 +255,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                         }
                     }
                 }
-                val shortName = name.trim().substringBefore(' ').trimEnd { it.isDigit() }.ifEmpty { name.take(12) }.take(14).replaceFirstChar { it.uppercase() }
-                Row(Modifier.padding(start = 20.dp, top = 24.dp, bottom = 22.dp)) {
-                    Text("Hey, ", style = ts(34, color = Color(0xFFCFC8D9))); Text(shortName, style = ts(34, FontWeight.Medium), maxLines = 1)
-                }
+                Spacer(Modifier.height(10.dp))
             }
             if (cat == "Podcasts") item {
                 Text("Podcasts are not available yet. Music is what Wavy plays for now.", Modifier.padding(horizontal = 28.dp, vertical = 40.dp), style = ts(15, color = W.Dim))
