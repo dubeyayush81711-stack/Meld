@@ -184,7 +184,7 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
         } catch (_: Exception) {}
     }
     val tintA by androidx.compose.animation.animateColorAsState(tint, label = "tint")
-    Column(Modifier.padding(horizontal = 12.dp).clip(RoundedCornerShape(12.dp)).background(tintA).clickable(onClick = onOpen)) {
+    Column(Modifier.padding(horizontal = 12.dp).clip(RoundedCornerShape(22.dp)).background(tintA).clickable(onClick = onOpen)) {
         Row(Modifier.padding(start = 10.dp, end = 6.dp, top = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(m.thumbnailUrl, null, Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(W.Card), contentScale = ContentScale.Crop)
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
