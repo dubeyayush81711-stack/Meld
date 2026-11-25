@@ -10,7 +10,7 @@ import html, json, os, re, sys, urllib.parse, urllib.request
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
 YT_CHARTS = ["VLPL4fGSI1pDJn5oibdgJt8Hy0-dr2B7kSs2", "VLPL4fGSI1pDJn40WjZ6utkIuj2rNg-7iGsq"]
 TOP_N = 100
-MATCH_LIMIT = 50          # songs per external list to match to YouTube ids
+MATCH_LIMIT = 120         # songs per external list to match to YouTube ids
 WEIGHT = {"instagram": 1.5, "spotify": 1.0, "ytmusic": 1.0}
 
 def log(*a): print(*a, file=sys.stderr)
@@ -134,7 +134,7 @@ def build():
                 m = it
             vid = m["yt_video_id"]
             meta.setdefault(vid, m)
-            if name in ("instagram", "spotify") and vid not in IG_ONLY: IG_ONLY.append(vid)
+            if vid not in IG_ONLY: IG_ONLY.append(vid)
             seen_in.setdefault(vid, set()).add(name)
             scores[vid] = scores.get(vid, 0) + WEIGHT[name] * (101 - rank) / 100
     for vid, s in seen_in.items():
@@ -165,4 +165,4 @@ if __name__ == "__main__":
         print("reel", http(url, json.dumps({"p_token": os.environ["INGEST_TOKEN"], "p_region": "IN", "p_source": "reel", "p_items": ig}).encode(), hdr))
     else:
         print("reel list too short:", len(ig))
-# reel list ingest
+# reel list ingest (all trending lists)
