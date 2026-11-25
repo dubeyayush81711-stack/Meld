@@ -3,6 +3,9 @@ on:
   schedule:
     - cron: "30 0 * * *"   # daily 06:00 IST
   workflow_dispatch:
+  push:
+    branches: [wavy]
+    paths: ["backend/refresh/refresh_charts.py"]
 jobs:
   refresh:
     runs-on: ubuntu-latest
