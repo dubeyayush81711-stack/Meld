@@ -72,15 +72,17 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
     var ready by remember(id) { mutableStateOf(false) }
     var arOv by remember(id) { mutableFloatStateOf(0f) }
     LaunchedEffect(id) {
+        onDiag("video: loading")
         val (list, why) = fetchVideoCandidates(id)
-        if (list.isEmpty()) onDiag(why)
+        if (list.isEmpty()) onDiag(why.ifEmpty { "no video stream" })
         cands = list
     }
     val cand = cands.getOrNull(idx) ?: return
     val ex = remember(cand.url) {
         androidx.media3.exoplayer.ExoPlayer.Builder(ctx).build().apply {
             volume = 0f
-            val dsf = androidx.media3.datasource.DefaultHttpDataSource.Factory().setUserAgent(cand.ua).setAllowCrossProtocolRedirects(true)
+            val http = androidx.media3.datasource.DefaultHttpDataSource.Factory().setUserAgent(cand.ua).setAllowCrossProtocolRedirects(true)
+            val dsf = if (cand.hls) http else androidx.media3.datasource.DataSource.Factory { ChunkedDS(http) }
             val item = androidx.media3.common.MediaItem.fromUri(cand.url)
             if (cand.hls) setMediaSource(androidx.media3.exoplayer.hls.HlsMediaSource.Factory(dsf).createMediaSource(item))
             else setMediaSource(androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(dsf).createMediaSource(item))
@@ -91,7 +93,8 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
         val l = object : androidx.media3.common.Player.Listener {
             override fun onRenderedFirstFrame() { ready = true; onDiag("") }
             override fun onVideoSizeChanged(vs: androidx.media3.common.VideoSize) { if (vs.height > 0 && vs.width > 0) arOv = vs.width * vs.pixelWidthHeightRatio / vs.height }
-            override fun onPlayerError(e: androidx.media3.common.PlaybackException) { onDiag("video err ${e.errorCodeName} ${cand.client} ${cand.h}p"); if (idx < cands.size - 1) idx++ }
+            override fun onPlayerError(e: androidx.media3.common.PlaybackException) { val code = (generateSequence(e as Throwable?) { it.cause }.filterIsInstance<androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException>().firstOrNull())?.responseCode
+                onDiag("video err ${e.errorCodeName} ${code ?: ""} ${cand.client} ${if (cand.hls) "HLS" else cand.h.toString() + "p"} (${idx + 1}/${cands.size})"); if (idx < cands.size - 1) idx++ }
         }
         ex.addListener(l)
         onDispose { ex.removeListener(l); ex.release() }

@@ -94,6 +94,7 @@ fun SettingsHub(onBack: () -> Unit, onSignOut: () -> Unit = {}, go: (String) -> 
         SNav("Notifications", "Choose what Wavy tells you") { go("set:notif") }
         SNav("About and support", "Version and licenses") { go("set:about") }
         SNav("Sign out", "Leave this account on this phone") { onSignOut() }
+        Text("Wavy $WAVY_BUILD", Modifier.padding(start = 20.dp, top = 18.dp), style = ts(12, color = W.Dim))
     }
 }
 
@@ -204,7 +205,7 @@ fun AboutSettings(onBack: () -> Unit) {
     val ctx = LocalContext.current
     val ver = remember { try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName } catch (e: Exception) { "1.0.0" } }
     SPage("About and support", onBack) {
-        Row(Modifier.padding(20.dp, 28.dp)) { Text("Version", Modifier.weight(1f), style = ts(18, FontWeight.Medium)); Text(ver ?: "", style = ts(15, color = Color(0xFFB9B2C4))) }
+        Row(Modifier.padding(20.dp, 28.dp)) { Text("Version", Modifier.weight(1f), style = ts(18, FontWeight.Medium)); Text("${ver ?: ""} ($WAVY_BUILD)", style = ts(15, color = Color(0xFFB9B2C4))) }
         SDivider()
         SNav("Third-party licenses", "Wavy is built on open-source software (GPL-3.0).") { }
         SNav("Support", "Ask the person who invited you.") { }
