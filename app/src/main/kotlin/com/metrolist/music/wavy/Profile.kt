@@ -1,5 +1,6 @@
 package com.metrolist.music.wavy
 
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -74,7 +75,14 @@ fun EditProfile(name: String, onClose: () -> Unit, onSave: (String) -> Unit) {
             Text("Save", Modifier.clickable { if (n.isNotBlank()) onSave(n.trim()) }, style = ts(20, FontWeight.Bold, Color(0xFFFF3D8B)))
         }
         Spacer(Modifier.height(10.dp))
-        Box(Modifier.align(Alignment.CenterHorizontally).size(140.dp).clip(CircleShape).background(W.Grad), contentAlignment = Alignment.Center) { Text(n.take(1).uppercase(), style = ts(70, FontWeight.Bold)) }
+        val pctx = androidx.compose.ui.platform.LocalContext.current
+        val av = rememberAvatar(pctx)
+        val picker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()) { u -> if (u != null) AvatarStore.save(pctx, u) }
+        Box(Modifier.align(Alignment.CenterHorizontally).size(140.dp).clip(CircleShape).background(W.Grad).clickable { picker.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly)) }, contentAlignment = Alignment.Center) {
+            if (av != null) androidx.compose.foundation.Image(av.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+            else Text(n.take(1).uppercase(), style = ts(70, FontWeight.Bold)) }
+        Text("Change photo", Modifier.align(Alignment.CenterHorizontally).clickable { picker.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly)) }.padding(top = 12.dp, bottom = 4.dp), style = ts(15, FontWeight.SemiBold, W.Pink))
+        if (av != null) Text("Remove photo", Modifier.align(Alignment.CenterHorizontally).clickable { AvatarStore.remove(pctx) }.padding(vertical = 6.dp), style = ts(14, color = W.Dim))
         Spacer(Modifier.height(36.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Name", Modifier.width(110.dp), style = ts(20, FontWeight.Bold))

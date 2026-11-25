@@ -140,6 +140,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
             exit = slideOutVertically(tween(300)) { it } + fadeOut(tween(200))) {
             if (pc != null) PlayerScreen(pc) { full = false }
         }
+        StrobeOverlay()
     }
 }
 

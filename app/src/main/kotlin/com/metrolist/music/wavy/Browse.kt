@@ -32,6 +32,7 @@ import com.metrolist.music.playback.PlayerConnection
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -80,6 +81,21 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     var typed by remember { mutableStateOf<List<com.metrolist.innertube.models.YTItem>?>(null) }
     var nextTok by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var showMic by remember { mutableStateOf(false) }
+    val speech = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { r ->
+        val said = r.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (!said.isNullOrBlank()) { q = said; submitted = said.trim(); filter = "All"; saveHistory(ctxS, said.trim()) }
+    }
+    fun listen(prompt: String) {
+        showMic = false
+        try {
+            speech.launch(android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "hi-IN")
+                .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "hi-IN")
+                .putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, prompt))
+        } catch (e: Exception) { err = "Voice input is not available on this phone." }
+    }
     fun go(text: String) { val t = text.trim(); if (t.length < 1) return; q = t; filter = "All"; submitted = t; saveHistory(ctxS, t); hist = loadHistory(ctxS) }
     LaunchedEffect(submitted, filter) {
         val sq = submitted ?: return@LaunchedEffect
@@ -92,6 +108,13 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     }
     val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val playing by (pc?.isPlaying ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }).collectAsState()
+    if (showMic) androidx.compose.ui.window.Dialog(onDismissRequest = { showMic = false }) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xF2171419)).padding(vertical = 14.dp)) {
+            Text("Search with your voice", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), style = ts(18, FontWeight.SemiBold))
+            Text("Speak to search", Modifier.fillMaxWidth().clickable { listen("Say a song, artist or album") }.padding(horizontal = 22.dp, vertical = 14.dp), style = ts(16, FontWeight.Medium))
+            Text("Say or sing some lyrics", Modifier.fillMaxWidth().clickable { listen("Say or sing a line from the song") }.padding(horizontal = 22.dp, vertical = 14.dp), style = ts(16, FontWeight.Medium))
+        }
+    }
     Backdrop(tint = Color(0xFF2B0B3A)) {
         LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 210.dp)) {
             col {
@@ -104,6 +127,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                             BasicTextField(q, { q = it; submitted = null }, singleLine = true, textStyle = ts(18), cursorBrush = SolidColor(W.Pink), modifier = Modifier.fillMaxWidth(), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search), keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { go(q) }))
                         }
                         if (q.isNotEmpty()) Icon(painterResource(R.drawable.close), null, Modifier.size(22.dp).clickable { q = ""; submitted = null }, tint = Color.White)
+                        Icon(painterResource(R.drawable.mic), null, Modifier.padding(start = 10.dp).size(24.dp).clickable { showMic = true }, tint = Color.White)
                     }
                     Spacer(Modifier.width(12.dp))
                     Avatar(40, onProfile)
@@ -220,8 +244,10 @@ fun ResultRow(it0: com.metrolist.innertube.models.YTItem, pc: PlayerConnection?,
 fun Avatar(size: Int, onClick: () -> Unit) {
     var name by remember { mutableStateOf("") }
     LaunchedEffect(Unit) { try { name = ((Api.get("profiles?id=eq.${Api.uid}&select=name") as? JSONArray)?.optJSONObject(0)?.optString("name")).orEmpty().ifBlank { Api.email } } catch (e: Exception) { } }
+    val av = rememberAvatar(androidx.compose.ui.platform.LocalContext.current)
     Box(Modifier.size(size.dp).clip(CircleShape).background(W.Grad).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
-        Text(name.take(1).uppercase().ifEmpty { "W" }, style = ts(size / 2, FontWeight.Bold)) }
+        if (av != null) Image(av.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        else Text(name.take(1).uppercase().ifEmpty { "W" }, style = ts(size / 2, FontWeight.Bold)) }
 }
 
 @Composable

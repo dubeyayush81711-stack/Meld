@@ -220,7 +220,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
             var pos by remember(t.id) { mutableLongStateOf(0L) }
             LaunchedEffect(page, meta?.id) { while (true) { pos = if (meta?.id == t.id) (pc?.player?.currentPosition ?: 0L) else 0L; delay(250) } }
             var lyrics by remember(t.id) { mutableStateOf<List<LyricLine>>(emptyList()) }
-            LaunchedEffect(t.id) { lyrics = fetchLyrics(t.id, t.title, t.artist, t.dur) }
+            LaunchedEffect(t.id) { lyrics = fetchLyrics(ctx, t.id, t.title, t.artist, t.dur, t.album) }
             LaunchedEffect(diag) { if (diag.startsWith("playing via")) { delay(5000); diag = "" } }
             var burst by remember(t.id) { mutableIntStateOf(0) }
             var flash by remember(t.id) { mutableIntStateOf(0) }
@@ -244,7 +244,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                 } else {
                     AsyncImage(hiRes(t.cover), null, Modifier.fillMaxWidth().aspectRatio(1f).align(Alignment.TopStart).padding(top = 120.dp), contentScale = ContentScale.Crop)
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to bg, 0.2f to bg.copy(alpha = 0.55f), 0.34f to Color.Transparent, 0.52f to Color.Transparent, 0.7f to Color(0xCC0B0B0D), 0.82f to Color(0xFF0B0B0D), 1f to Color(0xFF0B0B0D))))
-                    val ci = lyrics.indexOfLast { it.ms <= pos + 250 }
+                    val ci = lyrics.indexOfLast { it.t <= pos + 250 }
                     if (lyrics.isNotEmpty() && ci >= 0) Column(Modifier.align(Alignment.TopStart).statusBarsPadding().padding(start = 24.dp, end = 24.dp, top = 84.dp)) {
                         Text(lyrics[ci].text, style = ts(28, FontWeight.Bold), maxLines = 3, overflow = TextOverflow.Ellipsis)
                         lyrics.getOrNull(ci + 1)?.let { Text(it.text, Modifier.padding(top = 10.dp), style = ts(22, FontWeight.Bold, Color(0x88FFFFFF)), maxLines = 2, overflow = TextOverflow.Ellipsis) }
