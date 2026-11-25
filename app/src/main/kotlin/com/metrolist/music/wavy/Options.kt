@@ -81,9 +81,20 @@ fun PlayerOptions(pc: PlayerConnection, onBoost: () -> Unit, onClose: () -> Unit
             }
             Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(bottom = 16.dp)) {
                 val done = dst == Download.STATE_COMPLETED
-                OptRow(if (done) R.drawable.offline else R.drawable.download, if (done) "Remove download" else if (dst == null || dst == Download.STATE_FAILED) "Download" else "Downloading...", "Saved in app storage, plays offline") {
-                    if (done) { WDl.remove(ctx, t.id); Toast.makeText(ctx, "Removed from Downloads", Toast.LENGTH_SHORT).show() }
-                    else if (dst == null || dst == Download.STATE_FAILED) { WDl.start(t); Toast.makeText(ctx, "Downloading...", Toast.LENGTH_SHORT).show() }
+                val busy = dst != null && dst != Download.STATE_FAILED && !done
+                OptRow(R.drawable.download, if (busy) "Downloading..." else if (done) "Downloaded" else "Download", "Saved in app storage, plays offline") {
+                    if (done || busy) Toast.makeText(ctx, if (done) "Already downloaded" else "Still downloading", Toast.LENGTH_SHORT).show()
+                    else { WDl.start(t); Toast.makeText(ctx, "Downloading...", Toast.LENGTH_SHORT).show() }
+                }
+                OptRow(R.drawable.offline, "Remove download", if (done) "Delete the offline copy" else "Not downloaded") {
+                    if (dst != null) { WDl.remove(ctx, t.id); Toast.makeText(ctx, "Removed from Downloads", Toast.LENGTH_SHORT).show() }
+                    else Toast.makeText(ctx, "This song is not downloaded", Toast.LENGTH_SHORT).show()
+                }
+                var three by remember { mutableStateOf(false) }
+                OptRow(R.drawable.graphic_eq, if (three) "3D music: on" else "3D music", "Surround effect, best with headphones") {
+                    val e = WEq.bind(pc)
+                    if (e != null && WEq.vz == null) Toast.makeText(ctx, "3D effect is not supported on this phone", Toast.LENGTH_SHORT).show()
+                    else { three = !three; try { WEq.vz?.setStrength((if (three) 1000 else 0).toShort()) } catch (_: Exception) {} }
                 }
                 OptRow(R.drawable.radio, "Start radio", "Similar songs, same style") { playRadio(pc, t); onClose() }
                 OptRow(R.drawable.link, "Copy link") {
