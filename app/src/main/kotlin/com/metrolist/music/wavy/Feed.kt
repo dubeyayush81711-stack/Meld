@@ -262,7 +262,11 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                 }
                 Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 96.dp)) {
                     Text(t.title, style = ts(26, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(t.artist, style = ts(17, color = Color(0xDDFFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(t.artist, Modifier.weight(1f, fill = false), style = ts(17, color = Color(0xDDFFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Spacer(Modifier.width(12.dp))
+                        FollowButton(t.artistId, t.artist)
+                    }
                     Spacer(Modifier.height(18.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(26.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(painterResource(if (liked) R.drawable.favorite else R.drawable.favorite_border), null, Modifier.size(30.dp).clickable { liked = true; scope.launch { likeTrack(t.id) } }, tint = if (liked) W.Pink else Color.White)
@@ -272,7 +276,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                     }
                     Spacer(Modifier.height(10.dp))
                     val dur = ((if (meta?.id == t.id) pc?.player?.duration?.takeIf { it > 0 } else null) ?: (t.dur * 1000L)).coerceAtLeast(1)
-                    WavySeek((pos.toFloat() / dur).coerceIn(0f, 1f), playing && meta?.id == t.id, Color.White, onSeekTo = { f -> pc?.seekTo((f * dur).toLong()) })
+                    WavySeek((pos.toFloat() / dur).coerceIn(0f, 1f), playing && meta?.id == t.id, androidx.compose.ui.graphics.lerp(bg, Color.White, 0.82f), onSeekTo = { f -> pc?.seekTo((f * dur).toLong()) })
                     Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.padding(top = 4.dp).size(40.dp).clickable { pc?.player?.let { p -> if (p.isPlaying) p.pause() else p.play() } }, tint = Color.White)
                     if (videoOn && diag.isNotEmpty()) Text(diag, Modifier.padding(top = 4.dp), style = ts(11, color = Color(0xFFFFB4C8)))
                 }
