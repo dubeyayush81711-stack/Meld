@@ -31,10 +31,11 @@ fun WavySeek(fraction: Float, playing: Boolean, color: Color, onSeekTo: (Float) 
     var w by remember { mutableIntStateOf(1) }
     var dragging by remember { mutableStateOf(false) }
     var df by remember { mutableFloatStateOf(0f) }
-    val phase by rememberInfiniteTransition(label = "w").animateFloat(0f, (2 * PI).toFloat(), infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart), label = "p")
-    val amp by animateFloatAsState(if (playing && !dragging) 1f else 0f, tween(350), label = "a")
+    val phase by rememberInfiniteTransition(label = "w").animateFloat(0f, (2 * PI).toFloat(), infiniteRepeatable(tween(2200, easing = LinearEasing), RepeatMode.Restart), label = "p")
+    val amp by animateFloatAsState(if (playing && !dragging) 1f else 0f, tween(700, easing = androidx.compose.animation.core.FastOutSlowInEasing), label = "a")
     val thumb by animateFloatAsState(if (dragging) 11f else 8f, tween(150), label = "t")
-    val f = if (dragging) df else fraction.coerceIn(0f, 1f)
+    val sm by animateFloatAsState(fraction.coerceIn(0f, 1f), tween(450, easing = LinearEasing), label = "f")
+    val f = if (dragging) df else sm
     Canvas(modifier.fillMaxWidth().height(32.dp)
         .pointerInput(Unit) { detectTapGestures { onSeekTo((it.x / size.width).coerceIn(0f, 1f)) } }
         .pointerInput(Unit) {
@@ -45,12 +46,14 @@ fun WavySeek(fraction: Float, playing: Boolean, color: Color, onSeekTo: (Float) 
         }) {
         val cy = size.height / 2; val x = size.width * f
         val sw = 4.dp.toPx()
-        drawLine(color.copy(alpha = 0.3f), Offset(x, cy), Offset(size.width, cy), sw, StrokeCap.Round)
+        drawLine(color.copy(alpha = 0.3f), Offset(x + 6.dp.toPx(), cy), Offset(size.width, cy), sw, StrokeCap.Round)
         val p = Path(); val a = 4.dp.toPx() * amp; val wl = 28.dp.toPx()
         p.moveTo(0f, cy)
         var i = 0f
-        while (i <= x) { p.lineTo(i, cy + a * sin(i / wl * 2 * PI.toFloat() - phase)); i += 3f }
+        val ramp = 14.dp.toPx()
+        while (i <= x) { val e = (i / ramp).coerceAtMost(1f); p.lineTo(i, cy + a * e * sin(i / wl * 2 * PI.toFloat() - phase)); i += 2f }
+        p.lineTo(x, cy + a * (x / ramp).coerceAtMost(1f) * sin(x / wl * 2 * PI.toFloat() - phase))
         drawPath(p, color, style = Stroke(sw, cap = StrokeCap.Round))
-        drawCircle(color, thumb.dp.toPx(), Offset(x, cy + a * sin(x / wl * 2 * PI.toFloat() - phase)))
+        drawCircle(color, thumb.dp.toPx(), Offset(x, cy + a * (x / ramp).coerceAtMost(1f) * sin(x / wl * 2 * PI.toFloat() - phase)))
     }
 }

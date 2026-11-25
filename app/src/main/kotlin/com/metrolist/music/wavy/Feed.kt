@@ -120,7 +120,10 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
 }
 
 @Composable
-fun MusicFeed(pc: PlayerConnection?) {
+fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
+    var showFx by remember { mutableStateOf(false) }
+    val videoPref = boolPref("reel_video", false); val hookPref = boolPref("reel_hook", true)
+    val videoOn = videoPref.value
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val playing by (pc?.isPlaying ?: remember { MutableStateFlow(false) }).collectAsState()
@@ -181,7 +184,8 @@ fun MusicFeed(pc: PlayerConnection?) {
         else { playTracks(pc, tracks, pager.settledPage, "Music"); queueOwned = true }
     }
     val hooked = remember { HashSet<String>() }
-    LaunchedEffect(pager.settledPage, meta?.id) {
+    LaunchedEffect(pager.settledPage, meta?.id, hookPref.value) {
+        if (!hookPref.value) return@LaunchedEffect
         val cur = tracks.getOrNull(pager.settledPage) ?: return@LaunchedEffect
         val p = pc?.player ?: return@LaunchedEffect
         if (meta?.id != cur.id) return@LaunchedEffect
@@ -229,37 +233,50 @@ fun MusicFeed(pc: PlayerConnection?) {
                         else if (o.x > size.width * 0.67f) { p?.seekTo(p.currentPosition + 10000); flash = 3; flashN++ }
                         else { if (!liked) { liked = true; scope.launch { likeTrack(t.id) } }; burst++ }
                     }) }) {
-                AsyncImage(t.cover, null, Modifier.fillMaxSize().blur(28.dp), contentScale = ContentScale.Crop)
-                Box(Modifier.fillMaxSize().background(Color(0x66000000)))
-                if (page == pager.settledPage) StreamVideo(t.id, pc, Modifier.fillMaxSize()) { diag = it }
+                if (videoOn) {
+                    AsyncImage(t.cover, null, Modifier.fillMaxSize().blur(28.dp), contentScale = ContentScale.Crop)
+                    Box(Modifier.fillMaxSize().background(Color(0x66000000)))
+                    if (page == pager.settledPage) StreamVideo(t.id, pc, Modifier.fillMaxSize()) { diag = it }
+                } else {
+                    AsyncImage(t.cover, null, Modifier.fillMaxWidth().aspectRatio(1f).align(Alignment.TopStart).padding(top = 190.dp), contentScale = ContentScale.Crop)
+                    Box(Modifier.fillMaxWidth().aspectRatio(1f).align(Alignment.TopStart).padding(top = 190.dp).background(Brush.verticalGradient(0f to bg, 0.22f to Color.Transparent, 0.75f to Color.Transparent, 1f to Color(0xFF0B0B0D))))
+                }
                 if (flash != 0) Text(when (flash) { 1 -> if (playing) "Playing" else "Paused"; 2 -> "-10s"; else -> "+10s" }, Modifier.align(when (flash) { 2 -> Alignment.CenterStart; 3 -> Alignment.CenterEnd; else -> Alignment.Center }).padding(horizontal = 40.dp).clip(RoundedCornerShape(50)).background(Color(0x88000000)).padding(horizontal = 18.dp, vertical = 10.dp), style = ts(18, FontWeight.SemiBold))
                 if (hs > 0.01f) Icon(painterResource(R.drawable.favorite), null, Modifier.align(Alignment.Center).size((60 + 80 * hs).dp), tint = W.Pink.copy(alpha = hs))
-                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x66000000), 0.25f to Color.Transparent, 0.6f to Color.Transparent, 1f to Color(0xCC000000))))
-                Column(Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 170.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                    Icon(painterResource(if (liked) R.drawable.favorite else R.drawable.favorite_border), null, Modifier.size(34.dp).clickable { liked = true; scope.launch { likeTrack(t.id) } }, tint = if (liked) W.Pink else Color.White)
-                    Icon(painterResource(R.drawable.share), null, Modifier.size(32.dp).clickable {
-                        ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "${t.title} - ${t.artist}\nhttps://music.youtube.com/watch?v=${t.id}"), "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    }, tint = Color.White)
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x55000000), 0.2f to Color.Transparent, 0.62f to Color.Transparent, 1f to Color(0xDD000000))))
+                Row(Modifier.align(Alignment.TopStart).fillMaxWidth().statusBarsPadding().padding(start = 20.dp, end = 12.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("For You", style = ts(18, FontWeight.SemiBold))
+                    Icon(painterResource(R.drawable.expand_more), null, Modifier.size(22.dp), tint = Color.White)
+                    Spacer(Modifier.weight(1f))
+                    Icon(painterResource(R.drawable.search), null, Modifier.clickable { onSearch() }.padding(8.dp).size(24.dp), tint = Color.White)
+                    Icon(painterResource(R.drawable.more_vert), null, Modifier.clickable { showFx = true }.padding(8.dp).size(24.dp), tint = Color.White)
                 }
-                Column(Modifier.align(Alignment.BottomStart).padding(start = 24.dp, end = 80.dp, bottom = 100.dp)) {
-                    Text(t.title, style = ts(24, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(t.artist, style = ts(18, color = Color(0xDDFFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Spacer(Modifier.height(14.dp))
-                    var pos by remember { mutableLongStateOf(0L) }
-                    var dragF by remember { mutableStateOf<Float?>(null) }
-                    var wpx by remember { mutableIntStateOf(1) }
-                    LaunchedEffect(page, meta?.id) { while (true) { pos = if (meta?.id == t.id) (pc?.player?.currentPosition ?: 0L) else 0L; delay(400) } }
-                    val dur = ((if (meta?.id == t.id) pc?.player?.duration?.takeIf { it > 0 } else null) ?: (t.dur * 1000L)).coerceAtLeast(1)
-                    val fr = dragF ?: (pos.toFloat() / dur).coerceIn(0f, 1f)
-                    Box(Modifier.fillMaxWidth().height(24.dp).onSizeChanged { wpx = it.width.coerceAtLeast(1) }
-                        .pointerInput(dur) { detectTapGestures { pc?.seekTo(((it.x / wpx).coerceIn(0f, 1f) * dur).toLong()) } }
-                        .pointerInput(dur) { detectHorizontalDragGestures(onDragStart = { dragF = (it.x / wpx).coerceIn(0f, 1f) }, onDragEnd = { dragF?.let { f -> pc?.seekTo((f * dur).toLong()) }; dragF = null }, onDragCancel = { dragF = null }) { c, _ -> dragF = (c.position.x / wpx).coerceIn(0f, 1f) } },
-                        contentAlignment = Alignment.CenterStart) {
-                        Box(Modifier.fillMaxWidth().height(3.dp).background(Color(0x55FFFFFF)))
-                        Box(Modifier.fillMaxWidth(fr).height(3.dp).background(Color.White))
+                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 96.dp)) {
+                    Text(t.title, style = ts(26, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(t.artist, style = ts(17, color = Color(0xDDFFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Spacer(Modifier.height(18.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(26.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painterResource(if (liked) R.drawable.favorite else R.drawable.favorite_border), null, Modifier.size(30.dp).clickable { liked = true; scope.launch { likeTrack(t.id) } }, tint = if (liked) W.Pink else Color.White)
+                        Icon(painterResource(R.drawable.share), null, Modifier.size(28.dp).clickable {
+                            ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "${t.title} - ${t.artist}\nhttps://music.youtube.com/watch?v=${t.id}"), "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        }, tint = Color.White)
                     }
-                    if (diag.isNotEmpty()) Text(diag, Modifier.padding(top = 4.dp), style = ts(11, color = Color(0xFFFFB4C8)))
+                    Spacer(Modifier.height(10.dp))
+                    var pos by remember { mutableLongStateOf(0L) }
+                    LaunchedEffect(page, meta?.id) { while (true) { pos = if (meta?.id == t.id) (pc?.player?.currentPosition ?: 0L) else 0L; delay(250) } }
+                    val dur = ((if (meta?.id == t.id) pc?.player?.duration?.takeIf { it > 0 } else null) ?: (t.dur * 1000L)).coerceAtLeast(1)
+                    WavySeek((pos.toFloat() / dur).coerceIn(0f, 1f), playing && meta?.id == t.id, Color.White, onSeekTo = { f -> pc?.seekTo((f * dur).toLong()) })
+                    Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.padding(top = 4.dp).size(40.dp).clickable { pc?.player?.let { p -> if (p.isPlaying) p.pause() else p.play() } }, tint = Color.White)
+                    if (videoOn && diag.isNotEmpty()) Text(diag, Modifier.padding(top = 4.dp), style = ts(11, color = Color(0xFFFFB4C8)))
                 }
+            }
+        }
+        if (showFx) {
+            Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { showFx = false })
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF2121016)).navigationBarsPadding().padding(vertical = 14.dp)) {
+                Text("Music features", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = ts(18, FontWeight.SemiBold))
+                SToggle("Video player", "Play the music video behind the song. Off shows the cover.", videoPref)
+                SToggle("Hook only", "Play about 25 seconds of each song, then move to the next.", hookPref)
             }
         }
     }
