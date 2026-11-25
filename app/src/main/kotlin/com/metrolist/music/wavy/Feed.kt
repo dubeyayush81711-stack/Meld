@@ -14,6 +14,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -55,18 +58,49 @@ class VideoBridge(val onTime: (Float) -> Unit, val onErr: (Int) -> Unit) {
     @JavascriptInterface fun onState(c: Int) {}
 }
 
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun VideoView(id: String, startSec: Int, onTime: (Float) -> Unit, onErr: (Int) -> Unit, modifier: Modifier) {
-    AndroidView(modifier = modifier, factory = { c ->
-        WebView(c).apply {
-            setBackgroundColor(android.graphics.Color.BLACK)
-            settings.javaScriptEnabled = true; settings.mediaPlaybackRequiresUserGesture = false; settings.domStorageEnabled = true
-            addJavascriptInterface(VideoBridge(onTime, onErr), "Android")
-            val html = "<html><head><meta name='viewport' content='width=device-width,initial-scale=1'><style>html,body,#p,iframe{margin:0;width:100%;height:100%;background:#000;overflow:hidden}</style></head><body><div id='p'></div><script src='https://www.youtube.com/iframe_api'></script><script>var pl;function onYouTubeIframeAPIReady(){pl=new YT.Player('p',{width:'100%',height:'100%',videoId:'$id',playerVars:{autoplay:1,controls:0,playsinline:1,rel:0,modestbranding:1,start:$startSec,fs:0,disablekb:1},events:{onReady:function(e){e.target.playVideo();setInterval(function(){Android.onTime(pl.getCurrentTime())},500)},onError:function(e){Android.onErr(e.data)},onStateChange:function(e){Android.onState(e.data)}}})}</script></body></html>"
-            loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "utf-8", null)
+fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier) {
+    val ctx = LocalContext.current
+    var url by remember(id) { mutableStateOf<String?>(null) }
+    var ar by remember(id) { mutableFloatStateOf(16f / 9f) }
+    var ready by remember(id) { mutableStateOf(false) }
+    LaunchedEffect(id) {
+        val clients = listOf(com.metrolist.innertube.models.YouTubeClient.IOS, com.metrolist.innertube.models.YouTubeClient.ANDROID_VR_NO_AUTH)
+        for (c in clients) {
+            val r = withContext(Dispatchers.IO) { com.metrolist.innertube.YouTube.player(id, null, c, null, null).getOrNull() } ?: continue
+            val sd = r.streamingData ?: continue
+            val all = (sd.formats.orEmpty() + sd.adaptiveFormats).filter { it.url != null && it.width != null && it.mimeType.startsWith("video/mp4") }
+            val f = all.filter { (it.height ?: 0) in 360..720 }.minByOrNull { it.height ?: 0 } ?: all.minByOrNull { it.height ?: 9999 } ?: continue
+            ar = (f.width!!.toFloat() / (f.height ?: 360).coerceAtLeast(1)); url = f.url; break
         }
-    }, onRelease = { it.destroy() })
+    }
+    val u = url ?: return
+    val ex = remember(u) {
+        androidx.media3.exoplayer.ExoPlayer.Builder(ctx).build().apply {
+            volume = 0f
+            setMediaSource(androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(androidx.media3.datasource.DefaultHttpDataSource.Factory().setUserAgent("com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)")).createMediaSource(androidx.media3.common.MediaItem.fromUri(u)))
+            prepare()
+            addListener(object : androidx.media3.common.Player.Listener {
+                override fun onRenderedFirstFrame() { ready = true }
+            })
+        }
+    }
+    DisposableEffect(ex) { onDispose { ex.release() } }
+    LaunchedEffect(ex, pc) {
+        while (true) {
+            val p = pc?.player
+            if (p != null) {
+                val want = p.currentPosition
+                ex.playWhenReady = p.isPlaying
+                if (kotlin.math.abs(ex.currentPosition - want) > 700) ex.seekTo(want)
+            }
+            delay(500)
+        }
+    }
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier.clipToBounds()) {
+        val h = maxHeight
+        AndroidView(modifier = Modifier.align(Alignment.Center).requiredSize(h * ar, h), factory = { c -> android.view.TextureView(c).also { ex.setVideoTextureView(it) } })
+    }
 }
 
 @Composable
@@ -90,19 +124,13 @@ fun MusicFeed(pc: PlayerConnection?) {
     }
     val pager = rememberPagerState { tracks.size }
     var queueOwned by remember { mutableStateOf(false) }
-    var video by remember { mutableStateOf(false) }
-    var vtime by remember { mutableFloatStateOf(0f) }
-    var vnote by remember { mutableStateOf<String?>(null) }
-    fun leaveVideo() { if (video) { video = false; pc?.player?.seekTo((vtime * 1000).toLong()); pc?.player?.play() } }
     LaunchedEffect(pager.settledPage, pc != null) {
         if (pc == null) return@LaunchedEffect
         val cur = tracks[pager.settledPage]
         if (meta?.id == cur.id) return@LaunchedEffect
-        if (video) { vtime = 0f; return@LaunchedEffect }
         if (queueOwned && pc.player.mediaItemCount == tracks.size) pc.player.seekTo(pager.settledPage, 0L).also { pc.player.play() }
         else { playTracks(pc, tracks, pager.settledPage, "Music"); queueOwned = true }
     }
-    DisposableEffect(Unit) { onDispose { if (video) { pc?.player?.seekTo((vtime * 1000).toLong()); pc?.player?.play() } } }
     Box(Modifier.fillMaxSize()) {
         VerticalPager(pager, Modifier.fillMaxSize(), userScrollEnabled = true) { page ->
             val t = tracks[page]
@@ -117,39 +145,24 @@ fun MusicFeed(pc: PlayerConnection?) {
             }
             val bg by animateColorAsState(tint, tween(500), label = "fb")
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, Color(0xFF14080F), Color(0xFF0B0B0D))))) {
-                Column(Modifier.fillMaxSize()) {
-                    Spacer(Modifier.statusBarsPadding().height(96.dp))
-                    Box(Modifier.weight(1f).fillMaxWidth()) {
-                        if (video && page == pager.settledPage) {
-                            VideoView(t.id, (vtime.toInt()).coerceAtLeast(0), { vtime = it }, { c -> vnote = "This video can't be played inside Wavy."; leaveVideo() }, Modifier.fillMaxSize())
-                        } else AsyncImage(t.cover, null, Modifier.fillMaxSize().background(W.Card), contentScale = ContentScale.Crop)
-                        Column(Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                            Icon(painterResource(if (liked) R.drawable.favorite else R.drawable.favorite_border), null, Modifier.size(34.dp).clickable { liked = true; scope.launch { likeTrack(t.id) } }, tint = if (liked) W.Pink else Color.White)
-                            Icon(painterResource(R.drawable.share), null, Modifier.size(32.dp).clickable {
-                                ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "${t.title} - ${t.artist}\nhttps://music.youtube.com/watch?v=${t.id}"), "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                            }, tint = Color.White)
-                        }
-                    }
-                    Column(Modifier.padding(start = 24.dp, end = 24.dp, top = 18.dp, bottom = 108.dp)) {
-                        Text(t.title, style = ts(24, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(t.artist, style = ts(18, color = Color(0xDDFFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Spacer(Modifier.height(14.dp))
-                        var pos by remember { mutableLongStateOf(0L) }
-                        LaunchedEffect(page, meta?.id, video) { while (true) { pos = if (video) (vtime * 1000).toLong() else if (meta?.id == t.id) (pc?.player?.currentPosition ?: 0L) else 0L; delay(400) } }
-                        val dur = (t.dur * 1000L).coerceAtLeast(1)
-                        Box(Modifier.fillMaxWidth().height(3.dp).background(Color(0x55FFFFFF))) { Box(Modifier.fillMaxWidth((pos.toFloat() / dur).coerceIn(0f, 1f)).fillMaxHeight().background(Color.White)) }
-                        if (vnote != null) Text(vnote!!, Modifier.padding(top = 10.dp), style = ts(12, color = Color(0xFFFFB4C8)))
-                    }
+                AsyncImage(t.cover, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                if (page == pager.settledPage) StreamVideo(t.id, pc, Modifier.fillMaxSize())
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x66000000), 0.25f to Color.Transparent, 0.6f to Color.Transparent, 1f to Color(0xCC000000))))
+                Column(Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 170.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                    Icon(painterResource(if (liked) R.drawable.favorite else R.drawable.favorite_border), null, Modifier.size(34.dp).clickable { liked = true; scope.launch { likeTrack(t.id) } }, tint = if (liked) W.Pink else Color.White)
+                    Icon(painterResource(R.drawable.share), null, Modifier.size(32.dp).clickable {
+                        ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "${t.title} - ${t.artist}\nhttps://music.youtube.com/watch?v=${t.id}"), "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }, tint = Color.White)
                 }
-            }
-        }
-        // Photo / Video switch
-        Row(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 14.dp, end = 18.dp).clip(RoundedCornerShape(50)).background(Color(0x66000000)).padding(4.dp)) {
-            listOf("Photo" to false, "Video" to true).forEach { (n, v) ->
-                Text(n, Modifier.clip(RoundedCornerShape(50)).background(if (video == v) Color.White else Color.Transparent).clickable {
-                    if (v && !video) { vnote = null; vtime = ((pc?.player?.currentPosition ?: 0L) / 1000f); pc?.player?.pause(); video = true }
-                    else if (!v) leaveVideo()
-                }.padding(horizontal = 20.dp, vertical = 10.dp), style = ts(16, FontWeight.Medium, if (video == v) Color(0xFFB0124A) else Color.White))
+                Column(Modifier.align(Alignment.BottomStart).padding(start = 24.dp, end = 80.dp, bottom = 108.dp)) {
+                    Text(t.title, style = ts(24, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(t.artist, style = ts(18, color = Color(0xDDFFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Spacer(Modifier.height(14.dp))
+                    var pos by remember { mutableLongStateOf(0L) }
+                    LaunchedEffect(page, meta?.id) { while (true) { pos = if (meta?.id == t.id) (pc?.player?.currentPosition ?: 0L) else 0L; delay(400) } }
+                    val dur = (t.dur * 1000L).coerceAtLeast(1)
+                    Box(Modifier.fillMaxWidth().height(3.dp).background(Color(0x55FFFFFF))) { Box(Modifier.fillMaxWidth((pos.toFloat() / dur).coerceIn(0f, 1f)).fillMaxHeight().background(Color.White)) }
+                }
             }
         }
     }
