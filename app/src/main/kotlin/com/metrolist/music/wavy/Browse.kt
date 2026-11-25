@@ -63,10 +63,24 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
             }
         } catch (e: Exception) { }
     }
+    var sugg by remember { mutableStateOf<List<String>>(emptyList()) }
+    LaunchedEffect(q) {
+        if (q.trim().length < 2) { sugg = emptyList(); return@LaunchedEffect }
+        delay(150)
+        val ytm = try { com.metrolist.innertube.YouTube.searchSuggestions(q.trim()).getOrNull()?.queries ?: emptyList() } catch (e: Exception) { emptyList() }
+        val ac = autocomplete(q.trim())
+        sugg = (ytm.take(3) + ac + ytm.drop(3)).map { it.trim() }.filter { it.isNotEmpty() && !it.equals(q.trim(), true) }.distinctBy { it.lowercase() }.take(6)
+    }
     LaunchedEffect(q) {
         if (q.trim().length < 2) { res = null; return@LaunchedEffect }
         delay(350); err = null
-        try { res = Api.rpc("search_all", JSONObject().put("p_q", q.trim()).put("p_limit", 30)) as? JSONObject } catch (e: ApiError) { err = humanErr(e) }
+        try {
+            var o = Api.rpc("search_all", JSONObject().put("p_q", q.trim()).put("p_limit", 30)) as? JSONObject
+            if ((o?.optJSONArray("songs")?.length() ?: 0) < 3) {
+                val alt = (sugg.firstOrNull() ?: autocomplete(q.trim()).firstOrNull())
+                if (alt != null) { val o2 = Api.rpc("search_all", JSONObject().put("p_q", alt).put("p_limit", 30)) as? JSONObject; if ((o2?.optJSONArray("songs")?.length() ?: 0) > (o?.optJSONArray("songs")?.length() ?: 0)) o = o2 }
+            }
+            res = o } catch (e: ApiError) { err = humanErr(e) }
     }
     val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val playing by (pc?.isPlaying ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }).collectAsState()
@@ -89,6 +103,14 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 Spacer(Modifier.height(16.dp))
             }
             val r = res
+            if (q.trim().length >= 2 && r == null && sugg.isNotEmpty()) col {
+                sugg.take(6).forEach { sg ->
+                    Row(Modifier.fillMaxWidth().clickable { q = sg }.padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painterResource(R.drawable.search), null, Modifier.size(20.dp), tint = W.Dim)
+                        Text(sg, Modifier.weight(1f).padding(start = 14.dp), style = ts(16), maxLines = 1)
+                    }
+                }
+            }
             if (q.trim().length < 2 || r == null) {
                 val m = meta
                 if (m != null) col {
@@ -129,11 +151,21 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 }
             } else {
                 col {
-                    Row(Modifier.padding(bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.padding(bottom = 14.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         listOf("All", "Songs", "Artists", "Albums").forEach { f ->
-                            Text(f, Modifier.clip(RoundedCornerShape(50)).background(if (f == filter) W.Pink else Color(0x55FFFFFF)).clickable { filter = f }.padding(horizontal = 18.dp, vertical = 9.dp), style = ts(15, FontWeight.Medium))
+                            Text(f, Modifier.then(if (f == filter) Modifier.clip(RoundedCornerShape(50)).background(W.Pink) else Modifier.glass(RoundedCornerShape(50))).clickable { filter = f }.padding(horizontal = 18.dp, vertical = 9.dp), style = ts(15, FontWeight.Medium), maxLines = 1, softWrap = false)
                         }
                     }
+                }
+                if (sugg.isNotEmpty()) col {
+                    sugg.take(5).forEach { sg ->
+                        Row(Modifier.fillMaxWidth().clickable { q = sg }.padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(painterResource(R.drawable.search), null, Modifier.size(20.dp), tint = W.Dim)
+                            Text(sg, Modifier.weight(1f).padding(start = 14.dp), style = ts(16), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Icon(painterResource(R.drawable.arrow_forward), null, Modifier.size(18.dp), tint = W.Dim)
+                        }
+                    }
+                    Box(Modifier.fillMaxWidth().padding(vertical = 6.dp).height(1.dp).background(Color(0x22FFFFFF)))
                 }
                 val songs = r.optJSONArray("songs").tracks()
                 val artists = r.optJSONArray("artists").artistItems()
