@@ -74,6 +74,7 @@ private val tabs = listOf("Home" to R.drawable.home_outlined, "Search" to R.draw
 fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
     var tab by remember { mutableIntStateOf(0) }
     var full by remember { mutableStateOf(false) }
+    var page by remember { mutableStateOf<String?>(null) }
     val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val ctx = LocalContext.current
     // count a play after 15 s of listening so Favourites and recommendations learn
@@ -83,14 +84,29 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         try { Api.post("plays", JSONObject().put("user_id", Api.uid).put("track_id", id)) } catch (e: Exception) { }
     }
     BackHandler(full) { full = false }
+    BackHandler(!full && page != null) { page = null }
     BackHandler(!full && tab != 0) { tab = 0 }
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize()) {
             AnimatedContent(tab, transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(160)) }, label = "tab") { t ->
                 when (t) {
-                    0 -> HomeScreen(pc, onSearch = { tab = 1 }, onSignOut = onSignOut)
+                    0 -> HomeScreen(pc, onSearch = { tab = 1 }, onSignOut = onSignOut, onProfile = { page = "profile" })
+                    1 -> SearchScreen(pc, onLang = { l -> page = "lang:" + l.lang + ":" + l.title }, onProfile = { page = "profile" }, initial = "")
+                    3 -> LibraryScreen(pc, onProfile = { page = "profile" }, onPlaylist = { id, n -> page = "pl:$id:$n" }, onAddArtists = { page = "picker" })
                     else -> Backdrop { Box(Modifier.fillMaxSize().statusBarsPadding(), contentAlignment = Alignment.Center) {
                         Text(tabs[t].first + " is coming in the next build.", style = ts(16, color = W.Dim)) } }
+                }
+            }
+        }
+        AnimatedVisibility(page != null, enter = slideInHorizontally(tween(300)) { it / 3 } + fadeIn(tween(250)), exit = slideOutHorizontally(tween(250)) { it / 3 } + fadeOut(tween(200))) {
+            val p = remember { page ?: "" }.let { page ?: it }
+            Box(Modifier.fillMaxSize().background(W.Bg)) {
+                when {
+                    p.startsWith("lang:") -> { val parts = p.split(":"); TrackListScreen(parts[2], pc, { page = null }) {
+                        (Api.rpc("language_top", JSONObject().put("p_lang", parts[1]).put("p_limit", 50)) as? JSONArray).tracks() } }
+                    p.startsWith("pl:") -> { val parts = p.split(":", limit = 3); TrackListScreen(parts[2], pc, { page = null }) { loadPlaylistTracks(parts[1].toLong()) } }
+                    p == "picker" -> ArtistPicker { page = null }
+                    p == "profile" -> ProfileScreen(onBack = { page = null }, onSignOut = onSignOut)
                 }
             }
         }
@@ -151,7 +167,7 @@ fun Cover(url: String?, size: androidx.compose.ui.unit.Dp, radius: Int = 10, mod
 }
 
 @Composable
-fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Unit) {
+fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Unit, onProfile: () -> Unit) {
     var feed by remember { mutableStateOf<Feed?>(null) }
     var name by remember { mutableStateOf("") }
     var err by remember { mutableStateOf<String?>(null) }
@@ -172,12 +188,8 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
         LazyColumn(state = st, contentPadding = PaddingValues(bottom = 190.dp), modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             col {
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    var menu by remember { mutableStateOf(false) }
-                    Box {
-                        Box(Modifier.size(44.dp).clip(CircleShape).background(W.Grad).clickable { menu = true }, contentAlignment = Alignment.Center) {
-                            Text(name.take(1).uppercase().ifEmpty { "W" }, style = ts(20, FontWeight.Bold)) }
-                        DropdownMenu(menu, { menu = false }) { DropdownMenuItem(text = { Text("Sign out") }, onClick = { menu = false; onSignOut() }) }
-                    }
+                    Box(Modifier.size(44.dp).clip(CircleShape).background(W.Grad).clickable(onClick = onProfile), contentAlignment = Alignment.Center) {
+                        Text(name.take(1).uppercase().ifEmpty { "W" }, style = ts(20, FontWeight.Bold)) }
                     Text("Home", Modifier.padding(start = 14.dp).weight(1f), style = ts(28, FontWeight.SemiBold))
                     Box(Modifier.size(44.dp).clip(CircleShape).background(Color(0x55FFFFFF)).clickable(onClick = onSearch), contentAlignment = Alignment.Center) {
                         Icon(painterResource(R.drawable.search), null, Modifier.size(22.dp), tint = Color.White) }
