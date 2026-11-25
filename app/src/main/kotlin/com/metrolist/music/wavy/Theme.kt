@@ -23,7 +23,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.runtime.getValue
 import com.metrolist.music.R
 
-const val WAVY_BUILD = "dev-16"
+const val WAVY_BUILD = "dev-17"
 
 object W {
     val Pink = Color(0xFFFF2D78)

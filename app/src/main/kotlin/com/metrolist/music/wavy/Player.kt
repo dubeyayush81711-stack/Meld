@@ -105,15 +105,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             // seek bar
             var w by remember { mutableIntStateOf(1) }
             val frac = drag ?: (pos.toFloat() / dur.coerceAtLeast(1)).coerceIn(0f, 1f)
-            Box(Modifier.fillMaxWidth().height(24.dp).onSizeChanged { w = it.width.coerceAtLeast(1) }
-                .pointerInput(dur) {
-                    detectDragGestures(onDragStart = { drag = (it.x / w).coerceIn(0f, 1f) }, onDragEnd = { drag?.let { pc.seekTo((it * dur).toLong()) }; drag = null },
-                        onDragCancel = { drag = null }) { c, _ -> drag = (c.position.x / w).coerceIn(0f, 1f) }
-                }.pointerInput(dur) { detectTapGestures { pc.seekTo(((it.x / w).coerceIn(0f, 1f) * dur).toLong()) } }, contentAlignment = Alignment.CenterStart) {
-                Box(Modifier.fillMaxWidth().height(4.dp).glass(CircleShape))
-                Box(Modifier.fillMaxWidth(frac).height(4.dp).clip(CircleShape).background(Color.White))
-                Box(Modifier.fillMaxWidth(frac), contentAlignment = Alignment.CenterEnd) { Box(Modifier.size(14.dp).clip(CircleShape).background(Color.White)) }
-            }
+            WavySeek(frac, playing, Color(0xFFFFF1EE), onSeekTo = { pc.seekTo((it * dur).toLong()) }, onDrag = { drag = it })
             Row(Modifier.fillMaxWidth()) {
                 Text(fmt((frac * dur).toLong()), style = ts(12, color = Color(0xFFD6CCD3))); Spacer(Modifier.weight(1f)); Text("-" + fmt((dur - (frac * dur).toLong()).coerceAtLeast(0)), style = ts(12, color = Color(0xFFD6CCD3)))
             }
