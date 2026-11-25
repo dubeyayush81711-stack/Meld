@@ -1,6 +1,9 @@
 package com.metrolist.music.wavy
 
 import android.content.Intent
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
@@ -53,6 +56,9 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
     var drag by remember { mutableStateOf<Float?>(null) }
     var showQueue by remember { mutableStateOf(false) }
     var showAdv by remember { mutableStateOf(false) }
+    val scroll = rememberScrollState()
+    var fullLy by remember { mutableStateOf<List<LyricLine>?>(null) }
+    val scope = rememberCoroutineScope()
     LaunchedEffect(m?.id) { while (true) { pos = pc.player.currentPosition; delay(400) } }
     val dur = pc.player.duration.takeIf { it > 0 } ?: ((m?.duration ?: 0) * 1000L)
     var tint by remember { mutableStateOf(Color(0xFF55091F)) }
@@ -69,7 +75,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
     val bg by androidx.compose.animation.animateColorAsState(tint, tween(600), label = "bg")
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, Color(0xFF120A10), Color(0xFF0B0B0D))))
         .pointerInput(Unit) { detectVerticalDragGestures { _, d -> if (d > 40f) onClose() } }) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 22.dp)) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().verticalScroll(scroll).padding(horizontal = 22.dp)) {
             Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.expand_more), null, Modifier.size(34.dp).clickable(onClick = onClose), tint = Color.White)
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -81,8 +87,14 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             AsyncImage(m?.thumbnailUrl, null, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(W.Card), contentScale = ContentScale.Crop)
             Spacer(Modifier.height(26.dp))
-            Text(m?.title ?: "", style = ts(26, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(m?.artists?.joinToString { it.name } ?: "", style = ts(16, color = Color(0xFFD6CCD3)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(m?.title ?: "", style = ts(26, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.basicMarquee())
+                    Text(m?.artists?.joinToString { it.name } ?: "", style = ts(16, color = Color(0xFFD6CCD3)), maxLines = 1, modifier = Modifier.basicMarquee())
+                }
+                Icon(painterResource(R.drawable.close), null, Modifier.padding(start = 12.dp).size(32.dp).clickable { pc.seekToNext() }, tint = Color.White)
+                Icon(painterResource(R.drawable.add_circle), null, Modifier.padding(start = 16.dp).size(34.dp).clickable { m?.let { x -> scope.launch { likeTrack(x.id) } } }, tint = Color.White)
+            }
             Spacer(Modifier.height(18.dp))
             // seek bar
             var w by remember { mutableIntStateOf(1) }
@@ -119,7 +131,19 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                 Spacer(Modifier.width(24.dp))
                 Icon(painterResource(R.drawable.queue_music), null, Modifier.size(32.dp).clickable { showQueue = true }, tint = Color.White)
             }
+            if (m != null) PlayerDetails(pc, m.id, m.title, m.artists.joinToString { it.name }, m.artists.map { it.name to it.id }, m.thumbnailUrl, m.album?.title, (m.duration ?: 0)) { fullLy = it }
         }
+        // sticky bar when scrolled
+        if (scroll.value > 900 && m != null) Row(Modifier.fillMaxWidth().background(Color(0xFF2A0A12)).statusBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(m.title, style = ts(16, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(m.artists.joinToString { it.name }, style = ts(13, color = Color(0xFFD6CCD3)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Icon(painterResource(R.drawable.add_circle), null, Modifier.size(30.dp).clickable { scope.launch { likeTrack(m.id) } }, tint = Color.White)
+            Spacer(Modifier.width(16.dp))
+            Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(30.dp).clickable { if (pc.player.isPlaying) pc.player.pause() else pc.player.play() }, tint = Color.White)
+        }
+        fullLy?.let { FullLyrics(pc, m?.title ?: "", m?.artists?.joinToString { it.name } ?: "", it) { fullLy = null } }
         if (showQueue) QueueSheet(pc) { showQueue = false }
         if (showAdv) AdvancedPlayer(pc) { showAdv = false }
     }
