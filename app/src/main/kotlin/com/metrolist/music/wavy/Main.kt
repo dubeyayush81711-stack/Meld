@@ -1,0 +1,307 @@
+package com.metrolist.music.wavy
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.geometry.Offset
+import coil3.compose.AsyncImage
+import com.metrolist.music.R
+import com.metrolist.music.extensions.toMediaItem
+import com.metrolist.music.playback.PlayerConnection
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
+import kotlin.math.roundToInt
+
+@Composable
+fun WavyApp(pc: PlayerConnection?) {
+    var stage by remember { mutableStateOf("splash") }
+    LaunchedEffect(Unit) {
+        delay(1500)
+        stage = if (!Api.signedIn) "welcome" else try {
+            val p = Api.get("user_prefs?select=onboarded") as? JSONArray
+            if (p != null && p.length() > 0 && p.getJSONObject(0).optBoolean("onboarded")) "main" else "picker"
+        } catch (e: ApiError) { if (Api.signedIn) "main" else "welcome" }
+    }
+    Box(Modifier.fillMaxSize().background(W.Bg)) {
+        AnimatedContent(stage, transitionSpec = { (fadeIn(tween(450)) + slideInVertically(tween(450)) { it / 14 }) togetherWith fadeOut(tween(250)) }, label = "stage") { s ->
+            when (s) {
+                "splash" -> SplashScreen()
+                "welcome" -> WelcomeScreen { stage = "login" }
+                "login" -> LoginScreen { needs -> stage = if (needs) "picker" else "main" }
+                "picker" -> ArtistPicker { stage = "main" }
+                else -> Shell(pc) { Api.signOut(); stage = "welcome" }
+            }
+        }
+    }
+}
+
+private val tabs = listOf("Home" to R.drawable.home_outlined, "Search" to R.drawable.search, "Music" to R.drawable.music_note, "Your Library" to R.drawable.library_music_outlined)
+
+@Composable
+fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
+    var tab by remember { mutableIntStateOf(0) }
+    var full by remember { mutableStateOf(false) }
+    val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
+    val ctx = LocalContext.current
+    // count a play after 15 s of listening so Favourites and recommendations learn
+    LaunchedEffect(meta?.id) {
+        val id = meta?.id ?: return@LaunchedEffect
+        delay(15000)
+        try { Api.post("plays", JSONObject().put("user_id", Api.uid).put("track_id", id)) } catch (e: Exception) { }
+    }
+    BackHandler(full) { full = false }
+    BackHandler(!full && tab != 0) { tab = 0 }
+    Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize()) {
+            AnimatedContent(tab, transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(160)) }, label = "tab") { t ->
+                when (t) {
+                    0 -> HomeScreen(pc, onSearch = { tab = 1 }, onSignOut = onSignOut)
+                    else -> Backdrop { Box(Modifier.fillMaxSize().statusBarsPadding(), contentAlignment = Alignment.Center) {
+                        Text(tabs[t].first + " is coming in the next build.", style = ts(16, color = W.Dim)) } }
+                }
+            }
+        }
+        Column(Modifier.align(Alignment.BottomCenter)) {
+            if (meta != null && pc != null) MiniPlayer(pc) { full = true }
+            NavBar(tab) { tab = it }
+        }
+        AnimatedVisibility(full && pc != null, enter = slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(200)),
+            exit = slideOutVertically(tween(300)) { it } + fadeOut(tween(200))) {
+            if (pc != null) PlayerScreen(pc) { full = false }
+        }
+    }
+}
+
+@Composable
+fun NavBar(sel: Int, onSel: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Color(0xE60B0B0D), Color(0xFF0B0B0D)))).navigationBarsPadding().padding(top = 8.dp, bottom = 6.dp)) {
+        tabs.forEachIndexed { i, (name, icon) ->
+            val on = i == sel
+            val col by animateColorAsState(if (on) W.Pink else Color(0xFFBDB8C4), tween(200), label = "c")
+            Column(Modifier.weight(1f).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSel(i) }, horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(painterResource(if (i == 0 && on) R.drawable.home_filled else icon), null, Modifier.size(28.dp), tint = col)
+                Text(name, style = ts(12, FontWeight.Medium, col), maxLines = 1)
+                Spacer(Modifier.height(4.dp))
+                Box(Modifier.height(3.dp).width(if (on) 36.dp else 0.dp).clip(RoundedCornerShape(2.dp)).background(W.Pink))
+            }
+        }
+    }
+}
+
+@Composable
+fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
+    val meta by pc.mediaMetadata.collectAsState()
+    val playing by pc.isPlaying.collectAsState()
+    val m = meta ?: return
+    var pos by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(m.id) { while (true) { pos = pc.player.currentPosition; delay(500) } }
+    val dur = pc.player.duration.takeIf { it > 0 } ?: (m.duration * 1000L)
+    Column(Modifier.padding(horizontal = 14.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF3C0B1F)).clickable(onClick = onOpen)) {
+        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            AsyncImage(m.thumbnailUrl, null, Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)).background(W.Card), contentScale = ContentScale.Crop)
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(m.title, style = ts(16, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(m.artists.joinToString { it.name }, style = ts(13, color = Color(0xFFD6CCD3)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(40.dp).clip(CircleShape).clickable { pc.togglePlayPause() }.padding(6.dp), tint = Color.White)
+            Icon(painterResource(R.drawable.skip_next), null, Modifier.size(40.dp).clip(CircleShape).clickable { pc.seekToNext() }.padding(6.dp), tint = Color.White)
+        }
+        Box(Modifier.padding(horizontal = 10.dp).padding(bottom = 6.dp).fillMaxWidth().height(2.dp).background(Color(0x55FFFFFF))) {
+            Box(Modifier.fillMaxWidth((pos.toFloat() / dur.coerceAtLeast(1)).coerceIn(0f, 1f)).fillMaxHeight().background(Color.White))
+        }
+    }
+}
+
+@Composable
+fun Cover(url: String?, size: androidx.compose.ui.unit.Dp, radius: Int = 10, modifier: Modifier = Modifier) {
+    AsyncImage(url, null, modifier.size(size).clip(RoundedCornerShape(radius.dp)).background(Brush.linearGradient(listOf(Color(0xFF3A2A44), Color(0xFF15121A)))), contentScale = ContentScale.Crop)
+}
+
+@Composable
+fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Unit) {
+    var feed by remember { mutableStateOf<Feed?>(null) }
+    var name by remember { mutableStateOf("") }
+    var err by remember { mutableStateOf<String?>(null) }
+    var reload by remember { mutableIntStateOf(0) }
+    LaunchedEffect(reload) {
+        err = null
+        try {
+            feed = parseFeed(Api.rpc("home_feed") as JSONObject)
+            val p = Api.get("profiles?id=eq.${Api.uid}&select=name") as? JSONArray
+            name = p?.optJSONObject(0)?.optString("name").orEmpty().ifBlank { Api.email.substringBefore("@") }
+        } catch (e: ApiError) { err = e.message } catch (e: Exception) { err = "Something went wrong." }
+    }
+    val st = rememberLazyListState()
+    val shift = if (st.firstVisibleItemIndex == 0) st.firstVisibleItemScrollOffset else 4000
+    Box(Modifier.fillMaxSize().background(W.Bg)) {
+        Backdrop(Modifier.fillMaxWidth().height(1400.dp).offset { IntOffset(0, -shift) }, tint = Color(0xFF2B0B3A)) {}
+        val f = feed
+        LazyColumn(state = st, contentPadding = PaddingValues(bottom = 190.dp), modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+            col {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    var menu by remember { mutableStateOf(false) }
+                    Box {
+                        Box(Modifier.size(44.dp).clip(CircleShape).background(W.Grad).clickable { menu = true }, contentAlignment = Alignment.Center) {
+                            Text(name.take(1).uppercase().ifEmpty { "W" }, style = ts(20, FontWeight.Bold)) }
+                        DropdownMenu(menu, { menu = false }) { DropdownMenuItem(text = { Text("Sign out") }, onClick = { menu = false; onSignOut() }) }
+                    }
+                    Text("Home", Modifier.padding(start = 14.dp).weight(1f), style = ts(28, FontWeight.SemiBold))
+                    Box(Modifier.size(44.dp).clip(CircleShape).background(Color(0x55FFFFFF)).clickable(onClick = onSearch), contentAlignment = Alignment.Center) {
+                        Icon(painterResource(R.drawable.search), null, Modifier.size(22.dp), tint = Color.White) }
+                }
+                Row(Modifier.padding(start = 20.dp, top = 44.dp, bottom = 40.dp)) {
+                    Text("Hey, ", style = ts(34, color = Color(0xFFCFC8D9))); Text(name, style = ts(34, FontWeight.Medium))
+                }
+            }
+            if (f == null) item {
+                Box(Modifier.fillMaxWidth().padding(60.dp), contentAlignment = Alignment.Center) {
+                    if (err != null) Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(err!!, style = ts(14, color = W.Dim)); Spacer(Modifier.height(12.dp))
+                        Text("Try again", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { reload++ }.padding(20.dp, 10.dp), style = ts(14, FontWeight.SemiBold))
+                    } else Text("Loading...", style = ts(14, color = W.Dim))
+                }
+            } else feedItems(f, pc)
+        }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc: PlayerConnection?) {
+    val first = f.sections.firstOrNull { it.type == "made_for_you" } ?: f.sections.firstOrNull { it.type == "trending" }
+    if (first != null && first.tracks.isNotEmpty()) col {
+        Column {
+            Text("Jump into a session based on your tastes", Modifier.padding(horizontal = 20.dp), style = ts(15, color = Color(0xFFB9B2C4)))
+            Text("Start listening", Modifier.padding(horizontal = 20.dp, vertical = 2.dp), style = ts(24, FontWeight.SemiBold))
+            Spacer(Modifier.height(10.dp))
+            first.tracks.take(3).forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, first.tracks, i, first.title) } }
+            Spacer(Modifier.height(28.dp))
+        }
+    }
+    val mixes = f.sections.filter { it.type == "artist_mix" }
+    if (mixes.isNotEmpty()) col {
+        SectionHeader("To get you started")
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            itemsIndexed(mixes) { _, s -> BigCard(s.tracks.firstOrNull()?.cover ?: s.cover, s.title, s.subtitle) { playTracks(pc, s.tracks, 0, s.title) } }
+        }
+        Spacer(Modifier.height(28.dp))
+    }
+    for (s in f.sections) {
+        if (s.type == "artist_mix" || (s === first)) continue
+        when {
+            s.albums.isNotEmpty() -> col(s.id) {
+                SectionHeader(s.title)
+                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    itemsIndexed(s.albums) { _, a -> MiniCard(a.cover, a.title, a.artist) { playTracks(pc, a.tracks, 0, a.title) } }
+                }
+                Spacer(Modifier.height(28.dp))
+            }
+            s.artists.isNotEmpty() -> col(s.id) {
+                SectionHeader(s.title)
+                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    itemsIndexed(s.artists) { _, a ->
+                        Column(Modifier.width(130.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Cover(a.thumb, 130.dp, 65)
+                            Text(a.name, Modifier.padding(top = 8.dp), style = ts(14, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(28.dp))
+            }
+            s.type == "trending" -> col(s.id) {
+                SectionHeader(s.title)
+                s.tracks.take(5).forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, s.tracks, i, s.title) } }
+                Spacer(Modifier.height(28.dp))
+            }
+            s.tracks.isNotEmpty() -> col(s.id) {
+                if (s.type == "more_like") Row(Modifier.padding(start = 20.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Cover(s.cover, 46.dp, 23)
+                    Column(Modifier.padding(start = 12.dp)) {
+                        Text("More like", style = ts(13, color = Color(0xFFB9B2C4)))
+                        Text(s.title.removePrefix("More like "), style = ts(22, FontWeight.SemiBold))
+                    }
+                } else SectionHeader(s.title)
+                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    itemsIndexed(s.tracks) { i, t -> MiniCard(t.cover, t.title, t.artist) { playTracks(pc, s.tracks, i, s.title) } }
+                }
+                Spacer(Modifier.height(28.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun SectionHeader(t: String) = Text(t, Modifier.padding(start = 20.dp, bottom = 14.dp), style = ts(24, FontWeight.SemiBold))
+
+@Composable
+fun BigCard(cover: String?, label: String, sub: String?, onClick: () -> Unit) {
+    Column(Modifier.width(160.dp).clickable(onClick = onClick)) {
+        Box {
+            Cover(cover, 160.dp, 12)
+            Text(label, Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFFF2D7B0)).padding(horizontal = 8.dp, vertical = 3.dp),
+                style = ts(13, FontWeight.SemiBold, Color(0xFF1A1018)), maxLines = 1)
+        }
+        if (sub != null) Text(sub, Modifier.padding(top = 8.dp), style = ts(12, color = Color(0xFFB9B2C4)), maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+fun MiniCard(cover: String?, title: String, sub: String, onClick: () -> Unit) {
+    Column(Modifier.width(150.dp).clickable(onClick = onClick)) {
+        Cover(cover, 150.dp, 12)
+        Text(title, Modifier.padding(top = 8.dp), style = ts(14, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(sub, style = ts(12, color = Color(0xFFB9B2C4)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+fun TrackRow(t: Track, pc: PlayerConnection?, onPlay: () -> Unit) {
+    var menu by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth().clickable(onClick = onPlay).padding(horizontal = 20.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+        Cover(t.cover, 62.dp, 8)
+        Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
+            Text(t.title, style = ts(17, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(t.artist, style = ts(14, color = Color(0xFFB9B2C4)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Box {
+            Icon(painterResource(R.drawable.more_vert), null, Modifier.size(30.dp).clip(CircleShape).clickable { menu = true }.padding(3.dp), tint = Color(0xFFB9B2C4))
+            DropdownMenu(menu, { menu = false }) {
+                DropdownMenuItem(text = { Text("Play next") }, onClick = { menu = false; pc?.playNext(t.toMeta().toMediaItem()) })
+                DropdownMenuItem(text = { Text("Add to queue") }, onClick = { menu = false; pc?.addToQueue(t.toMeta().toMediaItem()) })
+            }
+        }
+    }
+}
+
+fun LazyListScope.col(key: Any? = null, content: @Composable ColumnScope.() -> Unit) { item(key = key) { Column(content = content) } }

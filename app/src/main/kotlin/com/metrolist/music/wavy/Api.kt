@@ -1,0 +1,145 @@
+package com.metrolist.music.wavy
+
+import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
+
+class ApiError(message: String, val code: Int = 0) : Exception(message)
+
+/** Supabase client. Email+password auth (GoTrue) and PostgREST/RPC calls with the user's JWT. */
+object Api {
+    const val URL = "https://jzamdwqmvvywxcjwodwy.supabase.co"
+    const val KEY = "sb_publishable_u7PeU6BAAGe-sRZfJxdKBQ_Ys2j8KAC"
+    private val JSON = "application/json".toMediaType()
+    private val http = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).build()
+    private var prefs: android.content.SharedPreferences? = null
+
+    var access: String = ""; private set
+    private var refresh: String = ""
+    var uid: String = ""; private set
+    var email: String = ""; private set
+    val signedIn get() = refresh.isNotEmpty()
+
+    fun init(ctx: Context) {
+        val p = ctx.applicationContext.getSharedPreferences("wavy_session", Context.MODE_PRIVATE); prefs = p
+        if (!p.getBoolean("remember", true) && p.getBoolean("cold", false)) p.edit().clear().apply()
+        access = p.getString("a", "") ?: ""; refresh = p.getString("r", "") ?: ""
+        uid = p.getString("uid", "") ?: ""; email = p.getString("email", "") ?: ""
+        p.edit().putBoolean("cold", true).apply()
+    }
+
+    fun setRemember(v: Boolean) { prefs?.edit()?.putBoolean("remember", v)?.apply() }
+    fun remember() = prefs?.getBoolean("remember", true) ?: true
+
+    fun signOut() {
+        access = ""; refresh = ""; uid = ""; email = ""
+        prefs?.edit()?.clear()?.apply()
+    }
+
+    private fun saveSession(j: JSONObject) {
+        access = j.getString("access_token"); refresh = j.getString("refresh_token")
+        val u = j.optJSONObject("user"); if (u != null) { uid = u.optString("id"); email = u.optString("email") }
+        prefs?.edit()?.putString("a", access)?.putString("r", refresh)?.putString("uid", uid)?.putString("email", email)?.apply()
+    }
+
+    private fun errText(body: String, code: Int): String = try {
+        val j = JSONObject(body)
+        listOf("msg", "error_description", "message", "error").map { j.optString(it) }.firstOrNull { it.isNotBlank() } ?: "Error $code"
+    } catch (e: Exception) { if (body.isNotBlank() && body.length < 200) body else "Error $code" }
+
+    private suspend fun exec(b: Request.Builder, authed: Boolean): String = withContext(Dispatchers.IO) {
+        suspend fun once(): Pair<Int, String> {
+            val rb = b.build().newBuilder().header("apikey", KEY)
+                .header("Authorization", "Bearer " + (if (authed && access.isNotEmpty()) access else KEY)).build()
+            http.newCall(rb).execute().use { r -> return r.code to (r.body?.string() ?: "") }
+        }
+        var (code, body) = try { once() } catch (e: java.io.IOException) { throw ApiError("No connection. Check your internet.") }
+        if (authed && (code == 401 || (code == 400 && body.contains("JWT")))) {
+            if (refreshToken()) { val r = once(); code = r.first; body = r.second }
+        }
+        if (code !in 200..299) throw ApiError(errText(body, code), code)
+        body
+    }
+
+    private suspend fun refreshToken(): Boolean {
+        if (refresh.isEmpty()) return false
+        return try {
+            val req = Request.Builder().url("$URL/auth/v1/token?grant_type=refresh_token")
+                .post(JSONObject().put("refresh_token", refresh).toString().toRequestBody(JSON))
+            saveSession(JSONObject(exec(req, false))); true
+        } catch (e: ApiError) { if (e.code in 400..403) signOut(); false }
+    }
+
+    suspend fun signIn(email: String, pw: String) {
+        val req = Request.Builder().url("$URL/auth/v1/token?grant_type=password")
+            .post(JSONObject().put("email", email.trim()).put("password", pw).toString().toRequestBody(JSON))
+        saveSession(JSONObject(exec(req, false)))
+    }
+
+    suspend fun signUp(email: String, pw: String) {
+        val req = Request.Builder().url("$URL/auth/v1/signup")
+            .post(JSONObject().put("email", email.trim()).put("password", pw).toString().toRequestBody(JSON))
+        val j = JSONObject(exec(req, false))
+        if (j.has("access_token")) saveSession(j) else signIn(email, pw)
+    }
+
+    suspend fun recover(email: String) {
+        val req = Request.Builder().url("$URL/auth/v1/recover")
+            .post(JSONObject().put("email", email.trim()).toString().toRequestBody(JSON))
+        exec(req, false)
+    }
+
+    /** Calls an RPC and returns the parsed JSON (JSONObject, JSONArray or null). */
+    suspend fun rpc(fn: String, args: JSONObject = JSONObject()): Any? {
+        val req = Request.Builder().url("$URL/rest/v1/rpc/$fn").post(args.toString().toRequestBody(JSON))
+        return parse(exec(req, true))
+    }
+
+    suspend fun get(path: String): Any? = parse(exec(Request.Builder().url("$URL/rest/v1/$path").get(), true))
+
+    suspend fun post(path: String, body: Any, upsert: Boolean = false) {
+        val b = Request.Builder().url("$URL/rest/v1/$path").post(body.toString().toRequestBody(JSON))
+            .header("Prefer", if (upsert) "resolution=merge-duplicates,return=minimal" else "return=minimal")
+        exec(b, true)
+    }
+
+    suspend fun delete(path: String) { exec(Request.Builder().url("$URL/rest/v1/$path").delete(), true) }
+
+    private fun parse(s: String): Any? {
+        val t = s.trim(); if (t.isEmpty() || t == "null") return null
+        return if (t.startsWith("[")) JSONArray(t) else if (t.startsWith("{")) JSONObject(t) else null
+    }
+}
+
+data class Track(val id: String, val title: String, val artist: String, val cover: String?, val dur: Int, val artistId: String?, val album: String?)
+data class ArtistItem(val id: String, val name: String, val thumb: String?)
+data class AlbumItem(val title: String, val artist: String, val cover: String?, val tracks: List<Track>)
+data class Section(val id: String, val type: String, val title: String, val subtitle: String?, val cover: String?,
+                   val tracks: List<Track>, val albums: List<AlbumItem>, val artists: List<ArtistItem>)
+
+private fun JSONObject.str(k: String): String? = if (isNull(k)) null else optString(k).takeIf { it.isNotBlank() }
+
+fun JSONObject.toTrack() = Track(optString("yt_video_id"), optString("title"), optString("artist"), str("cover_url") ?: str("thumbnail_url"), optInt("duration_s"), str("artist_id"), str("album"))
+fun JSONArray?.tracks(): List<Track> = if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it)?.toTrack() }
+fun JSONArray?.artistItems(): List<ArtistItem> = if (this == null) emptyList() else (0 until length()).mapNotNull { i ->
+    optJSONObject(i)?.let { ArtistItem(it.optString("id"), it.optString("name"), it.str("thumbnail_url")) } }
+
+data class Feed(val sections: List<Section>, val favouritesId: Long?)
+
+fun parseFeed(j: JSONObject): Feed {
+    val arr = j.optJSONArray("sections") ?: JSONArray()
+    val secs = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }.map { s ->
+        val albs = s.optJSONArray("albums")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }.map { o ->
+            AlbumItem(o.optString("album"), o.optString("artist"), o.str("cover_url"), o.optJSONArray("tracks").tracks()) } } ?: emptyList()
+        Section(s.optString("id"), s.optString("type"), s.optString("title"), s.str("subtitle"), s.str("cover_url"),
+            s.optJSONArray("tracks").tracks(), albs, s.optJSONArray("artists").artistItems())
+    }
+    return Feed(secs, if (j.isNull("favourites_playlist_id")) null else j.optLong("favourites_playlist_id"))
+}
