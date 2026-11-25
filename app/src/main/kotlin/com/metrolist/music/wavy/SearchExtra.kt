@@ -43,3 +43,27 @@ private fun store(ctx: Context, l: List<String>) { prefs(ctx).edit().putString(k
 fun saveHistory(ctx: Context, q: String) { store(ctx, (listOf(q) + loadHistory(ctx).filter { !it.equals(q, true) }).take(30)) }
 fun removeHistory(ctx: Context, q: String): List<String> { val l = loadHistory(ctx).filter { it != q }; store(ctx, l); return l }
 fun clearHistory(ctx: Context) { store(ctx, emptyList()) }
+
+val searchCache = object : LinkedHashMap<String, JSONObject>(32, 0.75f, true) { override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, JSONObject>?) = size > 40 }
+
+/** Live YouTube Music results first (its own relevance), catalog songs merged in, then exact title/artist matches float to the top. */
+fun rankSearch(q: String, cat: JSONObject?, live: JSONArray): JSONObject {
+    val o = JSONObject()
+    cat?.keys()?.forEach { k -> o.put(k, cat.get(k)) }
+    val toks = q.lowercase().split(Regex("\\s+")).filter { it.isNotEmpty() }
+    val have = HashSet<String>(); val all = ArrayList<JSONObject>()
+    for (i in 0 until live.length()) live.getJSONObject(i).let { if (have.add(it.optString("yt_video_id"))) all.add(it) }
+    cat?.optJSONArray("songs")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { if (have.add(it.optString("yt_video_id"))) all.add(it) } }
+    fun score(x: JSONObject): Int {
+        val t = x.optString("title").lowercase(); val h = t + " " + x.optString("artist").lowercase()
+        var sc = 0
+        if (t == q.lowercase()) sc += 4
+        if (toks.isNotEmpty() && toks.all { h.contains(it) }) sc += 3
+        if (t.startsWith(q.lowercase())) sc += 2
+        if (t.contains("cover") || t.contains("karaoke") || t.contains("slowed") || t.contains("reverb")) sc -= 2
+        return sc
+    }
+    val sorted = all.withIndex().sortedWith(compareByDescending<IndexedValue<JSONObject>> { score(it.value) }.thenBy { it.index }).map { it.value }
+    o.put("songs", JSONArray(sorted))
+    return o
+}

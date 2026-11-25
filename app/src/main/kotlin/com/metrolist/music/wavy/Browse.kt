@@ -74,25 +74,30 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
         sugg = (ytm.take(3) + ac + ytm.drop(3)).map { it.trim() }.filter { it.isNotEmpty() && !it.equals(q.trim(), true) }.distinctBy { it.lowercase() }.take(6)
     }
     LaunchedEffect(q) {
-        if (q.trim().length < 2) { res = null; return@LaunchedEffect }
-        delay(350); err = null
-        try {
-            var o = Api.rpc("search_all", JSONObject().put("p_q", q.trim()).put("p_limit", 30)) as? JSONObject
-            if ((o?.optJSONArray("songs")?.length() ?: 0) < 3) {
-                val alt = (sugg.firstOrNull() ?: autocomplete(q.trim()).firstOrNull())
-                if (alt != null) { val o2 = Api.rpc("search_all", JSONObject().put("p_q", alt).put("p_limit", 30)) as? JSONObject; if ((o2?.optJSONArray("songs")?.length() ?: 0) > (o?.optJSONArray("songs")?.length() ?: 0)) o = o2 }
+        val qq = q.trim()
+        if (qq.length < 2) { res = null; return@LaunchedEffect }
+        searchCache[qq.lowercase()]?.let { res = it; return@LaunchedEffect }
+        delay(220); err = null
+        // live YouTube Music and the catalog run at the same time; whichever answers first is shown at once, the other is merged in
+        coroutineScope {
+            var live = JSONArray(); var cat: JSONObject? = null
+            fun publish() { res = rankSearch(qq, cat, live) }
+            val j1 = async { try { live = liveSongs(qq) } catch (e: Exception) { }; publish() }
+            val j2 = async {
+                try {
+                    var o = Api.rpc("search_all", JSONObject().put("p_q", qq).put("p_limit", 30)) as? JSONObject
+                    if ((o?.optJSONArray("songs")?.length() ?: 0) < 3) {
+                        val alt = (sugg.firstOrNull() ?: autocomplete(qq).firstOrNull())
+                        if (alt != null) { val o2 = Api.rpc("search_all", JSONObject().put("p_q", alt).put("p_limit", 30)) as? JSONObject; if ((o2?.optJSONArray("songs")?.length() ?: 0) > (o?.optJSONArray("songs")?.length() ?: 0)) o = o2 }
+                    }
+                    cat = o
+                } catch (e: ApiError) { err = humanErr(e) }
+                publish()
             }
-            val live = liveSongs(q.trim())
-            if (live.length() > 0) {
-                if (o == null) o = JSONObject()
-                val have = HashSet<String>(); val arr = JSONArray()
-                o.optJSONArray("songs")?.let { a -> for (i in 0 until a.length()) { a.optJSONObject(i)?.let { x -> if (have.add(x.optString("yt_video_id"))) arr.put(x) } } }
-                for (i in 0 until live.length()) { val x = live.getJSONObject(i); if (have.add(x.optString("yt_video_id"))) arr.put(x) }
-                o.put("songs", arr)
-            }
-            res = o
-            if (o != null && (o.optJSONArray("songs")?.length() ?: 0) > 0) saveHistory(ctxS, q.trim())
-        } catch (e: ApiError) { err = humanErr(e) }
+            j1.await(); j2.await()
+            val o = res
+            if (o != null) { searchCache[qq.lowercase()] = o; if ((o.optJSONArray("songs")?.length() ?: 0) > 0 && qq.length >= 3) saveHistory(ctxS, qq) }
+        }
     }
     val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val playing by (pc?.isPlaying ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }).collectAsState()
