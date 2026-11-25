@@ -92,7 +92,7 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
     }
     DisposableEffect(ex) {
         val l = object : androidx.media3.common.Player.Listener {
-            override fun onRenderedFirstFrame() { ready = true; onDiag("") }
+            override fun onRenderedFirstFrame() { ready = true; onDiag("playing via ${cand.client} ${if (cand.hls) "HLS" else cand.h.toString() + "p"}${if (cand.chunked) "" else " plain"} (${idx + 1}/${cands.size})") }
             override fun onVideoSizeChanged(vs: androidx.media3.common.VideoSize) { if (vs.height > 0 && vs.width > 0) arOv = vs.width * vs.pixelWidthHeightRatio / vs.height }
             override fun onPlayerError(e: androidx.media3.common.PlaybackException) { val code = (generateSequence(e as Throwable?) { it.cause }.filterIsInstance<androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException>().firstOrNull())?.responseCode
                 onDiag("video err ${e.errorCodeName} ${code ?: ""} ${cand.client} ${if (cand.hls) "HLS" else cand.h.toString() + "p"}${if (cand.chunked) "" else " plain"} (${idx + 1}/${cands.size})"); if (idx < cands.size - 1) idx++ }
@@ -213,6 +213,7 @@ fun MusicFeed(pc: PlayerConnection?) {
             }
             val bg by animateColorAsState(tint, tween(500), label = "fb")
             var diag by remember(t.id) { mutableStateOf("") }
+            LaunchedEffect(diag) { if (diag.startsWith("playing via")) { delay(5000); diag = "" } }
             var burst by remember(t.id) { mutableIntStateOf(0) }
             var flash by remember(t.id) { mutableIntStateOf(0) }
             var flashN by remember(t.id) { mutableIntStateOf(0) }
