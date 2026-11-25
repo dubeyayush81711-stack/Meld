@@ -49,10 +49,11 @@ import kotlin.math.roundToInt
 @Composable
 fun WavyApp(pc: PlayerConnection?) {
     var stage by remember { mutableStateOf("splash") }
+    val taste = remember { Taste() }
     LaunchedEffect(Unit) {
         delay(1500)
         stage = if (!Api.signedIn) "welcome" else try {
-            if (onboardingDone()) "main" else "picker"
+            if (onboardingDone()) "main" else "ob1"
         } catch (e: Exception) { if (Api.signedIn) "main" else "welcome" }
     }
     Box(Modifier.fillMaxSize().background(W.Bg)) {
@@ -60,8 +61,11 @@ fun WavyApp(pc: PlayerConnection?) {
             when (s) {
                 "splash" -> SplashScreen()
                 "welcome" -> WelcomeScreen { stage = "login" }
-                "login" -> LoginScreen { needs -> stage = if (needs) "picker" else "main" }
-                "picker" -> ArtistPicker { stage = "main" }
+                "login" -> LoginScreen { needs -> stage = if (needs) "ob1" else "main" }
+                "ob1" -> DobScreen(taste, { stage = "login" }) { stage = "ob2" }
+                "ob2" -> GenderScreen(taste, { stage = "ob1" }) { stage = "ob3" }
+                "ob3" -> LanguagesScreen(taste) { stage = "picker" }
+                "picker" -> ArtistPicker(taste) { stage = "main" }
                 else -> Shell(pc) { Api.signOut(); stage = "welcome" }
             }
         }
@@ -93,7 +97,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         Box(Modifier.fillMaxSize()) {
             AnimatedContent(tab, transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(160)) }, label = "tab") { t ->
                 when (t) {
-                    0 -> HomeScreen(pc, onSearch = { tab = 1 }, onSignOut = onSignOut, onProfile = { page = "profile" })
+                    0 -> HomeScreen(pc, onSearch = { tab = 1 }, onSignOut = onSignOut, onProfile = { page = "profile" }, onParty = { page = "party" }, onSettings = { page = "set:hub" })
                     1 -> SearchScreen(pc, onLang = { l -> page = "lang:" + l.lang + ":" + l.title }, onProfile = { page = "profile" }, initial = "")
                     2 -> MusicFeed(pc)
                     3 -> LibraryScreen(pc, onProfile = { page = "profile" }, onPlaylist = { id, n -> page = "pl:$id:$n" }, onAddArtists = { page = "picker" })
@@ -109,7 +113,8 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
                     p.startsWith("lang:") -> { val parts = p.split(":"); TrackListScreen(parts[2], pc, { page = null }) {
                         (Api.rpc("language_top", JSONObject().put("p_lang", parts[1]).put("p_limit", 50)) as? JSONArray).tracks() } }
                     p.startsWith("pl:") -> { val parts = p.split(":", limit = 3); TrackListScreen(parts[2], pc, { page = null }) { loadPlaylistTracks(parts[1].toLong()) } }
-                    p == "picker" -> ArtistPicker { page = null }
+                    p == "picker" -> ArtistPicker(null) { page = null }
+                    p == "party" -> PartyScreen(pc) { page = null }
                     p == "profile" -> ProfileScreen(onBack = { page = null }, onSignOut = onSignOut, onSettings = { page = "set:hub" })
                     p == "set:hub" -> SettingsHub({ page = "profile" }) { page = it }
                     p == "set:content" -> ContentSettings { page = "set:hub" }
@@ -181,7 +186,7 @@ fun Cover(url: String?, size: androidx.compose.ui.unit.Dp, radius: Int = 10, mod
 }
 
 @Composable
-fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Unit, onProfile: () -> Unit) {
+fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Unit, onProfile: () -> Unit, onParty: () -> Unit = {}, onSettings: () -> Unit = {}) {
     var feed by remember { mutableStateOf<Feed?>(null) }
     var name by remember { mutableStateOf("") }
     var err by remember { mutableStateOf<String?>(null) }
@@ -205,8 +210,10 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                     Box(Modifier.size(44.dp).clip(CircleShape).background(W.Grad).clickable(onClick = onProfile), contentAlignment = Alignment.Center) {
                         Text(name.take(1).uppercase().ifEmpty { "W" }, style = ts(20, FontWeight.Bold)) }
                     Text("Home", Modifier.padding(start = 14.dp).weight(1f), style = ts(28, FontWeight.SemiBold))
-                    Box(Modifier.size(44.dp).clip(CircleShape).background(Color(0x55FFFFFF)).clickable(onClick = onSearch), contentAlignment = Alignment.Center) {
-                        Icon(painterResource(R.drawable.search), null, Modifier.size(22.dp), tint = Color.White) }
+                    listOf(Triple(R.drawable.search, onSearch, 0), Triple(R.drawable.group_outlined, onParty, 1), Triple(R.drawable.settings, onSettings, 2)).forEach { (ic, f, _) ->
+                        Box(Modifier.padding(start = 8.dp).size(44.dp).clip(CircleShape).background(Color(0x55FFFFFF)).clickable(onClick = f), contentAlignment = Alignment.Center) {
+                            Icon(painterResource(ic), null, Modifier.size(22.dp), tint = Color.White) }
+                    }
                 }
                 Row(Modifier.padding(start = 20.dp, top = 44.dp, bottom = 40.dp)) {
                     Text("Hey, ", style = ts(34, color = Color(0xFFCFC8D9))); Text(name, style = ts(34, FontWeight.Medium))

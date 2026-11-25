@@ -165,16 +165,22 @@ fun LoginScreen(onDone: (needsPicker: Boolean) -> Unit) {
 }
 
 @Composable
-fun ArtistPicker(onDone: () -> Unit) {
+fun ArtistPicker(taste: Taste?, onDone: () -> Unit) {
+    var chip by remember { mutableStateOf<String?>(null) }
+    val codes = remember { taste?.codes() ?: emptyList() }
     val scope = rememberCoroutineScope()
     var q by remember { mutableStateOf("") }
     var limit by remember { mutableIntStateOf(30) }
     var artists by remember { mutableStateOf<List<ArtistItem>>(emptyList()) }
     val picked = remember { mutableStateListOf<String>() }
     var busy by remember { mutableStateOf(false) }; var err by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(q, limit) {
+    LaunchedEffect(q, limit, chip) {
         if (q.isNotEmpty()) delay(300)
-        try { artists = (Api.rpc("search_artists", JSONObject().put("p_q", q).put("p_limit", if (q.isEmpty()) limit else 60)) as? JSONArray).artistItems() }
+        try {
+            val sel = if (chip != null) listOf(chip!!) else codes
+            artists = if (sel.isEmpty()) (Api.rpc("search_artists", JSONObject().put("p_q", q).put("p_limit", if (q.isEmpty()) limit else 60)) as? JSONArray).artistItems()
+            else (Api.rpc("search_artists_lang", JSONObject().put("p_q", q).put("p_limit", if (q.isEmpty()) limit else 60).put("p_langs", JSONArray(sel))) as? JSONArray).artistItems()
+        }
         catch (e: ApiError) { err = humanErr(e) }
     }
     Backdrop(streaks = false, tint = Color(0xFF3A1060)) {
@@ -188,8 +194,11 @@ fun ArtistPicker(onDone: () -> Unit) {
                     BasicTextField(q, { q = it }, singleLine = true, textStyle = ts(18, FontWeight.SemiBold, Color(0xFF111111)), cursorBrush = SolidColor(W.Pink), modifier = Modifier.fillMaxWidth())
                 }
             }
-            Row(Modifier.padding(horizontal = 22.dp)) {
-                Box(Modifier.clip(RoundedCornerShape(50)).background(W.Pink).padding(horizontal = 22.dp, vertical = 10.dp)) { Text("For You", style = ts(16, FontWeight.SemiBold)) }
+            androidx.compose.foundation.lazy.LazyRow(contentPadding = PaddingValues(horizontal = 22.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                item { Box(Modifier.clip(RoundedCornerShape(50)).background(if (chip == null) W.Pink else Color(0xFF2A2433)).clickable { chip = null }.padding(horizontal = 22.dp, vertical = 10.dp)) { Text("For You", style = ts(16, FontWeight.SemiBold)) } }
+                items(codes.size) { i -> val c = codes[i]
+                    Box(Modifier.clip(RoundedCornerShape(50)).background(if (chip == c) W.Pink else Color(0xFF2A2433)).clickable { chip = c }.padding(horizontal = 22.dp, vertical = 10.dp)) {
+                        Text(OB_LANGS.first { it.second == c }.let { if (c == "south") "South" else it.first }, style = ts(16, FontWeight.SemiBold)) } }
             }
             Spacer(Modifier.height(10.dp))
             Box(Modifier.weight(1f)) {
@@ -223,7 +232,7 @@ fun ArtistPicker(onDone: () -> Unit) {
                     scope.launch {
                         try {
                             val ids = JSONArray(); picked.forEach { ids.put(it) }
-                            Api.rpc("save_artists", JSONObject().put("p_ids", ids)); onDone()
+                            taste?.let { try { it.save() } catch (e: Exception) { } }; Api.rpc("save_artists", JSONObject().put("p_ids", ids)); onDone()
                         } catch (e: ApiError) { err = humanErr(e); busy = false }
                     }
                 }.padding(horizontal = 64.dp, vertical = 16.dp)) {
