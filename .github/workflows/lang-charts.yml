@@ -1,0 +1,15 @@
+name: Refresh language charts
+on:
+  schedule:
+    - cron: "45 0 * * *"   # daily 06:15 IST, after the main chart job
+  workflow_dispatch:
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cd backend/refresh && python3 lang_charts.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
