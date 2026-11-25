@@ -45,7 +45,7 @@ val Poppins = FontFamily(
 )
 
 fun ts(size: Int, weight: FontWeight = FontWeight.Normal, color: Color = Color.White) =
-    TextStyle(fontFamily = Poppins, fontSize = size.sp, fontWeight = weight, color = color, lineHeight = (size * 1.3f).sp)
+    TextStyle(fontFamily = Poppins, fontSize = (size * 0.86f).sp, fontWeight = weight, color = color, lineHeight = (size * 0.86f * 1.28f).sp)
 
 /** Liquid-glass surface (from Ayush's glass design): translucent gradient, light rim, soft shadow. Central place to restyle. */
 fun Modifier.glass(shape: androidx.compose.ui.graphics.Shape, strength: Float = 1f): Modifier = this

@@ -229,13 +229,15 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                             Icon(painterResource(ic), null, Modifier.size(22.dp), tint = Color.White) }
                     }
                 }
-                Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     listOf("All", "Music", "Chill", "Podcasts").forEach { c ->
-                        Text(c, Modifier.glass(RoundedCornerShape(50), if (c == cat) 2.2f else 1f).clickable { cat = c }.padding(horizontal = 20.dp, vertical = 9.dp), style = ts(14, if (c == cat) FontWeight.SemiBold else FontWeight.Medium))
+                        Box(Modifier.height(40.dp).then(if (c == cat) Modifier.clip(RoundedCornerShape(50)).background(W.Pink) else Modifier.glass(RoundedCornerShape(50))).clickable { cat = c }.padding(horizontal = 22.dp), contentAlignment = Alignment.Center) {
+                            Text(c, style = ts(14, if (c == cat) FontWeight.SemiBold else FontWeight.Medium), maxLines = 1, softWrap = false)
+                        }
                     }
                 }
                 val shortName = name.trim().substringBefore(' ').trimEnd { it.isDigit() }.ifEmpty { name.take(12) }.take(14).replaceFirstChar { it.uppercase() }
-                Row(Modifier.padding(start = 20.dp, top = 30.dp, bottom = 26.dp)) {
+                Row(Modifier.padding(start = 20.dp, top = 24.dp, bottom = 22.dp)) {
                     Text("Hey, ", style = ts(34, color = Color(0xFFCFC8D9))); Text(shortName, style = ts(34, FontWeight.Medium), maxLines = 1)
                 }
             }
