@@ -77,6 +77,9 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
     var page by remember { mutableStateOf<String?>(null) }
     val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val ctx = LocalContext.current
+    val micLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { WavyFx.refresh() }
+    fun askMic() { if (ctx.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) micLauncher.launch(android.Manifest.permission.RECORD_AUDIO) }
+    LaunchedEffect(pc) { if (pc != null) WavyFx.attach(ctx, pc) }
     // count a play after 15 s of listening so Favourites and recommendations learn
     LaunchedEffect(meta?.id) {
         val id = meta?.id ?: return@LaunchedEffect
@@ -84,7 +87,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         try { Api.post("plays", JSONObject().put("user_id", Api.uid).put("track_id", id)) } catch (e: Exception) { }
     }
     BackHandler(full) { full = false }
-    BackHandler(!full && page != null) { page = null }
+    BackHandler(!full && page != null) { page = when { page == "set:hub" -> "profile"; page!!.startsWith("set:") -> "set:hub"; else -> null } }
     BackHandler(!full && tab != 0) { tab = 0 }
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize()) {
@@ -107,7 +110,17 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
                         (Api.rpc("language_top", JSONObject().put("p_lang", parts[1]).put("p_limit", 50)) as? JSONArray).tracks() } }
                     p.startsWith("pl:") -> { val parts = p.split(":", limit = 3); TrackListScreen(parts[2], pc, { page = null }) { loadPlaylistTracks(parts[1].toLong()) } }
                     p == "picker" -> ArtistPicker { page = null }
-                    p == "profile" -> ProfileScreen(onBack = { page = null }, onSignOut = onSignOut)
+                    p == "profile" -> ProfileScreen(onBack = { page = null }, onSignOut = onSignOut, onSettings = { page = "set:hub" })
+                    p == "set:hub" -> SettingsHub({ page = "profile" }) { page = it }
+                    p == "set:content" -> ContentSettings { page = "set:hub" }
+                    p == "set:playback" -> PlaybackSettings { page = "set:hub" }
+                    p == "set:data" -> DataSettings { page = "set:hub" }
+                    p == "set:sound" -> SoundProfiles { page = "set:hub" }
+                    p == "set:pro" -> ProSettings({ page = "set:hub" }) { askMic() }
+                    p == "set:adv" -> AdvancedSettings(pc) { page = "set:hub" }
+                    p == "set:apps" -> AppsSettings { page = "set:hub" }
+                    p == "set:notif" -> NotifSettings { page = "set:hub" }
+                    p == "set:about" -> AboutSettings { page = "set:hub" }
                 }
             }
         }

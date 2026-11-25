@@ -23,7 +23,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 @Composable
-fun ProfileScreen(onBack: () -> Unit, onSignOut: () -> Unit) {
+fun ProfileScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSettings: () -> Unit) {
     val scope = rememberCoroutineScope()
     var stats by remember { mutableStateOf<JSONObject?>(null) }
     var editing by remember { mutableStateOf(false) }
@@ -45,6 +45,8 @@ fun ProfileScreen(onBack: () -> Unit, onSignOut: () -> Unit) {
             Spacer(Modifier.height(18.dp))
             Row {
                 Text("Edit", Modifier.border(2.dp, Color.White, RoundedCornerShape(50)).clip(RoundedCornerShape(50)).clickable { editing = true }.padding(horizontal = 32.dp, vertical = 10.dp), style = ts(16, FontWeight.SemiBold))
+                Spacer(Modifier.width(12.dp))
+                Text("Settings", Modifier.border(1.dp, Color(0x77FFFFFF), RoundedCornerShape(50)).clip(RoundedCornerShape(50)).clickable(onClick = onSettings).padding(horizontal = 24.dp, vertical = 10.dp), style = ts(15, color = Color(0xCCFFFFFF)))
                 Spacer(Modifier.width(12.dp))
                 Text("Sign out", Modifier.border(1.dp, Color(0x77FFFFFF), RoundedCornerShape(50)).clip(RoundedCornerShape(50)).clickable(onClick = onSignOut).padding(horizontal = 24.dp, vertical = 10.dp), style = ts(15, color = Color(0xCCFFFFFF)))
             }
