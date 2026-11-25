@@ -54,7 +54,7 @@ fun parseLyrics(raw: String): List<LyricLine> {
     return out
 }
 
-fun SongItem.toTrack() = Track(id, title, artists.joinToString { it.name }, thumbnail, duration ?: 0, artists.firstOrNull()?.id, album?.title)
+fun SongItem.toTrack() = Track(id, title, artists.joinToString { it.name }, thumbnail, duration ?: 0, artists.firstOrNull()?.id, album?.name)
 
 fun stripContacts(s: String?): String? = s?.replace(Regex("[\\w.+-]+@[\\w-]+\\.[\\w.-]+"), "")?.replace(Regex("(?i)contact\\s*:?"), "")?.trim()?.takeIf { it.isNotBlank() }
 
