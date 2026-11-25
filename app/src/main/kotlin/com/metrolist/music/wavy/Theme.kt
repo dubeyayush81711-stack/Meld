@@ -2,6 +2,8 @@ package com.metrolist.music.wavy
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,24 +42,30 @@ val Poppins = FontFamily(
 fun ts(size: Int, weight: FontWeight = FontWeight.Normal, color: Color = Color.White) =
     TextStyle(fontFamily = Poppins, fontSize = size.sp, fontWeight = weight, color = color, lineHeight = (size * 1.3f).sp)
 
-/** Dark backdrop with soft magenta/violet glow and diagonal streaks, like the mockups. */
+/** Liquid-glass surface (from Ayush's glass design): translucent gradient, light rim, soft shadow. Central place to restyle. */
+fun Modifier.glass(shape: androidx.compose.ui.graphics.Shape, strength: Float = 1f): Modifier = this
+    .clip(shape)
+    .background(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.13f * strength), Color.White.copy(alpha = 0.08f * strength), Color.White.copy(alpha = 0.10f * strength))))
+    .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.38f), Color.White.copy(alpha = 0.12f))), shape)
+
+val GlassSheet = Color(0xE60E0C16)
+val GlassBar = Color(0x990E0E16)
+
+/** Midnight canvas with three drifting liquid orbs and a diagonal sheen, same as the glass design background. */
 @Composable
 fun Backdrop(modifier: Modifier = Modifier.fillMaxSize(), streaks: Boolean = true, tint: Color = Color(0xFF3B0C3A), content: @Composable BoxScope.() -> Unit) {
-    Box(modifier.background(W.Bg)) {
+    val tr = androidx.compose.animation.core.rememberInfiniteTransition(label = "orbs")
+    val p1 by tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(14000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "o1")
+    val p2 by tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(19000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "o2")
+    val p3 by tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(23000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "o3")
+    Box(modifier.background(Color(0xFF07070B))) {
         Canvas(Modifier.fillMaxSize()) {
-            drawRect(Brush.verticalGradient(listOf(tint.copy(alpha = 0.55f), Color.Transparent), endY = size.height * 0.55f))
-            drawRect(Brush.radialGradient(listOf(Color(0x55801080), Color.Transparent), center = Offset(size.width, size.height * 0.95f), radius = size.width * 0.9f))
-            if (streaks) {
-                val n = 14
-                for (i in 0 until n) {
-                    val x = size.width * (i / n.toFloat()) * 1.6f - size.width * 0.2f
-                    val a = if (i % 3 == 0) 0.10f else 0.05f
-                    drawLine(
-                        Color(0xFFFF2D78).copy(alpha = a), Offset(x, 0f), Offset(x - size.width * 0.5f, size.height),
-                        strokeWidth = size.width * (0.012f + (i % 4) * 0.01f), cap = StrokeCap.Round,
-                    )
-                }
-            }
+            val w = size.width; val h = minOf(size.height, w * 2.2f)
+            fun orb(c: Color, cx: Float, cy: Float, r: Float) = drawCircle(Brush.radialGradient(listOf(c, c.copy(alpha = 0.34f * c.alpha), Color.Transparent), center = Offset(cx, cy), radius = r), r, Offset(cx, cy))
+            orb(Color(0xFFFF2E54).copy(alpha = 0.50f), w * (0.15f + 0.55f * p1), h * (0.12f + 0.25f * p2), w * 0.62f)
+            orb(Color(0xFF10B981).copy(alpha = 0.36f), w * (0.85f - 0.55f * p2), h * (0.45f + 0.2f * p3), w * 0.66f)
+            orb(Color(0xFFFBBF24).copy(alpha = 0.34f), w * (0.2f + 0.6f * p3), h * (0.78f - 0.2f * p1), w * 0.60f)
+            drawRect(Brush.linearGradient(0.16f to Color.Transparent, 0.33f to Color(0x0EFFFFFF), 0.48f to Color(0x04FFFFFF), 0.66f to Color(0x0BFFFFFF), 0.84f to Color.Transparent, start = Offset(0f, 0f), end = Offset(w, size.height)))
         }
         content()
     }

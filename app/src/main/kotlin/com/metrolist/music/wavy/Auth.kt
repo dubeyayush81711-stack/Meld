@@ -195,9 +195,9 @@ fun ArtistPicker(taste: Taste?, onDone: () -> Unit) {
                 }
             }
             androidx.compose.foundation.lazy.LazyRow(contentPadding = PaddingValues(horizontal = 22.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                item { Box(Modifier.clip(RoundedCornerShape(50)).background(if (chip == null) W.Pink else Color(0xFF2A2433)).clickable { chip = null }.padding(horizontal = 22.dp, vertical = 10.dp)) { Text("For You", style = ts(16, FontWeight.SemiBold)) } }
+                item { Box(Modifier.clip(RoundedCornerShape(50)).background(if (chip == null) W.Pink else Color(0x2EFFFFFF)).clickable { chip = null }.padding(horizontal = 22.dp, vertical = 10.dp)) { Text("For You", style = ts(16, FontWeight.SemiBold)) } }
                 items(codes.size) { i -> val c = codes[i]
-                    Box(Modifier.clip(RoundedCornerShape(50)).background(if (chip == c) W.Pink else Color(0xFF2A2433)).clickable { chip = c }.padding(horizontal = 22.dp, vertical = 10.dp)) {
+                    Box(Modifier.clip(RoundedCornerShape(50)).background(if (chip == c) W.Pink else Color(0x2EFFFFFF)).clickable { chip = c }.padding(horizontal = 22.dp, vertical = 10.dp)) {
                         Text(OB_LANGS.first { it.second == c }.let { if (c == "south") "South" else it.first }, style = ts(16, FontWeight.SemiBold)) } }
             }
             Spacer(Modifier.height(10.dp))

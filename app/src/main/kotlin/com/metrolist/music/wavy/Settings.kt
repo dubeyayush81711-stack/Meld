@@ -28,9 +28,11 @@ import com.metrolist.music.utils.rememberPreference
 
 @Composable
 fun SPage(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().background(Color(0xFF0B0B0D))) {
-        Box(Modifier.fillMaxWidth().background(Color(0xFF1A1A1D))) { BackBar(title, onBack) }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = 190.dp), content = content)
+    Backdrop(streaks = false) {
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxWidth().background(GlassBar)) { BackBar(title, onBack) }
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = 190.dp), content = content)
+        }
     }
 }
 
@@ -49,7 +51,7 @@ fun SToggle(title: String, desc: String, state: MutableState<Boolean>) {
 @Composable
 fun Switch2(on: Boolean) {
     val x by androidx.compose.animation.core.animateDpAsState(if (on) 22.dp else 2.dp, label = "sw")
-    Box(Modifier.width(54.dp).height(32.dp).clip(CircleShape).background(if (on) W.Grad else androidx.compose.ui.graphics.SolidColor(Color(0xFF444448)), CircleShape)) {
+    Box(Modifier.width(54.dp).height(32.dp).clip(CircleShape).background(if (on) W.Grad else androidx.compose.ui.graphics.SolidColor(Color(0x55FFFFFF)), CircleShape)) {
         Box(Modifier.offset(x = x, y = 2.dp).size(28.dp).clip(CircleShape).background(Color.White))
     }
 }
@@ -232,7 +234,7 @@ fun AdvancedSettings(pc: PlayerConnection?, onBack: () -> Unit) {
         SNav("Sleep timer", "Music stops automatically.", sleepLabel) { sleepOpen = !sleepOpen }
         if (sleepOpen) Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(0, 15, 30, 45, 60).forEach { m ->
-                Text(if (m == 0) "Off" else "$m min", Modifier.clip(RoundedCornerShape(50)).background(if (sleepLabel == (if (m == 0) "Off" else "$m min")) W.Pink else Color(0xFF2A2A2E)).clickable {
+                Text(if (m == 0) "Off" else "$m min", Modifier.clip(RoundedCornerShape(50)).background(if (sleepLabel == (if (m == 0) "Off" else "$m min")) W.Pink else Color(0x2EFFFFFF)).clickable {
                     sleepLabel = if (m == 0) "Off" else "$m min"
                     try { if (m == 0) pc?.service?.sleepTimer?.clear() else pc?.service?.sleepTimer?.start(m) } catch (e: Exception) { }
                 }.padding(horizontal = 14.dp, vertical = 8.dp), style = ts(13, FontWeight.Medium)) }

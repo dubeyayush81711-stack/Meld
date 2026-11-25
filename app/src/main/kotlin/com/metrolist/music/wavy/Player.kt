@@ -104,7 +104,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                     detectDragGestures(onDragStart = { drag = (it.x / w).coerceIn(0f, 1f) }, onDragEnd = { drag?.let { pc.seekTo((it * dur).toLong()) }; drag = null },
                         onDragCancel = { drag = null }) { c, _ -> drag = (c.position.x / w).coerceIn(0f, 1f) }
                 }.pointerInput(dur) { detectTapGestures { pc.seekTo(((it.x / w).coerceIn(0f, 1f) * dur).toLong()) } }, contentAlignment = Alignment.CenterStart) {
-                Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(Color(0x55FFFFFF)))
+                Box(Modifier.fillMaxWidth().height(4.dp).glass(CircleShape))
                 Box(Modifier.fillMaxWidth(frac).height(4.dp).clip(CircleShape).background(Color.White))
                 Box(Modifier.fillMaxWidth(frac), contentAlignment = Alignment.CenterEnd) { Box(Modifier.size(14.dp).clip(CircleShape).background(Color.White)) }
             }
@@ -134,7 +134,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             if (m != null) PlayerDetails(pc, m.id, m.title, m.artists.joinToString { it.name }, m.artists.map { it.name to it.id }, m.thumbnailUrl, m.album?.title, (m.duration ?: 0)) { fullLy = it }
         }
         // sticky bar when scrolled
-        if (scroll.value > 900 && m != null) Row(Modifier.fillMaxWidth().background(Color(0xFF2A0A12)).statusBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (scroll.value > 900 && m != null) Row(Modifier.fillMaxWidth().background(GlassBar).statusBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(m.title, style = ts(16, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(m.artists.joinToString { it.name }, style = ts(13, color = Color(0xFFD6CCD3)), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -155,7 +155,7 @@ fun QueueSheet(pc: PlayerConnection, onClose: () -> Unit) {
     val p = pc.player
     val items = remember { (0 until p.mediaItemCount).map { p.getMediaItemAt(it) } }
     Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(onClick = onClose)) {
-        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.7f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xFF17141C)).clickable(enabled = false) {}.padding(top = 16.dp)) {
+        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.7f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(GlassSheet).clickable(enabled = false) {}.padding(top = 16.dp)) {
             Text("Queue", Modifier.padding(start = 22.dp, bottom = 10.dp), style = ts(20, FontWeight.SemiBold))
             LazyColumn(Modifier.navigationBarsPadding()) {
                 itemsIndexed(items) { i, it ->

@@ -67,7 +67,7 @@ fun ProfileScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSettings: () -> U
 @Composable
 fun EditProfile(name: String, onClose: () -> Unit, onSave: (String) -> Unit) {
     var n by remember { mutableStateOf(name) }
-    Column(Modifier.fillMaxSize().background(Color(0xFF111111)).statusBarsPadding().padding(horizontal = 20.dp)) {
+    Backdrop(streaks = false) { Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 20.dp)) {
         Row(Modifier.fillMaxWidth().padding(vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(painterResource(R.drawable.close), null, Modifier.size(30.dp).clickable(onClick = onClose), tint = Color.White)
             Text("Edit profile", Modifier.weight(1f), style = ts(20, FontWeight.Bold), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
@@ -81,5 +81,5 @@ fun EditProfile(name: String, onClose: () -> Unit, onSave: (String) -> Unit) {
             BasicTextField(n, { if (it.length <= 40) n = it }, singleLine = true, textStyle = ts(20), cursorBrush = SolidColor(W.Pink), modifier = Modifier.weight(1f))
         }
         Box(Modifier.fillMaxWidth().padding(top = 12.dp).height(1.dp).background(Color(0x33FFFFFF)))
-    }
+    } }
 }

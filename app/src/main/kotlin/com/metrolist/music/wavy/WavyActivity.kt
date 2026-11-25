@@ -27,6 +27,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class WavyActivity : ComponentActivity() {
     @Inject lateinit var database: MusicDatabase
+    @Inject lateinit var downloadUtil: com.metrolist.music.playback.DownloadUtil
 
     private var connection: PlayerConnection? = null
     private var pc by mutableStateOf<PlayerConnection?>(null)
@@ -46,6 +47,7 @@ class WavyActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         Api.init(this); S.init(this)
+        WDl.util = downloadUtil; WDl.db = database
         setContent { WavyApp(pc) }
     }
 

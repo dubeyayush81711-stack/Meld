@@ -137,7 +137,7 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                 if (admin) { Spacer(Modifier.width(16.dp)); Icon(painterResource(R.drawable.settings), null, Modifier.size(24.dp).clickable { settings = true }, tint = Color.White) }
             }
             // now playing
-            Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0x33FFFFFF)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().glass(RoundedCornerShape(16.dp)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Cover(cur?.cover, 64.dp, 10)
                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                     Text(cur?.title ?: "Nothing playing yet", style = ts(17, FontWeight.SemiBold), maxLines = 1)
@@ -150,7 +150,7 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
             }
             if (cur != null && !can) Text("Skip votes ${skip.optInt("votes")}/${skip.optInt("needed")}", Modifier.padding(start = 20.dp, top = 6.dp), style = ts(12, color = Color(0xFFCFC8D9)))
             Row(Modifier.padding(16.dp, 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                listOf("Queue", "Chat", "People").forEachIndexed { i, n -> Box(Modifier.clip(RoundedCornerShape(50)).background(if (tab == i) W.Pink else Color(0xFF2A2433)).clickable { tab = i }.padding(horizontal = 20.dp, vertical = 9.dp)) { Text(n, style = ts(15, FontWeight.SemiBold)) } }
+                listOf("Queue", "Chat", "People").forEachIndexed { i, n -> Box(Modifier.clip(RoundedCornerShape(50)).background(if (tab == i) W.Pink else Color(0x2EFFFFFF)).clickable { tab = i }.padding(horizontal = 20.dp, vertical = 9.dp)) { Text(n, style = ts(15, FontWeight.SemiBold)) } }
             }
             when (tab) {
                 0 -> Column(Modifier.weight(1f)) {

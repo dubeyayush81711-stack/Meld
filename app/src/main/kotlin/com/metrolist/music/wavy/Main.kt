@@ -142,7 +142,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
 
 @Composable
 fun NavBar(sel: Int, onSel: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Color(0xE60B0B0D), Color(0xFF0B0B0D)))).navigationBarsPadding().padding(top = 8.dp, bottom = 6.dp)) {
+    Row(Modifier.fillMaxWidth().background(GlassBar).navigationBarsPadding().padding(top = 8.dp, bottom = 6.dp)) {
         tabs.forEachIndexed { i, (name, icon) ->
             val on = i == sel
             val col by animateColorAsState(if (on) W.Pink else Color(0xFFBDB8C4), tween(200), label = "c")
@@ -164,7 +164,7 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
     var pos by remember { mutableLongStateOf(0L) }
     LaunchedEffect(m.id) { while (true) { pos = pc.player.currentPosition; delay(500) } }
     val dur = pc.player.duration.takeIf { it > 0 } ?: (m.duration * 1000L)
-    Column(Modifier.padding(horizontal = 14.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF3C0B1F)).clickable(onClick = onOpen)) {
+    Column(Modifier.padding(horizontal = 14.dp).glass(RoundedCornerShape(16.dp), 1.4f).clickable(onClick = onOpen)) {
         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(m.thumbnailUrl, null, Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)).background(W.Card), contentScale = ContentScale.Crop)
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
@@ -211,7 +211,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                         Text(name.take(1).uppercase().ifEmpty { "W" }, style = ts(20, FontWeight.Bold)) }
                     Text("Home", Modifier.padding(start = 14.dp).weight(1f), style = ts(28, FontWeight.SemiBold))
                     listOf(Triple(R.drawable.search, onSearch, 0), Triple(R.drawable.group_outlined, onParty, 1), Triple(R.drawable.settings, onSettings, 2)).forEach { (ic, f, _) ->
-                        Box(Modifier.padding(start = 8.dp).size(44.dp).clip(CircleShape).background(Color(0x55FFFFFF)).clickable(onClick = f), contentAlignment = Alignment.Center) {
+                        Box(Modifier.padding(start = 8.dp).size(44.dp).glass(CircleShape).clickable(onClick = f), contentAlignment = Alignment.Center) {
                             Icon(painterResource(ic), null, Modifier.size(22.dp), tint = Color.White) }
                     }
                 }
@@ -331,6 +331,14 @@ fun TrackRow(t: Track, pc: PlayerConnection?, onPlay: () -> Unit) {
             Text(t.title, style = ts(17, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(t.artist, style = ts(14, color = Color(0xFFB9B2C4)), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+        val dls by (WDl.util?.downloads ?: kotlinx.coroutines.flow.MutableStateFlow(emptyMap())).collectAsState()
+        val dst = dls[t.id]?.state
+        Icon(painterResource(if (dst == androidx.media3.exoplayer.offline.Download.STATE_COMPLETED) R.drawable.offline else R.drawable.download), null,
+            Modifier.size(34.dp).clip(CircleShape).clickable {
+                if (dst == androidx.media3.exoplayer.offline.Download.STATE_COMPLETED) { WDl.remove(ctx, t.id); Toast.makeText(ctx, "Removed from Downloads", Toast.LENGTH_SHORT).show() }
+                else if (dst == null || dst == androidx.media3.exoplayer.offline.Download.STATE_FAILED) { WDl.start(t); Toast.makeText(ctx, "Downloading...", Toast.LENGTH_SHORT).show() }
+            }.padding(5.dp),
+            tint = when (dst) { androidx.media3.exoplayer.offline.Download.STATE_COMPLETED -> W.Pink; null -> Color(0xFFB9B2C4); else -> Color(0xFFFFB3D1) })
         Box {
             Icon(painterResource(R.drawable.more_vert), null, Modifier.size(34.dp).clip(CircleShape).clickable { menu = true }.padding(4.dp), tint = Color(0xFFB9B2C4))
             DropdownMenu(menu, { menu = false }) {

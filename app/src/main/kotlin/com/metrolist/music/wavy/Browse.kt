@@ -74,7 +74,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
         LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 190.dp)) {
             col {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Row(Modifier.weight(1f).height(56.dp).clip(RoundedCornerShape(50)).background(Color(0x55FFFFFF)).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.weight(1f).height(56.dp).glass(RoundedCornerShape(50)).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(painterResource(R.drawable.search), null, Modifier.size(24.dp), tint = Color.White)
                         Spacer(Modifier.width(12.dp))
                         Box(Modifier.weight(1f)) {
@@ -224,17 +224,31 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                 (0 until r.length()).mapNotNull { r.getJSONObject(it).optJSONObject("artists") }.map { ArtistItem(it.optString("id"), it.optString("name"), if (it.isNull("thumbnail_url")) null else it.optString("thumbnail_url")) } } ?: emptyList()
         } catch (e: Exception) { }
     }
-    Box(Modifier.fillMaxSize().background(Color(0xFF0B0B0D))) {
+    Backdrop(streaks = false) {
         LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(bottom = 190.dp)) {
             col { Row(Modifier.padding(16.dp, 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Avatar(44, onProfile)
                 Text("Your Library", Modifier.padding(start = 14.dp).weight(1f), style = ts(28, FontWeight.SemiBold))
             }
             Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                listOf("Playlists", "Artists").forEach { c -> Text(c, Modifier.clip(RoundedCornerShape(50)).background(if (c == chip) W.Pink else Color(0xFF2A2A2E)).clickable { chip = c }.padding(horizontal = 20.dp, vertical = 10.dp), style = ts(15, FontWeight.Medium)) }
+                listOf("Playlists", "Artists", "Downloads").forEach { c -> Text(c, Modifier.clip(RoundedCornerShape(50)).background(if (c == chip) W.Pink else Color(0x2EFFFFFF)).clickable { chip = c }.padding(horizontal = 20.dp, vertical = 10.dp), style = ts(15, FontWeight.Medium)) }
             }
             Spacer(Modifier.height(14.dp)) }
-            if (chip == "Playlists") {
+            if (chip == "Downloads") {
+                val dls by (WDl.util?.downloads ?: kotlinx.coroutines.flow.MutableStateFlow(emptyMap())).collectAsState()
+                val ids = WDl.doneIds(dls)
+                val tl = remember(ids) { ids.mapNotNull { WDl.toTrack(it) } }
+                col {
+                    if (tl.isEmpty()) Text("Download songs with the arrow on any song. They play offline.", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
+                    else {
+                        Row(Modifier.padding(20.dp, 4.dp, 20.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("${tl.size} downloaded", Modifier.weight(1f), style = ts(14, color = W.Dim))
+                            Text("Play all", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { playTracks(pc, tl, 0, "Downloads") }.padding(20.dp, 9.dp), style = ts(14, FontWeight.SemiBold))
+                        }
+                        tl.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, tl, i, "Downloads") } }
+                    }
+                }
+            } else if (chip == "Playlists") {
                 lists.forEach { (id, name, cover) -> col {
                     Row(Modifier.fillMaxWidth().clickable { onPlaylist(id, name) }.padding(horizontal = 16.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (cover != null) Cover(cover, 64.dp, 8) else Box(Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)).background(W.Grad), contentAlignment = Alignment.Center) {
@@ -251,7 +265,7 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                     }
                 }
                 Column(Modifier.padding(16.dp).width(110.dp).clickable(onClick = onAddArtists), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(Modifier.size(110.dp).clip(CircleShape).background(Color(0xFF2A2A2E)), contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.add), null, Modifier.size(36.dp), tint = Color(0xFFBDB8C4)) }
+                    Box(Modifier.size(110.dp).clip(CircleShape).background(Color(0x2EFFFFFF)), contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.add), null, Modifier.size(36.dp), tint = Color(0xFFBDB8C4)) }
                     Text("Add artists", Modifier.padding(top = 8.dp), style = ts(15, FontWeight.SemiBold))
                 }
             }
@@ -269,7 +283,7 @@ fun FavPlayer(pc: PlayerConnection) {
     LaunchedEffect(meta?.id) { while (true) { pos = pc.player.currentPosition; kotlinx.coroutines.delay(500) } }
     val m = meta ?: return
     val dur = (pc.player.duration.takeIf { it > 0 } ?: (m.duration * 1000L)).coerceAtLeast(1)
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp).clip(RoundedCornerShape(18.dp)).background(Color(0x33FFFFFF)).padding(14.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp).glass(RoundedCornerShape(18.dp)).padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             coil3.compose.AsyncImage(m.thumbnailUrl, null, Modifier.size(72.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
