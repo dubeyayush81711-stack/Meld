@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -69,32 +70,36 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             val r = ctx.imageLoader.execute(ImageRequest.Builder(ctx).data(u).allowHardware(false).build())
             val bmp = r.image?.toBitmap() ?: return@LaunchedEffect
             val p = Palette.from(bmp).generate()
-            val c = p.getDarkMutedColor(p.getDominantColor(0xFF55091F.toInt()))
-            tint = Color(c)
+            val c = p.getDominantColor(p.getMutedColor(0xFF55091F.toInt()))
+            val hsv = FloatArray(3); android.graphics.Color.colorToHSV(c, hsv)
+            hsv[2] = hsv[2].coerceIn(0.45f, 0.72f); hsv[1] = hsv[1].coerceAtLeast(0.35f)
+            tint = Color(android.graphics.Color.HSVToColor(hsv))
         } catch (e: Exception) { }
     }
     val bg by androidx.compose.animation.animateColorAsState(tint, tween(600), label = "bg")
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, Color(0xFF120A10), Color(0xFF0B0B0D))))
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, bg.copy(alpha = 0.55f).compositeOver(Color(0xFF0B0B0D)), Color(0xFF0B0B0D))))
         .pointerInput(Unit) { detectVerticalDragGestures { _, d -> if (d > 40f) onClose() } }) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().verticalScroll(scroll).padding(horizontal = 22.dp)) {
             Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.expand_more), null, Modifier.size(34.dp).clickable(onClick = onClose), tint = Color.White)
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Playing from", style = ts(12, color = Color(0xFFD6CCD3)))
                     Text(qTitle ?: "Wavy", style = ts(15, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Icon(painterResource(R.drawable.tune), null, Modifier.size(30.dp).clickable { showOpts = true }, tint = Color.White)
             }
             Spacer(Modifier.height(10.dp))
-            AsyncImage(m?.thumbnailUrl, null, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(W.Card), contentScale = ContentScale.Crop)
+            Box(Modifier.fillMaxWidth().glass(RoundedCornerShape(26.dp), 1f).padding(6.dp)) {
+                AsyncImage(m?.thumbnailUrl, null, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(20.dp)).background(W.Card), contentScale = ContentScale.Crop)
+            }
             Spacer(Modifier.height(26.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(m?.title ?: "", style = ts(26, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.basicMarquee())
                     Text(m?.artists?.joinToString { it.name } ?: "", style = ts(16, color = Color(0xFFD6CCD3)), maxLines = 1, modifier = Modifier.basicMarquee())
                 }
-                Icon(painterResource(R.drawable.close), null, Modifier.padding(start = 12.dp).size(32.dp).clickable { pc.seekToNext() }, tint = Color.White)
-                Icon(painterResource(R.drawable.add_circle), null, Modifier.padding(start = 16.dp).size(34.dp).clickable { m?.let { x -> scope.launch { likeTrack(x.id) } } }, tint = Color.White)
+                var likedNow by remember(m?.id) { mutableStateOf(false) }
+                Box(Modifier.padding(start = 16.dp).size(38.dp).clip(CircleShape).background(if (likedNow) W.Pink else Color.Transparent).border(2.dp, if (likedNow) W.Pink else Color.White, CircleShape).clickable { m?.let { x -> likedNow = true; scope.launch { likeTrack(x.id) } } }, contentAlignment = Alignment.Center) {
+                    Icon(painterResource(if (likedNow) R.drawable.check else R.drawable.add), null, Modifier.size(22.dp), tint = Color.White) }
             }
             Spacer(Modifier.height(18.dp))
             // seek bar
@@ -110,7 +115,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                 Box(Modifier.fillMaxWidth(frac), contentAlignment = Alignment.CenterEnd) { Box(Modifier.size(14.dp).clip(CircleShape).background(Color.White)) }
             }
             Row(Modifier.fillMaxWidth()) {
-                Text(fmt((frac * dur).toLong()), style = ts(12, color = Color(0xFFD6CCD3))); Spacer(Modifier.weight(1f)); Text(fmt(dur), style = ts(12, color = Color(0xFFD6CCD3)))
+                Text(fmt((frac * dur).toLong()), style = ts(12, color = Color(0xFFD6CCD3))); Spacer(Modifier.weight(1f)); Text("-" + fmt((dur - (frac * dur).toLong()).coerceAtLeast(0)), style = ts(12, color = Color(0xFFD6CCD3)))
             }
             Spacer(Modifier.height(22.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
