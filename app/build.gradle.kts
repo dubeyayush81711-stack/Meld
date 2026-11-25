@@ -292,6 +292,7 @@ dependencies {
     implementation(libs.appcompat)
 
     implementation(libs.coil)
+    implementation("dev.chrisbanes.haze:haze:2.1.0")
     implementation(libs.coil.network.okhttp)
     implementation(libs.browser)
 

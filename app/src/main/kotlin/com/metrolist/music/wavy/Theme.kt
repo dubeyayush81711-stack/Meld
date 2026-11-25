@@ -23,7 +23,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.runtime.getValue
 import com.metrolist.music.R
 
-const val WAVY_BUILD = "dev-24"
+const val WAVY_BUILD = "dev-25"
 
 object W {
     val Pink = Color(0xFFFF2D78)
@@ -61,7 +61,7 @@ fun Modifier.glass(shape: androidx.compose.ui.graphics.Shape, strength: Float = 
     .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.38f), Color.White.copy(alpha = 0.12f))), shape)
 
 val GlassSheet = Color(0xE60E0C16)
-val GlassBar = Color(0xC8120F1A)
+val GlassBar = Color(0x99120F1A)
 
 /** Midnight canvas with three drifting liquid orbs and a diagonal sheen, same as the glass design background. */
 @Composable

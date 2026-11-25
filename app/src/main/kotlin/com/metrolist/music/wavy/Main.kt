@@ -20,6 +20,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -95,8 +97,9 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
     BackHandler(full) { full = false }
     BackHandler(!full && page != null) { page = when { page == "set:hub" -> null; page!!.startsWith("set:") -> "set:hub"; else -> null } }
     BackHandler(!full && tab != 0) { tab = 0 }
+    val haze = dev.chrisbanes.haze.rememberHazeState()
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().hazeSource(haze)) {
             AnimatedContent(tab, transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(160)) }, label = "tab") { t ->
                 when (t) {
                     0 -> HomeScreen(pc, onSearch = { tab = 1 }, onSignOut = onSignOut, onProfile = { page = "editprofile" }, onParty = { page = "party" }, onSettings = { page = "set:hub" }, onPlaylist = { id, n -> page = "pl:$id:$n" })
@@ -134,7 +137,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         }
         Column(Modifier.align(Alignment.BottomCenter)) {
             if (meta != null && pc != null && tab != 2) MiniPlayer(pc) { full = true }
-            NavBar(tab) { page = null; full = false; tab = it }
+            NavBar(tab, haze) { page = null; full = false; tab = it }
         }
         AnimatedVisibility(full && pc != null, enter = slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(200)),
             exit = slideOutVertically(tween(300)) { it } + fadeOut(tween(200))) {
@@ -145,8 +148,8 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
 }
 
 @Composable
-fun NavBar(sel: Int, onSel: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth().background(GlassBar).navigationBarsPadding().padding(top = 10.dp, bottom = 8.dp)) {
+fun NavBar(sel: Int, haze: dev.chrisbanes.haze.HazeState? = null, onSel: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth().then(if (haze != null) Modifier.hazeEffect(haze) { blurRadius = 24.dp } else Modifier).background(GlassBar).navigationBarsPadding().padding(top = 10.dp, bottom = 8.dp)) {
         tabs.forEachIndexed { i, (name, icon) ->
             val on = i == sel
             val col by animateColorAsState(if (on) W.Pink else Color(0xFFBDB8C4), tween(200), label = "c")
