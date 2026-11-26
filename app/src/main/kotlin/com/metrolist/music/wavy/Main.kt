@@ -122,6 +122,8 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
                     p.startsWith("pl:") -> { val parts = p.split(":", limit = 3); TrackListScreen(parts[2], pc, { page = null }) { loadPlaylistTracks(parts[1].toLong()) } }
                     p == "picker" -> ArtistPicker(null) { page = null }
                     p == "party" -> PartyScreen(pc) { page = null }
+                    p == "agent" -> AiChatScreen("agent", "Wavy Agent", "Hi! Tell me a mood, an artist or a language and I will help you pick songs. I can also explain how Wavy works.") { page = null }
+                    p == "support" -> AiChatScreen("support", "Support", "Hi! Ask me how anything in Wavy works. If something is broken, describe it and tap Send a bug report.") { page = "set:about" }
                     p == "profile" -> ProfileScreen(onBack = { page = null }, onSignOut = onSignOut, onSettings = { page = "set:hub" })
                     p == "editprofile" -> EditProfileRoute { page = null }
                     p == "set:hub" -> SettingsHub({ page = null }, onSignOut) { page = it }
@@ -133,7 +135,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
                     p == "set:adv" -> AdvancedSettings(pc) { page = "set:hub" }
                     p == "set:apps" -> AppsSettings { page = "set:hub" }
                     p == "set:notif" -> NotifSettings { page = "set:hub" }
-                    p == "set:about" -> AboutSettings { page = "set:hub" }
+                    p == "set:about" -> AboutSettings({ page = "set:hub" }) { page = it }
                 }
             }
         }

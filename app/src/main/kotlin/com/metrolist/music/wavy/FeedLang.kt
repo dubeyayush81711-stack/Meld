@@ -27,7 +27,9 @@ suspend fun feedPage(titles: List<String>, offset: Int, seed: String): List<Trac
     // light, seed-based shuffle inside groups of 6 so each refresh feels different but stays near the chart order
     val mixed = out.chunked(6).flatMap { g -> g.sortedBy { Math.abs((seed + it.id).hashCode()) % 100 } }
     val fresh = Played.filter(mixed)
-    return if (fresh.size >= 6 || offset > 0) fresh else mixed
+    val base = if (fresh.size >= 6 || offset > 0) fresh else mixed
+    // the AI only reorders the first page (cached on the server); any failure keeps the chart order
+    return if (offset == 0) (kotlinx.coroutines.withTimeoutOrNull(4000) { Ai.reorder("", titles, base) } ?: base) else base
 }
 
 fun normKey(t: Track) = (t.title.lowercase().replace(Regex("\\(.*?\\)|\\[.*?\\]|official|video|audio|lyrical|lyrics|\\bhd\\b|[^a-z0-9\u0900-\u0DFF ]"), " ").replace(Regex("\\s+"), " ").trim() + "|" + t.artist.lowercase().split(Regex("[,&]| x | feat\\.?")).first().trim())

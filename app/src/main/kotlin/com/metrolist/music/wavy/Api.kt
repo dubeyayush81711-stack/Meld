@@ -102,6 +102,12 @@ object Api {
         return parse(exec(req, true))
     }
 
+    /** Calls an edge function (AI) with the user's session. */
+    suspend fun fn(name: String, body: JSONObject): JSONObject? {
+        val req = Request.Builder().url("$URL/functions/v1/$name").post(body.toString().toRequestBody(JSON))
+        return parse(exec(req, true)) as? JSONObject
+    }
+
     suspend fun get(path: String): Any? = parse(exec(Request.Builder().url("$URL/rest/v1/$path").get(), true))
 
     suspend fun post(path: String, body: Any, upsert: Boolean = false) {
