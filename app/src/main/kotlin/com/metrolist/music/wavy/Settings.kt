@@ -12,6 +12,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -284,13 +285,23 @@ fun ProSettings(onBack: () -> Unit, askMic: () -> Unit) {
             if (bands.isEmpty()) SNote("Start a song first so the equalizer can attach.")
             bands.forEach { (i, label) -> var v by floatPref("eq_$i", 0.5f); SSlider("$label Hz", v) { v = it } }
         }
-        SToggle("Spatial / 3D audio", "Sound feels like it comes from all around.", boolPref("fx_spatial", false))
         SToggle("Reverb", "Hall preset.", boolPref("fx_reverb", false))
         SToggle("Bass + Treble knobs", "Separate sliders.", knobs)
         if (knobs.value) { var tr by floatPref("treble", 0.5f); var bs by floatPref("prof_bass_manual", 0.3f); SSlider("Treble", tr) { tr = it }
             SSlider("Bass", S.f("bassknob", 0.3f)) { S.put("bassknob", it); S.put("fx_bass_boost", it > 0.5f) } }
         SToggle("Night mode", "Evens out loud and quiet parts. For late night.", boolPref("fx_night", false))
         SToggle("Voice boost", "Clearer, louder vocals.", boolPref("fx_voice", false))
+        run {
+            val hp by produceState(WavyFx.headphones()) { while (true) { value = WavyFx.headphones(); kotlinx.coroutines.delay(2000) } }
+            val sp = boolPref("fx_spatial", false)
+            Box(Modifier.alpha(if (hp) 1f else 0.4f)) {
+                if (hp) SToggle("Spatial / 3D audio", "Sound feels like it comes from all around.", sp)
+                else Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f).padding(end = 16.dp)) { Text("Spatial / 3D audio", style = ts(17, FontWeight.Medium)); Text("Connect Bluetooth or wired earphones to turn this on.", style = ts(13, color = Color(0xFFB9B2C4))) }
+                    Switch2(false)
+                }
+            }
+        }
         SDivider()
         SSection("Beat effects")
         SNote("Beat effects listen to the song's own sound. Android asks for the microphone permission for that, nothing is recorded.")

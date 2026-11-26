@@ -93,6 +93,7 @@ fun PlayerOptions(pc: PlayerConnection, onBoost: () -> Unit, onClose: () -> Unit
                 OptDivider()
                 var three by remember { mutableStateOf(false) }
                 OptRow(R.drawable.graphic_eq, if (three) "3D music (on)" else "3D music", "Surround effect, best with headphones") {
+                    if (!WavyFx.headphones()) { Toast.makeText(ctx, "Connect earphones to use 3D audio", Toast.LENGTH_SHORT).show(); return@OptRow }
                     val e = WEq.bind(pc)
                     if (e != null && WEq.vz == null) Toast.makeText(ctx, "3D effect is not supported on this phone", Toast.LENGTH_SHORT).show()
                     else { three = !three; try { WEq.vz?.setStrength((if (three) 1000 else 0).toShort()) } catch (_: Exception) {} }

@@ -70,14 +70,14 @@ fun ArtistScreen(artistId: String?, name: String, pc: PlayerConnection?, onBack:
             if (p != null) { artistCache[rid] = p; page = p } else if (page == null) failed = true
         } catch (e: Exception) { if (page == null) failed = true }
     }
-    Backdrop(streaks = false) {
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
         val pg = page
         if (pg == null) {
             Box(Modifier.fillMaxSize().statusBarsPadding()) {
                 BackDot(onBack)
                 Text(if (failed) "Could not load this artist. Check your connection and try again." else "Loading...", Modifier.align(Alignment.Center).padding(32.dp), style = ts(15, color = W.Dim))
             }
-            return@Backdrop
+            return@Box
         }
         val sections = pg.sections
         val songSecs = sections.filter { s -> s.items.any { it is SongItem } && s.items.none { it is AlbumItem } }
@@ -92,8 +92,8 @@ fun ArtistScreen(artistId: String?, name: String, pc: PlayerConnection?, onBack:
         LazyColumn(Modifier.fillMaxSize(), state = lst, contentPadding = PaddingValues(bottom = 210.dp)) {
             col {
                 Box(Modifier.fillMaxWidth().height(340.dp)) {
-                    AsyncImage(pg.artist.thumbnail, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x66000000), 0.35f to Color.Transparent, 1f to W.Bg)))
+                    AsyncImage(pg.artist.thumbnail, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alignment = Alignment.TopCenter)
+                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x66000000), 0.35f to Color.Transparent, 1f to Color.Black)))
                     Box(Modifier.statusBarsPadding()) { BackDot(onBack) }
                     Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 20.dp)) {
                         Text(aName, style = ts(30, FontWeight.Bold), maxLines = 2, overflow = TextOverflow.Ellipsis)

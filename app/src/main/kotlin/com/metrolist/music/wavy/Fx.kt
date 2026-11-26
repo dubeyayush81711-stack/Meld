@@ -108,6 +108,8 @@ object WavyFx {
     }
 
     /** Device kind now in use: earbuds, bt_speaker, dj, wired, phone, car */
+    fun headphones(): Boolean = currentDevice().first.let { it == "earbuds" || it == "wired" }
+
     fun currentDevice(): Pair<String, String> {
         val am = ctx?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return "phone" to "Phone speaker"
         val outs = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
@@ -159,13 +161,14 @@ object WavyFx {
         var bassV = prof("bass", dBass); var spaceV = prof("space", dSpace); val loudV = prof("loud", dLoud)
         if (S.b("fx_bass_boost")) bassV = maxOf(bassV, 0.8f)
         if (S.b("fx_spatial")) spaceV = maxOf(spaceV, 0.8f)
+        if (kind != "earbuds" && kind != "wired") spaceV = 0f   // 3D audio only with earphones
         if (S.b("gym_mode")) bassV = 1f
         if (pocket) { bassV = 1f }
         try { bass?.let { it.setStrength((bassV * 1000).toInt().toShort()); it.enabled = bassV > 0.01f } } catch (e: Exception) { }
         try { virt?.let {
             if (it.strengthSupported) it.setStrength((spaceV * 1000).toInt().toShort())
             if (android.os.Build.VERSION.SDK_INT >= 28 && spaceV > 0.01f) { try {
-                val mode = if (kind == "phone") Virtualizer.VIRTUALIZATION_MODE_TRANSAURAL else Virtualizer.VIRTUALIZATION_MODE_BINAURAL
+                val mode = Virtualizer.VIRTUALIZATION_MODE_BINAURAL
                 if (it.canVirtualize(android.media.AudioFormat.CHANNEL_OUT_STEREO, mode)) it.forceVirtualizationMode(mode)
             } catch (e: Exception) { } }
             it.enabled = spaceV > 0.01f } } catch (e: Exception) { }
