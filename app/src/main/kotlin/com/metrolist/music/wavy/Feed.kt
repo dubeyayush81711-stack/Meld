@@ -1,4 +1,10 @@
 package com.metrolist.music.wavy
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.graphicsLayer
 
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import android.content.Intent
@@ -122,6 +128,7 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
 @Composable
 fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
     var showFx by remember { mutableStateOf(false) }
+    val lyricsPref = boolPref("reel_lyrics", true); var showOpts by remember { mutableStateOf(false) }
     val videoPref = boolPref("reel_video", false); val hookPref = boolPref("reel_hook", true)
     val videoOn = videoPref.value
     val ctx = LocalContext.current
@@ -134,12 +141,19 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
     var refreshN by remember { mutableIntStateOf(0) }
     var loadingMore by remember { mutableStateOf(false) }
     // the song that is playing when the tab opens stays first, so nothing restarts
-    val first = remember { meta?.let { m -> Track(m.id, m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, m.duration, m.artists.firstOrNull()?.id, m.album?.title) } }
+    var first by remember { mutableStateOf(meta?.let { m -> Track(m.id, m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, m.duration, m.artists.firstOrNull()?.id, m.album?.title) }) }
+    var userMoved by remember { mutableStateOf(false) }
+    var followed by remember { mutableStateOf<List<Track>>(emptyList()) }
+    LaunchedEffect(Unit) { followed = followedSongs() }
     LaunchedEffect(refreshN) {
-        try { feed = (Api.rpc("player_feed_ig", JSONObject().put("p_limit", 30).put("p_offset", 0).put("p_region", "IN").put("p_seed", seed)) as? JSONArray).tracks(); err = null}
+        try { feed = mixFollowed((Api.rpc("player_feed_ig", JSONObject().put("p_limit", 30).put("p_offset", 0).put("p_region", "IN").put("p_seed", seed)) as? JSONArray).tracks(), followedSongs()); err = null}
         catch (e: ApiError) { err = humanErr(e) }
     }
-    val tracks = remember(feed, refreshN) { (if (refreshN == 0) listOfNotNull(first) else emptyList()) + feed.filter { it.id != first?.id || refreshN > 0 } }
+    LaunchedEffect(meta?.id) {
+        val m = meta ?: return@LaunchedEffect
+        if (refreshN == 0 && first?.id != m.id && feed.none { it.id == m.id }) first = Track(m.id, m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, m.duration, m.artists.firstOrNull()?.id, m.album?.title)
+    }
+    val tracks = remember(feed, refreshN, first) { (if (refreshN == 0) listOfNotNull(first) else emptyList()) + feed.filter { it.id != first?.id || refreshN > 0 } }
     if (tracks.isEmpty()) {
         Backdrop { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(err ?: "Loading...", style = ts(15, color = W.Dim)) } }
         return
@@ -150,7 +164,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
     LaunchedEffect(pager.settledPage, tracks.size) {
         if (tracks.size - pager.settledPage <= 5 && !loadingMore && feed.size < 200) {
             loadingMore = true
-            try { val more = (Api.rpc("player_feed_ig", JSONObject().put("p_limit", 30).put("p_offset", feed.size).put("p_region", "IN").put("p_seed", seed)) as? JSONArray).tracks(); val have = feed.map { it.id }.toSet(); feed = feed + more.filter { it.id !in have } } catch (e: Exception) { }
+            try { val more = (Api.rpc("player_feed_ig", JSONObject().put("p_limit", 30).put("p_offset", feed.size).put("p_region", "IN").put("p_seed", seed)) as? JSONArray).tracks(); val have = feed.map { it.id }.toSet(); feed = feed + mixFollowed(more, followed, HashSet(have)).filter { it.id !in have } } catch (e: Exception) { }
             loadingMore = false
         }
     }
@@ -174,11 +188,14 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
             }
         }
     }
+    LaunchedEffect(pager.interactionSource) { pager.interactionSource.interactions.collect { if (it is androidx.compose.foundation.interaction.DragInteraction.Start) userMoved = true } }
     LaunchedEffect(pager.settledPage, pc != null) {
         if (pc == null) return@LaunchedEffect
         val cur = tracks[pager.settledPage]
         if (meta?.id == cur.id) { lastDriven = pager.settledPage; return@LaunchedEffect }
         if (lastDriven == pager.settledPage) return@LaunchedEffect
+        // opening the tab never replaces what is already playing; only a swipe or a refresh does
+        if (!userMoved && refreshN == 0 && pc.player.mediaItemCount > 0) { lastDriven = pager.settledPage; return@LaunchedEffect }
         lastDriven = pager.settledPage
         if (queueOwned && pager.settledPage < pc.player.mediaItemCount && pc.player.getMediaItemAt(pager.settledPage).mediaId == cur.id) pc.player.seekTo(pager.settledPage, 0L).also { pc.player.play() }
         else { playTracks(pc, tracks, pager.settledPage, "Music"); queueOwned = true }
@@ -200,7 +217,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
         while (true) {
             delay(500)
             if (meta?.id != cur.id) return@LaunchedEffect
-            if (p.isPlaying && p.currentPosition >= start + 25_000 && pager.settledPage < tracks.size - 1) { pager.animateScrollToPage(pager.settledPage + 1); return@LaunchedEffect }
+            if (p.isPlaying && p.currentPosition >= start + 25_000 && pager.settledPage < tracks.size - 1) { userMoved = true; pager.animateScrollToPage(pager.settledPage + 1); return@LaunchedEffect }
         }
     }
     Box(Modifier.fillMaxSize()) {
@@ -219,6 +236,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
             var diag by remember(t.id) { mutableStateOf("") }
             var pos by remember(t.id) { mutableLongStateOf(0L) }
             LaunchedEffect(page, meta?.id) { while (true) { pos = if (meta?.id == t.id) (pc?.player?.currentPosition ?: 0L) else 0L; delay(250) } }
+            var showPlain by remember(t.id) { mutableStateOf(false) }
             var lyrics by remember(t.id) { mutableStateOf<List<LyricLine>>(emptyList()) }
             LaunchedEffect(t.id) { lyrics = fetchLyrics(ctx, t.id, t.title, t.artist, t.dur, t.album) }
             LaunchedEffect(diag) { if (diag.startsWith("playing via")) { delay(5000); diag = "" } }
@@ -242,12 +260,30 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                     Box(Modifier.fillMaxSize().background(Color(0x66000000)))
                     if (page == pager.settledPage) StreamVideo(t.id, pc, Modifier.fillMaxSize()) { diag = it }
                 } else {
-                    AsyncImage(hiRes(t.cover), null, Modifier.fillMaxWidth().aspectRatio(1f).align(Alignment.TopStart).padding(top = 120.dp), contentScale = ContentScale.Crop)
-                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to bg, 0.2f to bg.copy(alpha = 0.55f), 0.34f to Color.Transparent, 0.52f to Color.Transparent, 0.7f to Color(0xCC0B0B0D), 0.82f to Color(0xFF0B0B0D), 1f to Color(0xFF0B0B0D))))
-                    val ci = lyrics.indexOfLast { it.t <= pos + 250 }
-                    if (lyrics.isNotEmpty() && ci >= 0) Column(Modifier.align(Alignment.TopStart).statusBarsPadding().padding(start = 24.dp, end = 24.dp, top = 84.dp)) {
-                        Text(lyrics[ci].text, style = ts(28, FontWeight.Bold), maxLines = 3, overflow = TextOverflow.Ellipsis)
-                        lyrics.getOrNull(ci + 1)?.let { Text(it.text, Modifier.padding(top = 10.dp), style = ts(22, FontWeight.Bold, Color(0x88FFFFFF)), maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                    BoxWithConstraints(Modifier.fillMaxSize()) {
+                        val heroH = (maxHeight - 392.dp).coerceIn(300.dp, maxWidth)
+                        Box(Modifier.fillMaxWidth().height(heroH)) {
+                            Box(Modifier.fillMaxSize().graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+                                .drawWithContent { drawContent(); drawRect(Brush.verticalGradient(0.62f to Color.Black, 1f to Color.Transparent), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn) }) {
+                                AsyncImage(hiRes(t.cover), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x55000000), 0.3f to Color.Transparent, 0.55f to Color(0x66000000), 1f to Color(0xCC000000))))
+                            }
+                            val synced = if (lyricsPref.value) lyrics.filter { it.t >= 0 } else emptyList()
+                            val ci = synced.indexOfLast { it.t <= pos + 250 }
+                            if (synced.isNotEmpty() && ci >= 0) Column(Modifier.align(Alignment.BottomStart).padding(start = 24.dp, end = 24.dp, bottom = 26.dp)) {
+                                Text(synced[ci].text, style = ts(26, FontWeight.Bold), maxLines = 3, overflow = TextOverflow.Ellipsis)
+                                synced.getOrNull(ci + 1)?.let { Text(it.text, Modifier.padding(top = 8.dp), style = ts(20, FontWeight.Bold, Color(0x88FFFFFF)), maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                            } else if (lyricsPref.value && lyrics.none { it.t >= 0 } && lyrics.isNotEmpty()) Text("Lyrics", Modifier.align(Alignment.BottomStart).padding(start = 24.dp, bottom = 26.dp).clip(RoundedCornerShape(50)).background(Color(0x55000000)).border(1.dp, Color(0x66FFFFFF), RoundedCornerShape(50)).clickable { showPlain = true }.padding(horizontal = 20.dp, vertical = 9.dp), style = ts(15, FontWeight.SemiBold))
+                        }
+                    }
+                }
+                if (showPlain) androidx.compose.ui.window.Dialog(onDismissRequest = { showPlain = false }, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+                    Box(Modifier.fillMaxSize().background(Color(0xFF0B0B0D)).statusBarsPadding()) {
+                        androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 80.dp, bottom = 60.dp)) {
+                            item { Text(t.title, style = ts(22, FontWeight.Bold)); Text(t.artist, Modifier.padding(bottom = 18.dp), style = ts(15, color = Color(0xB3FFFFFF))) }
+                            items(lyrics.size) { i -> Text(lyrics[i].text, Modifier.padding(vertical = 5.dp), style = ts(19, FontWeight.Medium)) }
+                        }
+                        Icon(painterResource(R.drawable.close), "Close", Modifier.padding(20.dp).size(28.dp).clickable { showPlain = false }, tint = Color.White)
                     }
                 }
                 if (flash != 0) Text(when (flash) { 1 -> if (playing) "Playing" else "Paused"; 2 -> "-10s"; else -> "+10s" }, Modifier.align(when (flash) { 2 -> Alignment.CenterStart; 3 -> Alignment.CenterEnd; else -> Alignment.Center }).padding(horizontal = 40.dp).clip(RoundedCornerShape(50)).background(Color(0x88000000)).padding(horizontal = 18.dp, vertical = 10.dp), style = ts(18, FontWeight.SemiBold))
@@ -262,33 +298,53 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                 }
                 Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 96.dp)) {
                     Text(t.title, style = ts(26, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(t.artist, Modifier.weight(1f, fill = false), style = ts(17, color = Color(0xDDFFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.width(12.dp))
                         FollowButton(t.artistId, t.artist)
                     }
-                    Spacer(Modifier.height(18.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(26.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(painterResource(if (liked) R.drawable.favorite else R.drawable.favorite_border), null, Modifier.size(30.dp).clickable { liked = true; scope.launch { likeTrack(t.id) } }, tint = if (liked) W.Pink else Color.White)
-                        Icon(painterResource(R.drawable.share), null, Modifier.size(28.dp).clickable {
-                            ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "${t.title} - ${t.artist}\nhttps://music.youtube.com/watch?v=${t.id}"), "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                        }, tint = Color.White)
+                    Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        @Composable fun Act(icon: Int, tint: Color = Color.White, on: () -> Unit) = Box(Modifier.size(44.dp).clip(CircleShape).background(Color(0x22FFFFFF)).clickable { on() }, contentAlignment = Alignment.Center) { Icon(painterResource(icon), null, Modifier.size(24.dp), tint = tint) }
+                        Act(if (liked) R.drawable.favorite else R.drawable.favorite_border, if (liked) W.Pink else Color.White) { liked = true; scope.launch { likeTrack(t.id) } }
+                        Act(R.drawable.share) { ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "${t.title} - ${t.artist}\nhttps://music.youtube.com/watch?v=${t.id}"), "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                        Act(R.drawable.more_vert) { showFx = true }
                     }
                     Spacer(Modifier.height(10.dp))
                     val dur = ((if (meta?.id == t.id) pc?.player?.duration?.takeIf { it > 0 } else null) ?: (t.dur * 1000L)).coerceAtLeast(1)
                     WavySeek((pos.toFloat() / dur).coerceIn(0f, 1f), playing && meta?.id == t.id, androidx.compose.ui.graphics.lerp(bg, Color.White, 0.82f), onSeekTo = { f -> pc?.seekTo((f * dur).toLong()) })
-                    Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.padding(top = 4.dp).size(40.dp).clickable { pc?.player?.let { p -> if (p.isPlaying) p.pause() else p.play() } }, tint = Color.White)
+                    fun mmss(ms: Long): String { val s = (ms / 1000).coerceAtLeast(0); return "%d:%02d".format(s / 60, s % 60) }
+                    Row(Modifier.fillMaxWidth()) { Text(mmss(pos), style = ts(12, color = Color(0xCCFFFFFF))); Spacer(Modifier.weight(1f)); Text(mmss(dur), style = ts(12, color = Color(0xCCFFFFFF))) }
+                    Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painterResource(R.drawable.skip_previous), null, Modifier.size(40.dp).clip(CircleShape).clickable { if (page > 0) scope.launch { userMoved = true; pager.animateScrollToPage(page - 1) } }, tint = Color.White)
+                        Spacer(Modifier.width(26.dp))
+                        Box(Modifier.size(68.dp).clip(CircleShape).background(Color.White).clickable { pc?.player?.let { p -> if (p.isPlaying) p.pause() else p.play() } }, contentAlignment = Alignment.Center) {
+                            Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(36.dp), tint = Color.Black) }
+                        Spacer(Modifier.width(26.dp))
+                        Icon(painterResource(R.drawable.skip_next), null, Modifier.size(40.dp).clip(CircleShape).clickable { if (page < tracks.size - 1) scope.launch { userMoved = true; pager.animateScrollToPage(page + 1) } }, tint = Color.White)
+                    }
                     if (videoOn && diag.isNotEmpty()) Text(diag, Modifier.padding(top = 4.dp), style = ts(11, color = Color(0xFFFFB4C8)))
                 }
             }
         }
+        if (showOpts && pc != null) PlayerOptions(pc, onBoost = {}, onClose = { showOpts = false })
         if (showFx) {
             Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { showFx = false })
-            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF2121016)).navigationBarsPadding().padding(vertical = 14.dp)) {
+            BoxWithConstraints(Modifier.align(Alignment.BottomCenter)) {
+            Column(Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.86f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF2121016)).navigationBarsPadding().verticalScroll(rememberScrollState()).padding(vertical = 14.dp)) {
                 Text("Music features", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = ts(18, FontWeight.SemiBold))
                 SToggle("Video player", "Play the music video behind the song. Off shows the cover.", videoPref)
-                SToggle("Reduce effects", "Turns off blur, the drifting background and the moving wave. Smoother on slower phones.", Reduce.state)
+                SToggle("Lyrics", "Show synced lyrics on the cover when a song has them.", lyricsPref)
                 SToggle("Hook only", "Play about 25 seconds of each song, then move to the next.", hookPref)
+                SToggle("Reduce effects", "Turns off blur, the drifting background and the moving wave. Smoother on slower phones.", Reduce.state)
+                val cur = meta
+                if (cur != null) {
+                    @Composable fun Row2(title: String, sub: String, on: () -> Unit) = Column(Modifier.fillMaxWidth().clickable { on() }.padding(horizontal = 20.dp, vertical = 12.dp)) { Text(title, style = ts(17, FontWeight.Medium)); Text(sub, style = ts(13, color = Color(0xFFB9B2C4))) }
+                    Row2("Copy link", "Copy the YouTube Music link of this song.") {
+                        (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("song", "https://music.youtube.com/watch?v=${cur.id}")); showFx = false
+                    }
+                    if (pc != null) Row2("Player options", "Equalizer, tempo and pitch, download and more for this song.") { showFx = false; showOpts = true }
+                }
+            }
             }
         }
     }

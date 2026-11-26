@@ -43,6 +43,7 @@ object Reduce {
 object S {
     private var sp: android.content.SharedPreferences? = null
     fun init(ctx: Context) { if (sp == null) { sp = ctx.applicationContext.getSharedPreferences("wavy_settings", Context.MODE_PRIVATE); Reduce.on = sp!!.getBoolean("reduce_fx", true) } }
+    fun keysWithPrefix(p: String): List<String> = sp?.all?.keys?.filter { it.startsWith(p) } ?: emptyList()
     fun b(k: String, d: Boolean = false) = sp?.getBoolean(k, d) ?: d
     fun f(k: String, d: Float = 0f) = sp?.getFloat(k, d) ?: d
     fun s(k: String, d: String = "") = sp?.getString(k, d) ?: d

@@ -75,7 +75,7 @@ fun PlayerDetails(pc: PlayerConnection, id: String, title: String, artistNames: 
     var lyrics by remember(id) { mutableStateOf<List<LyricLine>>(emptyList()) }
     var pos by remember { mutableLongStateOf(0L) }
     LaunchedEffect(id) {
-        lyrics = withContext(Dispatchers.IO) { try { com.metrolist.music.lyrics.LrcLibLyricsProvider.getLyrics(ctx, id, title, artistNames.substringBefore(","), durSec, album).getOrNull()?.let { parseLyrics(it) } ?: emptyList() } catch (e: Exception) { emptyList() } }
+        lyrics = fetchLyrics(ctx, id, title, artistNames, durSec, album)
     }
     LaunchedEffect(id) { while (true) { pos = pc.player.currentPosition; delay(500) } }
     val mainId = artists.firstOrNull()?.second
