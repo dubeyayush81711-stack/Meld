@@ -23,13 +23,13 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.runtime.getValue
 import com.metrolist.music.R
 
-const val WAVY_BUILD = "dev-68"
+const val WAVY_BUILD = "dev-69"
 
 object W {
     val Pink = Color(0xFFFF2D78)
     val Pink2 = Color(0xFFF53D8C)
     val Violet = Color(0xFF8E3BEA)
-    val Bg = Color(0xFF0B0B0D)
+    val Bg = Color(0xFF0B141A)
     val Bg2 = Color(0xFF0D0A12)
     val Card = Color(0xFF1B1920)
     val Maroon = Color(0xFF3B0C20)
@@ -60,8 +60,8 @@ fun Modifier.glass(shape: androidx.compose.ui.graphics.Shape, strength: Float = 
     .background(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.13f * strength), Color.White.copy(alpha = 0.08f * strength), Color.White.copy(alpha = 0.10f * strength))))
     .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.38f), Color.White.copy(alpha = 0.12f))), shape)
 
-val GlassSheet = Color(0xE60E0C16)
-val GlassBar = Color(0x99120F1A)
+val GlassSheet = Color(0xE6111B21)
+val GlassBar = Color(0x99111B21)
 
 /** Midnight canvas with three drifting liquid orbs and a diagonal sheen, same as the glass design background. */
 @Composable
@@ -70,7 +70,7 @@ fun Backdrop(modifier: Modifier = Modifier.fillMaxSize(), streaks: Boolean = tru
     val p1 by (if (Reduce.on) androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0.35f) } else tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(14000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "o1"))
     val p2 by (if (Reduce.on) androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0.5f) } else tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(19000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "o2"))
     val p3 by (if (Reduce.on) androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0.65f) } else tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(23000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "o3"))
-    Box(modifier.background(Color(0xFF07070B))) {
+    Box(modifier.background(W.Bg)) {
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width; val h = minOf(size.height, w * 2.2f)
             fun orb(c: Color, cx: Float, cy: Float, r: Float) = drawCircle(Brush.radialGradient(listOf(c, c.copy(alpha = 0.34f * c.alpha), Color.Transparent), center = Offset(cx, cy), radius = r), r, Offset(cx, cy))

@@ -142,7 +142,7 @@ fun ArtistPicker(taste: Taste?, onDone: () -> Unit) {
         }
         src.distinctBy { it.id }.ifEmpty { if (codes.any { byLang[it] == null }) emptyList() else artists }
     }
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Box(Modifier.fillMaxSize().background(W.Bg)) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             Text("Choose 3 or more\nartists you like.", Modifier.padding(start = 22.dp, top = 28.dp, end = 22.dp), style = ts(30, FontWeight.Bold).copy(lineHeight = 38.sp))
             Row(Modifier.padding(22.dp, 20.dp, 22.dp, 14.dp).fillMaxWidth().height(54.dp).clip(RoundedCornerShape(8.dp)).background(Color.White).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {

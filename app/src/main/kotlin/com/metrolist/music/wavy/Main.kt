@@ -103,6 +103,8 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
     val ctx = LocalContext.current
     val micLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { WavyFx.refresh() }
     fun askMic() { if (ctx.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) micLauncher.launch(android.Manifest.permission.RECORD_AUDIO) }
+    val btLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { WavyFx.updateDevice(); WavyFx.refresh() }
+    LaunchedEffect(Unit) { if (android.os.Build.VERSION.SDK_INT >= 31 && ctx.checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED) btLauncher.launch(android.Manifest.permission.BLUETOOTH_CONNECT) }
     LaunchedEffect(pc) { if (pc != null) WavyFx.attach(ctx, pc) }
     // count a play after 15 s of listening so Favourites and recommendations learn
     LaunchedEffect(meta?.id) {

@@ -70,7 +70,7 @@ fun ArtistScreen(artistId: String?, name: String, pc: PlayerConnection?, onBack:
             if (p != null) { artistCache[rid] = p; page = p } else if (page == null) failed = true
         } catch (e: Exception) { if (page == null) failed = true }
     }
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Box(Modifier.fillMaxSize().background(W.Bg)) {
         val pg = page
         if (pg == null) {
             Box(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -93,7 +93,7 @@ fun ArtistScreen(artistId: String?, name: String, pc: PlayerConnection?, onBack:
             col {
                 Box(Modifier.fillMaxWidth().height(340.dp)) {
                     AsyncImage(pg.artist.thumbnail, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alignment = Alignment.TopCenter)
-                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x66000000), 0.35f to Color.Transparent, 1f to Color.Black)))
+                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x66000000), 0.35f to Color.Transparent, 1f to W.Bg)))
                     Box(Modifier.statusBarsPadding()) { BackDot(onBack) }
                     Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 20.dp)) {
                         Text(aName, style = ts(30, FontWeight.Bold), maxLines = 2, overflow = TextOverflow.Ellipsis)

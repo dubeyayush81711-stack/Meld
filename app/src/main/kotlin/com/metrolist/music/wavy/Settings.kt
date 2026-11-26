@@ -292,7 +292,7 @@ fun ProSettings(onBack: () -> Unit, askMic: () -> Unit) {
         SToggle("Night mode", "Evens out loud and quiet parts. For late night.", boolPref("fx_night", false))
         SToggle("Voice boost", "Clearer, louder vocals.", boolPref("fx_voice", false))
         run {
-            val hp by produceState(WavyFx.headphones()) { while (true) { value = WavyFx.headphones(); kotlinx.coroutines.delay(2000) } }
+            val hp = WavyFx.device.value.first.let { it == "earbuds" || it == "wired" }
             val sp = boolPref("fx_spatial", false)
             Box(Modifier.alpha(if (hp) 1f else 0.4f)) {
                 if (hp) SToggle("Spatial / 3D audio", "Sound feels like it comes from all around.", sp)

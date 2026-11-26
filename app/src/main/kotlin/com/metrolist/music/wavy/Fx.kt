@@ -100,14 +100,48 @@ object WavyFx {
             override fun onAudioDevicesAdded(added: Array<out AudioDeviceInfo>) {
                 if (S.b("auto_resume", true) && added.any { it.isSink && (it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES || it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET || it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) } && S.b("paused_by_unplug"))
                     { S.put("paused_by_unplug", false); pc?.player?.play() }
-                refresh()
+                updateDevice(); refresh()
             }
-            override fun onAudioDevicesRemoved(removed: Array<out AudioDeviceInfo>) { if (pc?.player?.isPlaying == true) S.put("paused_by_unplug", true); refresh() }
+            override fun onAudioDevicesRemoved(removed: Array<out AudioDeviceInfo>) { if (pc?.player?.isPlaying == true) S.put("paused_by_unplug", true); updateDevice(); refresh() }
         }, null)
+        try {
+            ctx!!.registerReceiver(object : android.content.BroadcastReceiver() {
+                override fun onReceive(c: Context?, i: android.content.Intent?) { updateDevice(); refresh() }
+            }, android.content.IntentFilter().apply {
+                addAction(android.bluetooth.BluetoothDevice.ACTION_ACL_CONNECTED); addAction(android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED)
+                addAction(android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED); addAction(android.media.AudioManager.ACTION_HEADSET_PLUG) })
+        } catch (e: Exception) { }
+        updateDevice()
         rebuild()
     }
 
     /** Device kind now in use: earbuds, bt_speaker, dj, wired, phone, car */
+    /** Live output device (kind, name); updated by audio-device and Bluetooth connection events, so the UI reacts at once. */
+    val device = mutableStateOf("phone" to "Phone speaker")
+    fun updateDevice() { val d = currentDevice(); if (device.value != d) device.value = d }
+
+    /** The connected headphone's own name. productName can be the phone's name on some devices, so the name comes from the device address. */
+    private fun btName(info: AudioDeviceInfo): String {
+        val c = ctx ?: return "Bluetooth headphones"
+        val phone = listOf(android.os.Build.MODEL, android.os.Build.DEVICE)
+        var local: String? = null
+        val canRead = android.os.Build.VERSION.SDK_INT < 31 || c.checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        try {
+            if (canRead) {
+                val ad = (c.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter
+                local = ad?.name
+                val addr = if (android.os.Build.VERSION.SDK_INT >= 28) info.address else ""
+                if (ad != null && !addr.isNullOrBlank() && android.bluetooth.BluetoothAdapter.checkBluetoothAddress(addr)) {
+                    val n = ad.getRemoteDevice(addr).name
+                    if (!n.isNullOrBlank()) return n
+                }
+            }
+        } catch (e: Exception) { }
+        val n = info.productName?.toString().orEmpty()
+        if (n.isBlank() || n.equals("Bluetooth", true) || n.equals(local, true) || phone.any { it.equals(n, true) }) return "Bluetooth headphones"
+        return n
+    }
+
     fun headphones(): Boolean = currentDevice().first.let { it == "earbuds" || it == "wired" }
 
     fun currentDevice(): Pair<String, String> {
@@ -117,7 +151,7 @@ object WavyFx {
         outs.firstOrNull { it.type == AudioDeviceInfo.TYPE_USB_HEADSET || it.type == AudioDeviceInfo.TYPE_LINE_ANALOG }?.let { return "wired" to "Wired / AUX" }
         outs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || it.type == AudioDeviceInfo.TYPE_HEARING_AID ||
             (android.os.Build.VERSION.SDK_INT >= 31 && (it.type == AudioDeviceInfo.TYPE_BLE_HEADSET || it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER || it.type == AudioDeviceInfo.TYPE_BLE_BROADCAST)) }
-            ?.let { val n = it.productName?.toString().orEmpty(); return "earbuds" to (if (n.isBlank() || n.equals("Bluetooth", true)) "Bluetooth device" else n) }
+            ?.let { return "earbuds" to btName(it) }
         return "phone" to "Phone speaker"
     }
 

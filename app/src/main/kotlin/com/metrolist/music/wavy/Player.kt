@@ -122,7 +122,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             }
             Spacer(Modifier.height(26.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                val dev by produceState(WavyFx.currentDevice()) { while (true) { value = WavyFx.currentDevice(); kotlinx.coroutines.delay(2000) } }
+                val dev by WavyFx.device
                 Row(Modifier.weight(1f).clip(RoundedCornerShape(50)).clickable {
                     val ok = try { ctx.startActivity(Intent("com.android.settings.panel.action.MEDIA_OUTPUT").putExtra("com.android.settings.panel.extra.PACKAGE_NAME", ctx.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true } catch (e: Exception) { false }
                     if (!ok) try { ctx.startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { }

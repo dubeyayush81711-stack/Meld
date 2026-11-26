@@ -9,17 +9,17 @@ import refresh_charts
 YEAR = datetime.date.today().year
 # language -> list of (sublanguage, search query). Playlists are picked by title rules, not by hard-coded ids.
 LANGS = {
-    "hindi": [("hindi", "Bollywood Hitlist"), ("hindi", "Hindi Hits"), ("hindi", "Top Bollywood songs")],
-    "punjabi": [("punjabi", "Punjabi Hitlist"), ("punjabi", "Punjabi Hits"), ("punjabi", "Top Punjabi songs")],
-    "bhojpuri": [("bhojpuri", "Bhojpuri Hits"), ("bhojpuri", "Bhojpuri Hitlist"), ("bhojpuri", "Top Bhojpuri songs")],
-    "haryanvi": [("haryanvi", "Haryanvi Hitlist"), ("haryanvi", "Haryanvi Hits"), ("haryanvi", "Top Haryanvi songs")],
+    "hindi": [("hindi", "Bollywood Hitlist"), ("hindi", "Hindi Hits"), ("hindi", "Top Bollywood songs"), ("hindi", "Bollywood Hits"), ("hindi", "Hindi Top Hits"), ("hindi", "Bollywood Chartbusters"), ("hindi", "Trending Hindi songs")],
+    "punjabi": [("punjabi", "Punjabi Hitlist"), ("punjabi", "Punjabi Hits"), ("punjabi", "Top Punjabi songs"), ("punjabi", "Trending Punjabi songs")],
+    "bhojpuri": [("bhojpuri", "Bhojpuri Hits"), ("bhojpuri", "Bhojpuri Hitlist"), ("bhojpuri", "Top Bhojpuri songs"), ("bhojpuri", "Trending Bhojpuri songs"), ("bhojpuri", "Bhojpuri Chartbusters")],
+    "haryanvi": [("haryanvi", "Haryanvi Hitlist"), ("haryanvi", "Haryanvi Hits"), ("haryanvi", "Top Haryanvi songs"), ("haryanvi", "Trending Haryanvi songs")],
     "south": [("tamil", "Kollywood Hitlist"), ("tamil", "Tamil Hits"), ("telugu", "Tollywood Hitlist"), ("telugu", "Telugu Hits"),
               ("malayalam", "Mollywood Hitlist"), ("malayalam", "Malayalam Hits"), ("kannada", "Sandalwood Hitlist"), ("kannada", "Kannada Hits")],
     "international": [("international", "Global Hits"), ("international", "Top English songs"), ("international", "Pop Hits")],
 }
 KEYWORDS = ("hitlist", "hits", "top ", "trending", "chartbusters", "biggest")
 PLAYLIST_FILTER = "EgeKAQQoADgBagwQDhAKEAMQBRAJEAQ%3D"
-PER_LANG = 50
+PER_LANG = 200
 
 REQUIRE = {"hindi": ("bollywood", "hindi"), "punjabi": ("punjabi",), "bhojpuri": ("bhojpuri",), "haryanvi": ("haryanvi",),
            "tamil": ("kollywood", "tamil"), "telugu": ("tollywood", "telugu"), "malayalam": ("mollywood", "malayalam"),
@@ -37,7 +37,7 @@ def ok_title(t, sub):
     if re.search(r"\b(\d0s|old|retro|classic|90s|80s|70s|60s)\b", tl): return False
     return True
 
-def find_playlists(q, sub, limit=2):
+def find_playlists(q, sub, limit=4):
     d = yt("search", {"query": q, "params": PLAYLIST_FILTER})
     out = []
     for o in walk(d):
@@ -70,10 +70,10 @@ def build():
                 if len(songs) < 10: continue
                 used.append((bid, title)); log(f"  {lang}: {title} ({len(songs)} songs, {sub})")
                 age = 0.5 if any(int(y) < YEAR for y in re.findall(r"\b(20\d\d)\b", title)) else 1.0   # last year's list counts half
-                for rank, s in enumerate(songs[:60]):
+                for rank, s in enumerate(songs[:120]):
                     v = s["yt_video_id"]
                     meta.setdefault(v, dict(s, sub=sub))
-                    score[v] = score.get(v, 0) + age * (60 - rank) / 60
+                    score[v] = score.get(v, 0) + age * (120 - rank) / 120
         for v in score:
             if v in india: score[v] += 1.0 + (100 - india[v]) / 100
         ranked = sorted(score, key=lambda v: -score[v])
