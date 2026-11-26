@@ -84,19 +84,20 @@ fun ArtistScreen(artistId: String?, name: String, pc: PlayerConnection?, onBack:
         val videoSec = songSecs.firstOrNull { it.title.contains("video", true) }
         val popularSec = songSecs.firstOrNull { it !== videoSec }
         val popular = popularSec?.items?.filterIsInstance<SongItem>()?.map { it.toTrack() } ?: emptyList()
-        val shown = fullSongs ?: popular.take(5)
+        val shown = fullSongs ?: popular.take(10)
         val albumSecs = sections.filter { s -> s.items.any { it is AlbumItem } }
         val latest = albumSecs.flatMap { it.items }.filterIsInstance<AlbumItem>().maxByOrNull { it.year ?: 0 }
         val aName = pg.artist.title
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 210.dp)) {
+        val lst = androidx.compose.foundation.lazy.rememberLazyListState()
+        LazyColumn(Modifier.fillMaxSize(), state = lst, contentPadding = PaddingValues(bottom = 210.dp)) {
             col {
-                Box(Modifier.fillMaxWidth().height(380.dp)) {
+                Box(Modifier.fillMaxWidth().height(340.dp)) {
                     AsyncImage(pg.artist.thumbnail, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x66000000), 0.35f to Color.Transparent, 1f to W.Bg)))
                     Box(Modifier.statusBarsPadding()) { BackDot(onBack) }
                     Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 20.dp)) {
-                        Text(aName, style = ts(40, FontWeight.Bold), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        (pg.monthlyListenerCount ?: pg.subscriberCountText)?.let { Text(it, Modifier.padding(top = 4.dp), style = ts(14, color = Color(0xFFD6D0DE))) }
+                        Text(aName, style = ts(30, FontWeight.Bold), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        (pg.monthlyListenerCount ?: pg.subscriberCountText)?.let { Text(it, Modifier.padding(top = 4.dp), style = ts(12, color = Color(0xFFD6D0DE))) }
                     }
                 }
                 Row(Modifier.padding(20.dp, 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -114,13 +115,13 @@ fun ArtistScreen(artistId: String?, name: String, pc: PlayerConnection?, onBack:
                 }
                 itemsIndexed(shown) { i, t ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("${i + 1}", Modifier.width(34.dp).padding(start = 16.dp), style = ts(15, FontWeight.Medium, W.Dim))
+                        Text("${i + 1}", Modifier.padding(start = 12.dp).width(30.dp), maxLines = 1, softWrap = false, textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = ts(13, FontWeight.Medium, W.Dim))
                         Box(Modifier.weight(1f)) { TrackRow(t, pc) { playTracks(pc, shown, i, aName) } }
                     }
                 }
                 col {
                     val more = popularSec?.moreEndpoint
-                    if (fullSongs == null && (more != null || popular.size > 5)) Text(if (loadingAll) "Loading..." else "See more", Modifier.padding(20.dp, 10.dp).clip(RoundedCornerShape(50)).glass(RoundedCornerShape(50)).clickable(enabled = !loadingAll) {
+                    if (fullSongs == null && (more != null || popular.size > 10)) Text(if (loadingAll) "Loading..." else "See more", Modifier.padding(20.dp, 10.dp).clip(RoundedCornerShape(50)).glass(RoundedCornerShape(50)).clickable(enabled = !loadingAll) {
                         loadingAll = true
                         scope.launch {
                             val out = ArrayList<Track>(popular)
@@ -133,7 +134,7 @@ fun ArtistScreen(artistId: String?, name: String, pc: PlayerConnection?, onBack:
                                         c.items.filterIsInstance<SongItem>().forEach { out.add(it.toTrack()) }; tok = c.continuation; n++ }
                                 }
                             } catch (e: Exception) { }
-                            fullSongs = out.distinctBy { it.id }.distinctBy { norm(it.title) + "|" + norm(it.artist) }
+                            fullSongs = out.distinctBy { it.id }.distinctBy { norm(it.title) + "|" + norm(it.artist) }.take(50)
                             loadingAll = false
                         }
                     }.padding(horizontal = 22.dp, vertical = 10.dp), style = ts(14, FontWeight.Medium))
@@ -223,6 +224,7 @@ fun ArtistScreen(artistId: String?, name: String, pc: PlayerConnection?, onBack:
                 }
             }
         }
+        if (lst.firstVisibleItemIndex > 0 || lst.firstVisibleItemScrollOffset > 600) Box(Modifier.align(Alignment.TopStart).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Color(0xE607070B)))
     }
 }
 

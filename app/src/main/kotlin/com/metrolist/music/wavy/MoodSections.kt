@@ -20,11 +20,13 @@ private var myLangs: List<String>? = null
 /** The languages the user picked in onboarding (saved in user_prefs). */
 suspend fun userLanguages(): List<String> {
     myLangs?.let { return it }
+    val saved = S.s("my_langs_" + (Api.uid ?: "")).split(",").filter { it.isNotBlank() }
+    if (saved.isNotEmpty()) { myLangs = saved; return saved }
     val l = try {
         val a = (Api.get("user_prefs?user_id=eq.${Api.uid}&select=languages") as? JSONArray)?.optJSONObject(0)?.optJSONArray("languages")
         if (a == null) emptyList() else (0 until a.length()).map { a.getString(it).lowercase() }
     } catch (e: Exception) { emptyList() }
-    if (l.isNotEmpty()) myLangs = l
+    if (l.isNotEmpty()) { myLangs = l; S.put("my_langs_" + (Api.uid ?: ""), l.joinToString(",")) }
     return l
 }
 
@@ -47,13 +49,20 @@ fun MoodRow(title: String, mood: String, pc: PlayerConnection?) {
         val langs = userLanguages().ifEmpty { listOf("hindi") }.take(2)
         val key = mood + "|" + langs.joinToString(",")
         moodCache[key]?.let { tracks = it; return@LaunchedEffect }
+        try {
+            val a = JSONArray(S.s("mood_$key", "[]"))
+            if (a.length() > 0) tracks = (0 until a.length()).map { val o = a.getJSONObject(it); Track(o.getString("i"), o.getString("t"), o.getString("a"), o.optString("c").ifBlank { null }, o.optInt("d"), o.optString("x").ifBlank { null }, o.optString("l").ifBlank { null }) }
+        } catch (_: Exception) { }
         val res = try {
             coroutineScope { langs.map { lg -> async { liveSongs(query(mood, lg)).tracks() } }.map { it.await() } }
         } catch (e: Exception) { emptyList() }
         val merged = (0 until (res.maxOfOrNull { it.size } ?: 0)).flatMap { i -> res.mapNotNull { it.getOrNull(i) } }
             .filter { !skip.containsMatchIn(it.title) }.distinctBy { it.id }.take(20)
-        if (merged.isNotEmpty()) moodCache[key] = merged
-        tracks = merged
+        if (merged.isNotEmpty()) {
+            moodCache[key] = merged
+            try { val a = JSONArray(); merged.forEach { a.put(JSONObject().put("i", it.id).put("t", it.title).put("a", it.artist).put("c", it.cover ?: "").put("d", it.dur).put("x", it.artistId ?: "").put("l", it.album ?: "")) }; S.put("mood_$key", a.toString()) } catch (_: Exception) { }
+            tracks = merged
+        } else if (tracks == null) tracks = merged
     }
     val l = tracks
     if (l.isNullOrEmpty()) return

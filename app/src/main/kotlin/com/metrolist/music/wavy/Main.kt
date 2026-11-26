@@ -68,6 +68,8 @@ fun WavyApp(pc: PlayerConnection?) {
             if (onboardingDone()) "main" else "ob1"
         } catch (e: Exception) { if (Api.signedIn) "main" else "welcome" }
     }
+    val d0 = androidx.compose.ui.platform.LocalDensity.current
+    androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(d0.density, minOf(d0.fontScale, 1f))) {
     Box(Modifier.fillMaxSize().background(W.Bg)) {
         run {
             AnimatedContent(stage, transitionSpec = {
@@ -85,6 +87,7 @@ fun WavyApp(pc: PlayerConnection?) {
             }
         }
         }
+    }
     }
 }
 
@@ -490,10 +493,10 @@ fun TrackRow(t: Track, pc: PlayerConnection?, onPlay: () -> Unit) {
     val scope = rememberCoroutineScope()
     if (cutOpen) RingtoneCutter(t, pc) { cutOpen = false }
     Row(Modifier.fillMaxWidth().clickable(onClick = onPlay).padding(horizontal = 20.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-        Cover(t.cover, 62.dp, 8)
-        Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
-            Text(t.title, style = ts(17, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(t.artist, style = ts(14, color = Color(0xFFB9B2C4)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Cover(t.cover, 52.dp, 8)
+        Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+            Text(t.title, style = ts(15, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(t.artist, style = ts(12, color = Color(0xFFB9B2C4)), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Box {
             Icon(painterResource(R.drawable.more_vert), null, Modifier.size(34.dp).clip(CircleShape).clickable { menu = true }.padding(4.dp), tint = Color(0xFFB9B2C4))

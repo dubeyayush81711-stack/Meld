@@ -74,17 +74,20 @@ class VideoBridge(val onTime: (Float) -> Unit, val onErr: (Int) -> Unit) {
     @JavascriptInterface fun onState(c: Int) {}
 }
 
+private val videoCandCache = HashMap<String, Pair<Long, List<VCand>>>()
+
 @Composable
 fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (String) -> Unit = {}) {
     val ctx = LocalContext.current
-    var cands by remember(id) { mutableStateOf<List<VCand>>(emptyList()) }
+    var cands by remember(id) { mutableStateOf<List<VCand>>(videoCandCache[id]?.takeIf { System.currentTimeMillis() - it.first < 90 * 60_000L }?.second ?: emptyList()) }
     var idx by remember(id) { mutableIntStateOf(0) }
     var ready by remember(id) { mutableStateOf(false) }
     var arOv by remember(id) { mutableFloatStateOf(0f) }
     LaunchedEffect(id) {
+        if (cands.isNotEmpty()) return@LaunchedEffect
         onDiag("video: loading")
         val (list, why) = fetchVideoCandidates(id)
-        if (list.isEmpty()) onDiag(why.ifEmpty { "no video stream" })
+        if (list.isEmpty()) onDiag(why.ifEmpty { "no video stream" }) else videoCandCache[id] = System.currentTimeMillis() to list
         cands = list
     }
     val cand = cands.getOrNull(idx) ?: return
@@ -127,7 +130,7 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
             if (e == androidx.lifecycle.Lifecycle.Event.ON_START || e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 // coming back from Recents: the video surface was torn down, attach it again and jump to the audio position
                 tvRef.value?.let { try { ex.clearVideoTextureView(it); ex.setVideoTextureView(it) } catch (_: Exception) {} }
-                pc?.player?.let { p -> ex.seekTo(p.currentPosition); ex.playWhenReady = p.isPlaying }
+                pc?.player?.let { p -> try { if (ex.playbackState == androidx.media3.common.Player.STATE_IDLE) ex.prepare() } catch (_: Exception) {}; ex.seekTo(p.currentPosition); ex.playWhenReady = p.isPlaying }
             }
         }
         lifeOwner.lifecycle.addObserver(o)
@@ -164,18 +167,22 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
     LaunchedEffect(Unit) { followed = followedSongs() }
     var langs by remember { mutableStateOf(S.s("feed_langs", "Punjabi,Haryanvi").split(",").filter { it.isNotBlank() }) }
     var showLang by remember { mutableStateOf(false) }
+    var feedGen by remember { mutableIntStateOf(0) }
+    var reloading by remember { mutableStateOf(false) }
     var langSkip by remember { mutableStateOf(true) }
     LaunchedEffect(refreshN, langs) {
         var attempt = 0
+        reloading = refreshN > 0 || !langSkip
         while (true) {
             try {
                 val got = mixFollowed(feedPage(langs, 0, seed), followedSongs())
-                if (got.isNotEmpty()) { feed = got; err = null; saveFeedCache(langs.joinToString(","), got); break }
+                if (got.isNotEmpty()) { if (refreshN > 0) { first = null; feedGen++ }; feed = got; err = null; saveFeedCache(langs.joinToString(","), got); break }
                 if (feed.isNotEmpty() && refreshN == 0) break
             } catch (e: ApiError) { err = humanErr(e) } catch (e: Exception) { err = "No connection. Retrying..." }
             attempt++; if (attempt >= 4) { if (feed.isEmpty()) err = err ?: "Could not load songs. Pull down to try again."; break }
             delay(1200L * attempt)
         }
+        reloading = false
     }
     LaunchedEffect(meta?.id) {
         val m = meta ?: return@LaunchedEffect
@@ -234,9 +241,11 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
     }
     LaunchedEffect(pager.interactionSource) { pager.interactionSource.interactions.collect { if (it is androidx.compose.foundation.interaction.DragInteraction.Start) userMoved = true } }
     LaunchedEffect(meta?.id) { meta?.let { m -> Played.mark(Track(m.id, m.title.toString(), m.artists.joinToString { it.name }, null, 0, null, null)) } }
-    LaunchedEffect(pager.settledPage, pc != null) {
+    var genSeen by remember { mutableIntStateOf(0) }
+    LaunchedEffect(pager.settledPage, pc != null, feedGen) {
         if (pc == null) return@LaunchedEffect
-        val cur = tracks[pager.settledPage]
+        if (feedGen != genSeen) { genSeen = feedGen; lastDriven = -1; queueOwned = false; if (pager.settledPage != 0) { pager.scrollToPage(0); return@LaunchedEffect } }
+        val cur = tracks[pager.settledPage.coerceAtMost(tracks.size - 1)]
         Played.mark(cur)
         if (meta?.id == cur.id) { lastDriven = pager.settledPage; return@LaunchedEffect }
         if (lastDriven == pager.settledPage) return@LaunchedEffect
@@ -386,6 +395,7 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                 }
             }
         }
+        if (reloading) Text("Updating songs...", Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 64.dp).clip(RoundedCornerShape(50)).background(Color(0xCC14080F)).padding(horizontal = 16.dp, vertical = 7.dp), style = ts(13, FontWeight.Medium))
         var cutOpen by remember { mutableStateOf(false) }
         if (cutOpen) { val ct0 = tracks.getOrNull(pager.currentPage); if (ct0 != null) RingtoneCutter(ct0, pc) { cutOpen = false } }
         run {
