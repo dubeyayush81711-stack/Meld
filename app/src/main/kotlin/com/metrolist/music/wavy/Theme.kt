@@ -67,9 +67,9 @@ val GlassBar = Color(0x99120F1A)
 @Composable
 fun Backdrop(modifier: Modifier = Modifier.fillMaxSize(), streaks: Boolean = true, tint: Color = Color(0xFF3B0C3A), content: @Composable BoxScope.() -> Unit) {
     val tr = androidx.compose.animation.core.rememberInfiniteTransition(label = "orbs")
-    val p1 by tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(14000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "o1")
-    val p2 by tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(19000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "o2")
-    val p3 by tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(23000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "o3")
+    val p1 by (if (Reduce.on) androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0.35f) } else tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(14000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "o1"))
+    val p2 by (if (Reduce.on) androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0.5f) } else tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(19000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "o2"))
+    val p3 by (if (Reduce.on) androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0.65f) } else tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(23000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "o3"))
     Box(modifier.background(Color(0xFF07070B))) {
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width; val h = minOf(size.height, w * 2.2f)

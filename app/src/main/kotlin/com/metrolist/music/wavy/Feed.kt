@@ -287,6 +287,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
             Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF2121016)).navigationBarsPadding().padding(vertical = 14.dp)) {
                 Text("Music features", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = ts(18, FontWeight.SemiBold))
                 SToggle("Video player", "Play the music video behind the song. Off shows the cover.", videoPref)
+                SToggle("Reduce effects", "Turns off blur, the drifting background and the moving wave. Smoother on slower phones.", Reduce.state)
                 SToggle("Hook only", "Play about 25 seconds of each song, then move to the next.", hookPref)
             }
         }

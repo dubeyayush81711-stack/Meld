@@ -31,8 +31,9 @@ fun WavySeek(fraction: Float, playing: Boolean, color: Color, onSeekTo: (Float) 
     var w by remember { mutableIntStateOf(1) }
     var dragging by remember { mutableStateOf(false) }
     var df by remember { mutableFloatStateOf(0f) }
-    val phase by rememberInfiniteTransition(label = "w").animateFloat(0f, (2 * PI).toFloat(), infiniteRepeatable(tween(2200, easing = LinearEasing), RepeatMode.Restart), label = "p")
-    val amp by animateFloatAsState(if (playing && !dragging) 1f else 0f, tween(700, easing = androidx.compose.animation.core.FastOutSlowInEasing), label = "a")
+    val moving = playing && !Reduce.on
+    val phase by (if (moving) rememberInfiniteTransition(label = "w").animateFloat(0f, (2 * PI).toFloat(), infiniteRepeatable(tween(2200, easing = LinearEasing), RepeatMode.Restart), label = "p") else remember { mutableStateOf(0f) })
+    val amp by animateFloatAsState(if (moving && !dragging) 1f else 0f, tween(700, easing = androidx.compose.animation.core.FastOutSlowInEasing), label = "a")
     val thumb by animateFloatAsState(if (dragging) 11f else 8f, tween(150), label = "t")
     val sm by animateFloatAsState(fraction.coerceIn(0f, 1f), tween(450, easing = LinearEasing), label = "f")
     val f = if (dragging) df else sm

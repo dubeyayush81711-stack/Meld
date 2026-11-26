@@ -22,14 +22,27 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.MutableState as _MS
 import androidx.media3.common.Player
 import com.metrolist.music.playback.PlayerConnection
 import kotlin.math.sqrt
 
+/** Reduce effects: no blur, no drifting backdrop, no moving wave. On by default for a smooth feel. */
+object Reduce {
+    var on by mutableStateOf(true)
+    val state: MutableState<Boolean> = object : MutableState<Boolean> {
+        override var value: Boolean get() = on; set(v) { on = v; S.put("reduce_fx", v) }
+        override fun component1() = value
+        override fun component2(): (Boolean) -> Unit = { value = it }
+    }
+}
+
 /** Simple persisted settings. Keys are plain strings. */
 object S {
     private var sp: android.content.SharedPreferences? = null
-    fun init(ctx: Context) { if (sp == null) sp = ctx.applicationContext.getSharedPreferences("wavy_settings", Context.MODE_PRIVATE) }
+    fun init(ctx: Context) { if (sp == null) { sp = ctx.applicationContext.getSharedPreferences("wavy_settings", Context.MODE_PRIVATE); Reduce.on = sp!!.getBoolean("reduce_fx", true) } }
     fun b(k: String, d: Boolean = false) = sp?.getBoolean(k, d) ?: d
     fun f(k: String, d: Float = 0f) = sp?.getFloat(k, d) ?: d
     fun s(k: String, d: String = "") = sp?.getString(k, d) ?: d

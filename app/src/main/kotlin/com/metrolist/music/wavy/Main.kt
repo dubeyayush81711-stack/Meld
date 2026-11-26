@@ -99,7 +99,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
     BackHandler(!full && tab != 0) { tab = 0 }
     val haze = dev.chrisbanes.haze.rememberHazeState()
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().hazeSource(haze)) {
+        Box(Modifier.fillMaxSize().then(if (!Reduce.on) Modifier.hazeSource(haze) else Modifier)) {
             AnimatedContent(tab, transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(160)) }, label = "tab") { t ->
                 when (t) {
                     0 -> HomeScreen(pc, onSearch = { tab = 1 }, onSignOut = onSignOut, onProfile = { page = "editprofile" }, onParty = { page = "party" }, onSettings = { page = "set:hub" }, onPlaylist = { id, n -> page = "pl:$id:$n" })
