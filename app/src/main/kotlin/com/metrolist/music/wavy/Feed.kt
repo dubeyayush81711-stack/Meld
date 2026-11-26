@@ -123,8 +123,8 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
     val ar = if (arOv > 0f) arOv else cand.w.toFloat() / cand.h.coerceAtLeast(1)
     androidx.compose.foundation.layout.BoxWithConstraints(modifier.clipToBounds()) {
         val h = maxHeight
-        val fw = minOf(maxWidth, h * ar); val fh = fw / ar
-        AndroidView(modifier = Modifier.align(Alignment.Center).requiredSize(fw, fh), factory = { c -> android.view.TextureView(c).also { ex.setVideoTextureView(it) } })
+        val fh = minOf(h * 0.9f, (maxWidth / ar) * 2f); val fw = fh * ar
+        AndroidView(modifier = Modifier.align(Alignment.Center).offset(y = -(h * 0.04f)).requiredSize(fw, fh), factory = { c -> android.view.TextureView(c).also { ex.setVideoTextureView(it) } })
     }
 }
 
@@ -269,6 +269,12 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                     AsyncImage(t.cover, null, Modifier.fillMaxSize().blur(28.dp), contentScale = ContentScale.Crop)
                     Box(Modifier.fillMaxSize().background(Color(0x66000000)))
                     if (page == pager.settledPage) StreamVideo(t.id, pc, Modifier.fillMaxSize()) { diag = it }
+                    run {
+                        val synced = if (lyricsPref.value) lyrics.filter { it.t >= 0 } else emptyList()
+                        val ci = synced.indexOfLast { it.t <= pos + 250 }
+                        if (synced.isNotEmpty() && ci >= 0) { Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(420.dp).background(Brush.verticalGradient(0f to Color.Transparent, 1f to Color(0x99000000)))); 
+if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modifier.align(Alignment.BottomStart).padding(start = 28.dp, end = 28.dp, bottom = 330.dp).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { lyricStyle = (lyricStyle + 1) % LYRIC_STYLES.size; S.put("lyric_style", lyricStyle.toFloat()) }) }
+                    }
                 } else {
                     BoxWithConstraints(Modifier.fillMaxSize()) {
                         val heroH = (maxHeight - 392.dp).coerceIn(300.dp, maxWidth)
