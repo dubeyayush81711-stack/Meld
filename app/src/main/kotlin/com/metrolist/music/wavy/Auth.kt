@@ -95,6 +95,23 @@ fun LoginScreen(onDone: (needsPicker: Boolean) -> Unit) {
             try { Api.recover(e); say("If this email has an account, a reset link was sent.") } catch (x: ApiError) { say(humanErr(x)) } } })
 }
 
+/** Artists behind a language's top songs: the song rows carry artist names, which are matched to the artist catalog. */
+suspend fun langArtists(code: String): List<ArtistItem> {
+    val tr = Api.rpc("language_top", JSONObject().put("p_lang", code).put("p_limit", 100).put("p_offset", 0)) as? JSONArray ?: return emptyList()
+    val count = LinkedHashMap<String, Int>(); val orig = HashMap<String, String>()
+    for (i in 0 until tr.length()) {
+        val raw = tr.getJSONObject(i).optString("artist")
+        raw.split(",", "&", " feat. ", " ft. ", " x ").map { it.trim().replace(Regex("\\s+"), " ") }.filter { it.length > 1 }.distinct().forEach { n ->
+            val k = n.lowercase(); count[k] = (count[k] ?: 0) + 1; orig.putIfAbsent(k, n) }
+    }
+    val names = count.entries.sortedByDescending { it.value }.take(120).map { orig[it.key]!! }
+    if (names.isEmpty()) return emptyList()
+    val inList = names.joinToString(",") { "\"" + it.replace("\"", "") + "\"" }
+    val rows = Api.get("artists?name=in.(" + java.net.URLEncoder.encode(inList, "UTF-8") + ")&select=id,name,thumbnail_url&limit=200") as? JSONArray ?: return emptyList()
+    val found = (0 until rows.length()).map { rows.getJSONObject(it) }.associateBy { it.optString("name").lowercase() }
+    return names.mapNotNull { n -> found[n.lowercase()]?.let { ArtistItem(it.optString("id"), it.optString("name"), if (it.isNull("thumbnail_url")) null else it.optString("thumbnail_url")) } }
+}
+
 @Composable
 fun ArtistPicker(taste: Taste?, onDone: () -> Unit) {
     var chip by remember { mutableStateOf<String?>(null) }
@@ -105,16 +122,27 @@ fun ArtistPicker(taste: Taste?, onDone: () -> Unit) {
     var artists by remember { mutableStateOf<List<ArtistItem>>(emptyList()) }
     val picked = remember { mutableStateListOf<String>() }
     var busy by remember { mutableStateOf(false) }; var err by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(q, limit, chip) {
+    val byLang = remember { mutableStateMapOf<String, List<ArtistItem>>() }
+    LaunchedEffect(codes) {
+        for (c in codes) { if (byLang[c] == null) byLang[c] = try { langArtists(c) } catch (e: Exception) { emptyList() } }
+    }
+    LaunchedEffect(q, limit) {
         if (q.isNotEmpty()) delay(300)
         try {
-            val sel = if (chip != null) listOf(chip!!) else codes
-            artists = if (sel.isEmpty()) (Api.rpc("search_artists", JSONObject().put("p_q", q).put("p_limit", if (q.isEmpty()) limit else 60)) as? JSONArray).artistItems()
-            else (Api.rpc("search_artists_lang", JSONObject().put("p_q", q).put("p_limit", if (q.isEmpty()) limit else 60).put("p_langs", JSONArray(sel))) as? JSONArray).artistItems()
-        }
-        catch (e: ApiError) { err = humanErr(e) }
+            artists = (Api.rpc("search_artists", JSONObject().put("p_q", q).put("p_limit", if (q.isEmpty()) limit else 60)) as? JSONArray).artistItems()
+            err = null
+        } catch (e: ApiError) { err = humanErr(e) } catch (e: Exception) { err = "Could not load artists. Check your connection." }
     }
-    Backdrop(streaks = false, tint = Color(0xFF3A1060)) {
+    val langMode = q.isEmpty() && codes.isNotEmpty()
+    val shownArtists: List<ArtistItem> = if (!langMode) artists else {
+        val src = if (chip != null) byLang[chip!!].orEmpty() else {
+            val ls = codes.map { byLang[it].orEmpty() }; val out = ArrayList<ArtistItem>()
+            for (i in 0 until (ls.maxOfOrNull { it.size } ?: 0)) ls.forEach { l -> l.getOrNull(i)?.let { out.add(it) } }
+            out
+        }
+        src.distinctBy { it.id }.ifEmpty { if (codes.any { byLang[it] == null }) emptyList() else artists }
+    }
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             Text("Choose 3 or more\nartists you like.", Modifier.padding(start = 22.dp, top = 28.dp, end = 22.dp), style = ts(30, FontWeight.Bold).copy(lineHeight = 38.sp))
             Row(Modifier.padding(22.dp, 20.dp, 22.dp, 14.dp).fillMaxWidth().height(54.dp).clip(RoundedCornerShape(8.dp)).background(Color.White).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -134,7 +162,7 @@ fun ArtistPicker(taste: Taste?, onDone: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             Box(Modifier.weight(1f)) {
                 LazyVerticalGrid(GridCells.Fixed(3), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    items(artists, key = { it.id }) { a ->
+                    items(shownArtists, key = { it.id }) { a ->
                         val on = a.id in picked
                         val sc by animateFloatAsState(if (on) 0.92f else 1f, spring(0.5f), label = "sc")
                         Column(Modifier.clickable { if (on) picked.remove(a.id) else picked.add(a.id) }, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -149,7 +177,7 @@ fun ArtistPicker(taste: Taste?, onDone: () -> Unit) {
                             Text(a.name, style = ts(14, FontWeight.SemiBold), textAlign = TextAlign.Center, maxLines = 2)
                         }
                     }
-                    if (q.isEmpty() && artists.size >= limit) item {
+                    if (!langMode && q.isEmpty() && artists.size >= limit) item {
                         Box(Modifier.size(104.dp).clip(CircleShape).background(W.Pink).clickable { limit += 30 }, contentAlignment = Alignment.Center) {
                             Text("More for\nyou", style = ts(16, FontWeight.SemiBold), textAlign = TextAlign.Center) }
                     }
