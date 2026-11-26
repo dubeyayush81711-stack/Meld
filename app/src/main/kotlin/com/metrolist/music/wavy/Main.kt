@@ -220,7 +220,7 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
         .background(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.18f), tintA.copy(alpha = 0.50f), Color.White.copy(alpha = 0.07f))))
         .border(0.8.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.34f), Color.White.copy(alpha = 0.10f))), shape).clickable(onClick = onOpen)) {
         Row(Modifier.fillMaxSize().padding(start = 9.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(hiRes(m.thumbnailUrl), null, Modifier.size(45.dp).graphicsLayer { rotationZ = if (playing) spin else 0f }.clip(CircleShape).background(W.Card), contentScale = ContentScale.Crop)
+            AsyncImage(m.thumbnailUrl?.let { u -> if ((u.contains("googleusercontent.com") || u.contains("ggpht.com")) && u.contains("=")) u.substringBeforeLast("=") + "=w192-h192-l90-rj" else u }, null, Modifier.size(45.dp).graphicsLayer { rotationZ = if (playing) spin else 0f }.clip(CircleShape).background(W.Card), contentScale = ContentScale.Crop)
             Column(Modifier.weight(1f).padding(horizontal = 11.dp)) {
                 Text(m.title, style = ts(14, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(m.artists.joinToString { it.name }, style = ts(11, color = Color(0xB0FFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)

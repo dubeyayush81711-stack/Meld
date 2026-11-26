@@ -268,6 +268,7 @@ configurations.configureEach {
 }
 
 dependencies {
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     implementation(libs.guava)
     implementation(libs.coroutines.guava)
 
