@@ -57,21 +57,7 @@ fun SplashScreen() {
 }
 
 @Composable
-fun WelcomeScreen(onStart: () -> Unit) {
-    val go by rememberUpdatedState(onStart)
-    androidx.compose.ui.viewinterop.AndroidView(modifier = Modifier.fillMaxSize().background(Color.Black), factory = { c ->
-        android.webkit.WebView(c).apply {
-            setBackgroundColor(android.graphics.Color.BLACK)
-            overScrollMode = android.view.View.OVER_SCROLL_NEVER
-            isVerticalScrollBarEnabled = false
-            settings.javaScriptEnabled = true
-            settings.allowFileAccess = true
-            settings.mediaPlaybackRequiresUserGesture = false
-            addJavascriptInterface(object { @android.webkit.JavascriptInterface fun start() { post { go() } } }, "WavyApp")
-            loadUrl("file:///android_asset/welcome/index.html")
-        }
-    })
-}
+fun WelcomeScreen(onStart: () -> Unit) { WelcomeUi(onStart) }
 
 @Composable
 fun PillField(value: String, onChange: (String) -> Unit, hint: String, password: Boolean = false, keyboard: KeyboardType = KeyboardType.Text) {
@@ -91,37 +77,22 @@ fun PillField(value: String, onChange: (String) -> Unit, hint: String, password:
 fun LoginScreen(onDone: (needsPicker: Boolean) -> Unit) {
     val ctx = LocalContext.current; val scope = rememberCoroutineScope()
     val done by rememberUpdatedState(onDone)
-    var web by remember { mutableStateOf<android.webkit.WebView?>(null) }
-    fun js(code: String) { web?.post { web?.evaluateJavascript(code, null) } }
-    fun msg(m: String) = "wavyDone(" + JSONObject.quote(m) + ")"
+    var busy by remember { mutableStateOf(false) }
+    var toast by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    fun say(m: String) { toast = Pair((toast?.first ?: 0) + 1, m) }
     fun auth(email: String, pw: String, rem: Boolean, signup: Boolean) {
-        Api.setRemember(rem)
+        Api.setRemember(rem); busy = true
         scope.launch {
             try {
                 if (signup) Api.signUp(email, pw) else Api.signIn(email, pw)
-                done(!onboardingDone())
-            } catch (e: ApiError) { js(msg(humanErr(e))) } catch (e: Exception) { js(msg("Something went wrong. Check your connection.")) }
+                busy = false; done(!onboardingDone())
+            } catch (e: ApiError) { busy = false; say(humanErr(e)) } catch (e: Exception) { busy = false; say("Something went wrong. Check your connection.") }
         }
     }
-    androidx.compose.ui.viewinterop.AndroidView(modifier = Modifier.fillMaxSize().background(Color.Black).imePadding(), factory = { c ->
-        android.webkit.WebView(c).apply {
-            setBackgroundColor(android.graphics.Color.BLACK)
-            overScrollMode = android.view.View.OVER_SCROLL_NEVER
-            settings.javaScriptEnabled = true
-            settings.allowFileAccess = true
-            addJavascriptInterface(object {
-                @android.webkit.JavascriptInterface fun login(e: String, p: String, r: Boolean) { post { auth(e, p, r, false) } }
-                @android.webkit.JavascriptInterface fun signup(e: String, p: String, r: Boolean) { post { auth(e, p, r, true) } }
-                @android.webkit.JavascriptInterface fun forgot(e: String) { post {
-                    if (e.isBlank()) js("toast('Enter your email first')") else scope.launch {
-                        try { Api.recover(e); js("toast('If this email has an account, a reset link was sent.')") } catch (x: ApiError) { js("toast(" + JSONObject.quote(humanErr(x)) + ")") }
-                    } } }
-                @android.webkit.JavascriptInterface fun google() { post { Toast.makeText(ctx, "Google sign-in is not switched on yet. Use email for now.", Toast.LENGTH_LONG).show() } }
-            }, "WavyApp")
-            loadUrl("file:///android_asset/welcome/login.html")
-            web = this
-        }
-    })
+    LoginUi(busy, toast, { e, p, r -> auth(e, p, r, false) }, { e, p, r -> auth(e, p, r, true) },
+        { Toast.makeText(ctx, "Google sign-in is not switched on yet. Use email for now.", Toast.LENGTH_LONG).show() },
+        { e -> if (e.isBlank()) say("Enter your email first") else scope.launch {
+            try { Api.recover(e); say("If this email has an account, a reset link was sent.") } catch (x: ApiError) { say(humanErr(x)) } } })
 }
 
 @Composable
