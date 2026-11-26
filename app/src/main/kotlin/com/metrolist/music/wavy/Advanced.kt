@@ -34,7 +34,7 @@ import com.metrolist.music.playback.PlayerConnection
 
 object Booster {
     /** Volume boost is software gain (WavySpatial.gain, 100 to 200%) applied in the audio chain with a soft limiter. */
-    fun apply(pc: PlayerConnection, v: Float) { WavySpatial.gain = 1f + v.coerceIn(0f, 1f) }
+    fun apply(pc: PlayerConnection, v: Float) { val cap = if (try { WavyFx.headphones() } catch (e: Exception) { false }) 0.5f else 1f; WavySpatial.gain = 1f + v.coerceIn(0f, cap) }
 }
 
 @Composable
@@ -106,7 +106,7 @@ fun AdvancedPlayer(pc: PlayerConnection, onClose: () -> Unit) {
                     Text("${100 + (boost * 100).toInt()}%", style = ts(17, FontWeight.SemiBold, W.Pink))
                 }
                 Slider(value = boost, onValueChange = { boost = it }, modifier = Modifier.padding(top = 4.dp), colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = W.Pink, inactiveTrackColor = Color(0x33FFFFFF)))
-                Text("Above 100% the sound is amplified in software, a soft limiter stops clipping. Louder than 150% can sound harsh on some songs.", style = ts(12, color = Color(0xFFB9B2C4)))
+                Text("Above 100% the sound is amplified in software, a soft limiter stops clipping. With earphones connected the boost stops at 150% to protect your ears. Keep the volume low when you first raise it.", style = ts(12, color = Color(0xFFB9B2C4)))
             }
             Spacer(Modifier.height(18.dp))
             Box(Modifier.fillMaxWidth().weight(1f)) {
