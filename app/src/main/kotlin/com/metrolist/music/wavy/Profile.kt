@@ -37,7 +37,10 @@ fun ProfileScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSettings: () -> U
             Row(Modifier.padding(top = 14.dp)) { Icon(painterResource(R.drawable.arrow_back), null, Modifier.size(30.dp).clickable(onClick = onBack), tint = Color.White) }
             Spacer(Modifier.height(28.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(100.dp).clip(CircleShape).background(W.Grad), contentAlignment = Alignment.Center) { Text(name.take(1).uppercase(), style = ts(50, FontWeight.Bold)) }
+                Box(Modifier.size(100.dp).clip(CircleShape).background(W.Grad), contentAlignment = Alignment.Center) {
+                    val pav = rememberAvatar(androidx.compose.ui.platform.LocalContext.current)
+                    if (pav != null) androidx.compose.foundation.Image(pav.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                    else Text(name.take(1).uppercase(), style = ts(50, FontWeight.Bold)) }
                 Column(Modifier.padding(start = 20.dp)) {
                     Text(name, style = ts(28, FontWeight.Bold))
                     Text("${stats?.optInt("followers") ?: 0} followers \u00B7 ${stats?.optInt("following") ?: 0} following", style = ts(15, color = Color(0xFFE6DDEA)))

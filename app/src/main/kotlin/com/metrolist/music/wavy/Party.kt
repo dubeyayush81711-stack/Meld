@@ -181,7 +181,10 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                     items((0 until members.length()).map { members.getJSONObject(it) }) { m ->
                         val uid = m.optString("user_id"); var menu by remember { mutableStateOf(false) }
                         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(42.dp).clip(CircleShape).background(W.Grad), contentAlignment = Alignment.Center) { Text(m.optString("name").take(1).uppercase(), style = ts(18, FontWeight.Bold)) }
+                            Box(Modifier.size(42.dp).clip(CircleShape).background(W.Grad), contentAlignment = Alignment.Center) {
+                                val pav = if (uid == Api.uid) rememberAvatar(androidx.compose.ui.platform.LocalContext.current) else null
+                                if (pav != null) androidx.compose.foundation.Image(pav.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                                else Text(m.optString("name").take(1).uppercase(), style = ts(18, FontWeight.Bold)) }
                             Column(Modifier.weight(1f).padding(start = 12.dp)) { Text(m.optString("name"), style = ts(16, FontWeight.SemiBold))
                                 Text(when { m.optString("status") == "pending" -> "Wants to join"; m.optString("role") == "admin" -> "Host"; !m.optBoolean("can_control") -> "Listen only"; m.optBoolean("muted") -> "Muted"; else -> "Can control" }, style = ts(12, color = Color(0xFFB9B2C4))) }
                             if (admin && m.optString("role") != "admin") Box {

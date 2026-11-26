@@ -251,7 +251,9 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                             Icon(painterResource(ic), null, Modifier.size(20.dp), tint = Color.White) }
                     }
                     Box(Modifier.padding(start = 6.dp).size(40.dp).clip(CircleShape).background(W.Grad).clickable(onClick = onProfile), contentAlignment = Alignment.Center) {
-                        Text(name.take(1).uppercase().ifEmpty { "W" }, style = ts(20, FontWeight.Bold)) }
+                        val hav = rememberAvatar(androidx.compose.ui.platform.LocalContext.current)
+                        if (hav != null) androidx.compose.foundation.Image(hav.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                        else Text(name.take(1).uppercase().ifEmpty { "W" }, style = ts(20, FontWeight.Bold)) }
                 }
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     listOf("All", "Music", "Chill", "Podcasts").forEach { c ->
