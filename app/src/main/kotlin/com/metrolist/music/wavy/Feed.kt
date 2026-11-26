@@ -273,7 +273,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                         val synced = if (lyricsPref.value) lyrics.filter { it.t >= 0 } else emptyList()
                         val ci = synced.indexOfLast { it.t <= pos + 250 }
                         if (synced.isNotEmpty() && ci >= 0) { Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(420.dp).background(Brush.verticalGradient(0f to Color.Transparent, 1f to Color(0x99000000)))); 
-if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modifier.align(Alignment.BottomStart).padding(start = 28.dp, end = 28.dp, bottom = 330.dp).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { lyricStyle = (lyricStyle + 1) % LYRIC_STYLES.size; S.put("lyric_style", lyricStyle.toFloat()) }) }
+if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modifier.align(Alignment.TopStart).statusBarsPadding().padding(start = 16.dp, end = 90.dp, top = 64.dp).fillMaxWidth(0.7f).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { lyricStyle = (lyricStyle + 1) % LYRIC_STYLES.size; S.put("lyric_style", lyricStyle.toFloat()) }) }
                     }
                 } else {
                     BoxWithConstraints(Modifier.fillMaxSize()) {
