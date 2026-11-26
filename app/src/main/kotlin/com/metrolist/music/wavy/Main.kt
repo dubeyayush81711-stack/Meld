@@ -220,7 +220,7 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
     val shape = RoundedCornerShape(32.dp)
     val spin by androidx.compose.animation.core.rememberInfiniteTransition(label = "spin").animateFloat(0f, 360f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(14000, easing = androidx.compose.animation.core.LinearEasing)), label = "sp")
     Box(Modifier.padding(horizontal = 11.dp).fillMaxWidth().height(62.dp).clip(shape)
-        .background(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.18f), tintA.copy(alpha = 0.50f), Color.White.copy(alpha = 0.07f))))
+        .background(Color(0xFF15111A)).background(Brush.linearGradient(listOf(tintA.copy(alpha = 0.92f), tintA.copy(alpha = 0.78f), tintA.copy(alpha = 0.92f)))).background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.10f), Color.Transparent)))
         .border(0.8.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.34f), Color.White.copy(alpha = 0.10f))), shape).clickable(onClick = onOpen)) {
         Row(Modifier.fillMaxSize().padding(start = 9.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(m.thumbnailUrl?.let { u -> if ((u.contains("googleusercontent.com") || u.contains("ggpht.com")) && u.contains("=")) u.substringBeforeLast("=") + "=w192-h192-l90-rj" else u }, null, Modifier.size(45.dp).graphicsLayer { rotationZ = if (playing) spin else 0f }.clip(CircleShape).background(W.Card), contentScale = ContentScale.Crop)
