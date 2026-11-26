@@ -1,5 +1,6 @@
 package com.metrolist.music.wavy
 
+import kotlinx.coroutines.async
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -25,7 +26,7 @@ suspend fun feedPage(titles: List<String>, offset: Int, seed: String): List<Trac
         for (t in Played.filter(raw)) if (seen.add(t.id)) out.add(t)
         off += raw.size; tries++
     }
-    return if (offset == 0 && out.size >= 3) (kotlinx.coroutines.withTimeoutOrNull(4000) { Ai.reorder("", titles, out) } ?: out) else out
+    return out
 }
 
 private suspend fun rawPage(titles: List<String>, offset: Int, seed: String): List<Track> {
@@ -34,7 +35,9 @@ private suspend fun rawPage(titles: List<String>, offset: Int, seed: String): Li
     val codes = titles.mapNotNull { t -> tiles.firstOrNull { it.second.equals(t, true) || it.first.equals(t, true) }?.first }
     if (codes.isEmpty()) return emptyList()
     val per = 24
-    val lists = codes.map { c -> try { (Api.rpc("language_top", JSONObject().put("p_lang", c).put("p_limit", per).put("p_offset", offset / codes.size)) as? JSONArray).tracks() } catch (e: Exception) { emptyList() } }
+    val lists = kotlinx.coroutines.coroutineScope {
+        codes.map { c -> async { try { kotlinx.coroutines.withTimeoutOrNull(8000) { (Api.rpc("language_top", JSONObject().put("p_lang", c).put("p_limit", per).put("p_offset", offset / codes.size)) as? JSONArray).tracks() } ?: emptyList() } catch (e: Exception) { emptyList() } } }.map { it.await() }
+    }
     val out = ArrayList<Track>()
     for (i in 0 until per) for (l in lists) l.getOrNull(i)?.let { out.add(it) }
     return out.chunked(6).flatMap { g -> g.sortedBy { Math.abs((seed + it.id).hashCode()) % 100 } }

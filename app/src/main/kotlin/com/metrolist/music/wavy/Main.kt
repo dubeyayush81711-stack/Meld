@@ -67,13 +67,10 @@ fun WavyApp(pc: PlayerConnection?) {
         } catch (e: Exception) { if (Api.signedIn) "main" else "welcome" }
     }
     Box(Modifier.fillMaxSize().background(W.Bg)) {
-        if (stage == "welcome" || stage == "login") {
-            // WebView screens are drawn outside AnimatedContent: a WebView under a fade/slide layer renders black.
-            key(stage) {
-                if (stage == "welcome") WelcomeScreen { stage = "login" }
-                else LoginScreen { needs -> stage = if (needs) "ob1" else "main" }
-            }
-        } else AnimatedContent(stage, transitionSpec = { (fadeIn(tween(450)) + slideInVertically(tween(450)) { it / 14 }) togetherWith fadeOut(tween(250)) }, label = "stage") { s ->
+        run {
+            AnimatedContent(stage, transitionSpec = {
+                if (initialState == "welcome" && targetState == "login") (fadeIn(tween(260)) + slideInHorizontally(tween(300)) { it / 3 }) togetherWith (fadeOut(tween(200)) + slideOutHorizontally(tween(300)) { -it / 5 })
+                else (fadeIn(tween(450)) + slideInVertically(tween(450)) { it / 14 }) togetherWith fadeOut(tween(250)) }, label = "stage") { s ->
             when (s) {
                 "splash" -> SplashScreen()
                 "welcome" -> WelcomeScreen { stage = "login" }
@@ -84,6 +81,7 @@ fun WavyApp(pc: PlayerConnection?) {
                 "picker" -> ArtistPicker(taste) { stage = "main" }
                 else -> Shell(pc) { try { pc?.player?.let { it.pause(); it.stop(); it.clearMediaItems() } } catch (_: Exception) {}; Api.signOut(); stage = "welcome" }
             }
+        }
         }
     }
 }

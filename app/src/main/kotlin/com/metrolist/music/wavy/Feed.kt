@@ -152,7 +152,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     val playing by (pc?.isPlaying ?: remember { MutableStateFlow(false) }).collectAsState()
     val meta by (pc?.mediaMetadata ?: remember { MutableStateFlow(null) }).collectAsState()
-    var feed by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var feed by remember { mutableStateOf<List<Track>>(loadFeedCache(S.s("feed_langs", "Punjabi,Haryanvi"))) }
     var err by remember { mutableStateOf<String?>(null) }
     var seed by remember { mutableStateOf(System.currentTimeMillis().toString()) }
     var refreshN by remember { mutableIntStateOf(0) }
@@ -166,8 +166,16 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
     var showLang by remember { mutableStateOf(false) }
     var langSkip by remember { mutableStateOf(true) }
     LaunchedEffect(refreshN, langs) {
-        try { feed = mixFollowed(feedPage(langs, 0, seed), followedSongs()); err = null}
-        catch (e: ApiError) { err = humanErr(e) }
+        var attempt = 0
+        while (true) {
+            try {
+                val got = mixFollowed(feedPage(langs, 0, seed), followedSongs())
+                if (got.isNotEmpty()) { feed = got; err = null; saveFeedCache(langs.joinToString(","), got); break }
+                if (feed.isNotEmpty() && refreshN == 0) break
+            } catch (e: ApiError) { err = humanErr(e) } catch (e: Exception) { err = "No connection. Retrying..." }
+            attempt++; if (attempt >= 4) { if (feed.isEmpty()) err = err ?: "Could not load songs. Pull down to try again."; break }
+            delay(1200L * attempt)
+        }
     }
     LaunchedEffect(meta?.id) {
         val m = meta ?: return@LaunchedEffect
@@ -181,7 +189,14 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
         head + feed.filter { it.id != first?.id && (it.id == curId || (normKey(it) !in hk && normKey(it) != curKey)) }.distinctBy { if (it.id == curId) "cur:" + it.id else normKey(it) }
     }
     if (tracks.isEmpty()) {
-        Backdrop { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(err ?: "Loading...", style = ts(15, color = W.Dim)) } }
+        Backdrop { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (err == null || err!!.endsWith("...")) androidx.compose.material3.CircularProgressIndicator(Modifier.size(34.dp), color = W.Pink, strokeWidth = 3.dp)
+                Spacer(Modifier.height(14.dp))
+                Text(err ?: "Getting your songs ready...", style = ts(15, color = W.Dim))
+                if (err != null && !err!!.endsWith("...")) Text("Tap to retry", Modifier.padding(top = 12.dp).clickable { err = null; refreshN++ }, style = ts(15, FontWeight.SemiBold, W.Pink))
+            }
+        } }
         return
     }
     var queueOwned by remember { mutableStateOf(false) }
@@ -230,6 +245,18 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
         lastDriven = pager.settledPage
         if (queueOwned && pager.settledPage < pc.player.mediaItemCount && pc.player.getMediaItemAt(pager.settledPage).mediaId == cur.id) pc.player.seekTo(pager.settledPage, 0L).also { pc.player.play() }
         else { playTracks(pc, tracks, pager.settledPage, "Music"); queueOwned = true }
+    }
+    // if a song does not start, nudge it once, then move on to the next one
+    LaunchedEffect(meta?.id, pc) {
+        val p = pc?.player ?: return@LaunchedEffect
+        if (meta == null) return@LaunchedEffect
+        var waited = 0
+        while (waited < 16_000) {
+            delay(500); waited += 500
+            if (p.isPlaying || !p.playWhenReady) return@LaunchedEffect
+            if (waited == 8_000) { try { p.prepare(); p.play() } catch (_: Exception) { } }
+        }
+        if (!p.isPlaying && p.playWhenReady && p.hasNextMediaItem()) { try { p.seekToNext(); p.play() } catch (_: Exception) { } }
     }
     val hooked = remember { HashSet<String>() }
     LaunchedEffect(pager.settledPage, meta?.id, hookPref.value) {
@@ -359,6 +386,11 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                 }
             }
         }
+        run {
+            val bufState by (pc?.playbackState ?: remember { MutableStateFlow(0) }).collectAsState()
+            if (bufState == androidx.media3.common.Player.STATE_BUFFERING && meta != null && !playing)
+                androidx.compose.material3.CircularProgressIndicator(Modifier.align(Alignment.Center).size(38.dp), color = Color.White.copy(alpha = 0.85f), strokeWidth = 3.dp)
+        }
         if (showLang) {
             var titles by remember { mutableStateOf<List<String>>(emptyList()) }
             LaunchedEffect(Unit) { titles = languageTiles().map { it.second } }
@@ -437,3 +469,12 @@ suspend fun squareArt(t: Track): String? {
     artCache[t.id] = good
     return good
 }
+
+private fun loadFeedCache(langs: String): List<Track> = try {
+    val a = org.json.JSONArray(S.s("feed_cache_" + langs, "[]"))
+    (0 until a.length()).map { val o = a.getJSONObject(it); Track(o.getString("i"), o.getString("t"), o.getString("a"), o.optString("c").ifBlank { null }, o.optInt("d"), o.optString("x").ifBlank { null }, o.optString("l").ifBlank { null }) }
+} catch (e: Exception) { emptyList() }
+private fun saveFeedCache(langs: String, l: List<Track>) { try {
+    val a = org.json.JSONArray(); l.take(24).forEach { a.put(org.json.JSONObject().put("i", it.id).put("t", it.title).put("a", it.artist).put("c", it.cover ?: "").put("d", it.dur).put("x", it.artistId ?: "").put("l", it.album ?: "")) }
+    S.put("feed_cache_" + langs, a.toString())
+} catch (_: Exception) { } }

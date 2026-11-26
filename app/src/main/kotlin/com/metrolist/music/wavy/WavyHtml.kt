@@ -94,8 +94,8 @@ class Cq(val u: Float, val d: Density, val w: Float, val h: Float) {
 
 private fun Modifier.at(c: Cq, x: Float, y: Float) = offset { IntOffset((x * c.u).roundToInt(), (y * c.u).roundToInt()) }
 private fun Modifier.sz(c: Cq, w: Float, h: Float) = requiredSize(c.dp(w), c.dp(h))
-private fun Modifier.upIn(c: Cq, tt: () -> Float, delay: Float) = graphicsLayer {
-    val p = prog(tt(), delay, .8f, UpE); alpha = p; translationY = (1f - p) * 5f * c.u
+private fun Modifier.upIn(c: Cq, tt: () -> Float, delay: Float, dur: Float = .8f) = graphicsLayer {
+    val p = prog(tt(), delay, dur, UpE); alpha = p; translationY = (1f - p) * 5f * c.u
 }
 
 private fun cssLinear(angle: Float, w: Float, h: Float, ox: Float, oy: Float, vararg stops: Pair<Float, Color>): Brush {
@@ -427,7 +427,7 @@ fun LoginUi(busy: Boolean, toast: Pair<Int, String>?, onLogin: (String, String, 
         // icon
         val wPath = remember { path("M21 32C23 56 27 72 36 72 45 72 47 52 50 44 53 52 55 72 64 72 73 72 77 56 79 32") }
         Canvas(Modifier.at(c, 39.8f, 22.2f).sz(c, 20.5f, 20.5f).graphicsLayer {
-            val t = tt(); val p = prog(t, .1f, .9f, PopE)
+            val t = tt(); val p = prog(t, .05f, .45f, PopE)
             alpha = p.coerceIn(0f, 1f); val s = .5f + .5f * p; scaleX = s; scaleY = s; rotationZ = -12f * (1f - p)
             translationY = -1.2f * u * ping(t, 1f, 4f)
         }) {
@@ -449,13 +449,13 @@ fun LoginUi(busy: Boolean, toast: Pair<Int, String>?, onLogin: (String, String, 
         }
         // word
         val wf = fitPx(c, "wavy", 37.7f, Poppins, FontWeight.Bold, ls = -.4f)
-        Row(Modifier.at(c, 0f, 52.3f).fillMaxWidth().upIn(c, tt, .3f), horizontalArrangement = Arrangement.Center) {
+        Row(Modifier.at(c, 0f, 52.3f).fillMaxWidth().upIn(c, tt, 0.09f, .45f), horizontalArrangement = Arrangement.Center) {
             "wavy".forEachIndexed { i, ch ->
                 Text(ch.toString(), Modifier.graphicsLayer { translationY = -.9f * u * ping(tt(), i * .15f, 2.4f) }, softWrap = false,
                     style = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = c.spPx(wf), lineHeight = c.sp(14f), letterSpacing = c.sp(-.4f), color = Color.White))
             }
         }
-        Text("Your music. Your vibe.", Modifier.at(c, 0f, 69f).fillMaxWidth().upIn(c, tt, .45f), textAlign = TextAlign.Center,
+        Text("Your music. Your vibe.", Modifier.at(c, 0f, 69f).fillMaxWidth().upIn(c, tt, 0.135f, .45f), textAlign = TextAlign.Center,
             style = TextStyle(fontFamily = Poppins, fontSize = c.sp(3.9f), color = Color.White.copy(alpha = .62f)))
         // fields
         LField(c, tt, 84.6f, .55f, "Email", em, { em = it; badOn1 = false }, false, false, badOn1, bad1, KeyboardType.Email, ImeAction.Next, null, null) { }
@@ -463,7 +463,7 @@ fun LoginUi(busy: Boolean, toast: Pair<Int, String>?, onLogin: (String, String, 
         // remember
         val tick by animateFloatAsState(if (rem) 1f else 0f, tween(250, 50), label = "tk")
         val rowH = 6f
-        Row(Modifier.at(c, 9.1f, 124.8f).height(c.dp(rowH)).upIn(c, tt, .8f).pointerInput(Unit) { detectTapGestures { rem = !rem } }, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.at(c, 9.1f, 124.8f).height(c.dp(rowH)).upIn(c, tt, 0.24f, .45f).pointerInput(Unit) { detectTapGestures { rem = !rem } }, verticalAlignment = Alignment.CenterVertically) {
             Canvas(Modifier.sz(c, 6f, 6f)) {
                 val r = 1.5f * u
                 if (rem) drawRoundRect(rgba(255, 45, 120, .35f), Offset(-1f * u, -1f * u), Size(size.width + 2 * u, size.height + 2 * u), CornerRadius(r + u))
@@ -477,7 +477,7 @@ fun LoginUi(busy: Boolean, toast: Pair<Int, String>?, onLogin: (String, String, 
             Spacer(Modifier.width(c.dp(3f)))
             Text("Remember me", softWrap = false, style = TextStyle(fontFamily = Poppins, fontSize = c.sp(4f), color = Color.White.copy(alpha = .88f)))
         }
-        Box(Modifier.at(c, 0f, 124.8f).fillMaxWidth().height(c.dp(6f)).upIn(c, tt, .8f), contentAlignment = Alignment.CenterEnd) {
+        Box(Modifier.at(c, 0f, 124.8f).fillMaxWidth().height(c.dp(6f)).upIn(c, tt, 0.24f, .45f), contentAlignment = Alignment.CenterEnd) {
             Text("Forgot password?", Modifier.padding(end = c.dp(9.1f)).pointerInput(Unit) { detectTapGestures { onForgot(em.trim()) } }, softWrap = false,
                 style = TextStyle(fontFamily = Poppins, fontSize = c.sp(4f), color = Color.White.copy(alpha = .88f)))
         }
@@ -485,7 +485,7 @@ fun LoginUi(busy: Boolean, toast: Pair<Int, String>?, onLogin: (String, String, 
         var rip by remember { mutableStateOf<Triple<Float, Float, Float>?>(null) }
         var pressed by remember { mutableStateOf(false) }
         val press by animateFloatAsState(if (pressed) .97f else 1f, tween(150), label = "pr")
-        Box(Modifier.at(c, 7.4f, 138.8f).sz(c, 85.2f, 16f).upIn(c, tt, .95f).graphicsLayer { scaleX = press; scaleY = press }.drawBehind {
+        Box(Modifier.at(c, 7.4f, 138.8f).sz(c, 85.2f, 16f).upIn(c, tt, 0.285f, .45f).graphicsLayer { scaleX = press; scaleY = press }.drawBehind {
             softShadow(Rect(0f, 0f, size.width, size.height), 8f * u, 7f * u, rgba(255, 45, 120, .4f), 2.4f * u)
         }.pointerInput(busy) {
             detectTapGestures(onPress = { pressed = true; tryAwaitRelease(); pressed = false }, onTap = { o ->
@@ -521,7 +521,7 @@ fun LoginUi(busy: Boolean, toast: Pair<Int, String>?, onLogin: (String, String, 
             if (!busy) Text("Sign in", softWrap = false, style = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Medium, fontSize = c.sp(5f), color = Color.White))
         }
         // or continue with
-        Row(Modifier.at(c, 7.4f, 163f).sz(c, 85.2f, 5.6f).upIn(c, tt, 1.1f), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.at(c, 7.4f, 163f).sz(c, 85.2f, 5.6f).upIn(c, tt, 0.33f, .45f), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f).height(c.dp(.2f)).background(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = .4f)))))
             Text("or continue with", Modifier.padding(horizontal = c.dp(3.4f)), softWrap = false, style = TextStyle(fontFamily = Poppins, fontSize = c.sp(4.2f), color = Color.White.copy(alpha = .92f)))
             Box(Modifier.weight(1f).height(c.dp(.2f)).background(Brush.horizontalGradient(listOf(Color.White.copy(alpha = .4f), Color.Transparent))))
@@ -534,7 +534,7 @@ fun LoginUi(busy: Boolean, toast: Pair<Int, String>?, onLogin: (String, String, 
             path("M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z") to Color(0xFF34A853)) }
         var gPress by remember { mutableStateOf(false) }
         val gs by animateFloatAsState(if (gPress) .92f else 1f, tween(150), label = "gs")
-        Canvas(Modifier.at(c, 42.3f, 173.4f).sz(c, 15.5f, 15.5f).upIn(c, tt, 1.2f).graphicsLayer { scaleX = gs; scaleY = gs }.pointerInput(Unit) {
+        Canvas(Modifier.at(c, 42.3f, 173.4f).sz(c, 15.5f, 15.5f).upIn(c, tt, 0.36f, .45f).graphicsLayer { scaleX = gs; scaleY = gs }.pointerInput(Unit) {
             detectTapGestures(onPress = { gPress = true; tryAwaitRelease(); gPress = false }, onTap = { onGoogle() })
         }) {
             val r = size.width / 2f
@@ -545,7 +545,7 @@ fun LoginUi(busy: Boolean, toast: Pair<Int, String>?, onLogin: (String, String, 
             translate(center.x - 3.6f * u, center.y - 3.6f * u) { scale(s, Offset.Zero) { gp.forEach { (p, col) -> drawPath(p, col) } } }
         }
         // new to wavy
-        Row(Modifier.at(c, 0f, 206.6f).fillMaxWidth().upIn(c, tt, 1.35f), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.at(c, 0f, 206.6f).fillMaxWidth().upIn(c, tt, 0.405f, .45f), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             Text("New to Wavy? ", softWrap = false, style = TextStyle(fontFamily = Poppins, fontSize = c.sp(4.2f), color = Color.White))
             Text("SIGN UP", Modifier.pointerInput(busy) { detectTapGestures { if (!busy) {
                 val e = em.trim()
@@ -590,7 +590,7 @@ private fun LField(c: Cq, tt: () -> Float, top: Float, delay: Float, label: Stri
     val lockP = remember { path("M8 10.5V8a4 4 0 0 1 8 0v2.5") }
     val eyeP = remember { path("M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12z") }
     val slash = remember { path("M4 4l16 16") }
-    Box(Modifier.at(c, 7.4f, top).sz(c, 85.2f, 16f).upIn(c, tt, delay).graphicsLayer {
+    Box(Modifier.at(c, 7.4f, top).sz(c, 85.2f, 16f).upIn(c, tt, delay * .3f, .45f).graphicsLayer {
         val p = shake.value
         val k = when { p < .2f -> -1.6f * p / .2f; p < .4f -> -1.6f + 3.2f * (p - .2f) / .2f; p < .6f -> 1.6f - 3.2f * (p - .4f) / .2f; p < .8f -> -1.6f + 3.2f * (p - .6f) / .2f; else -> 1.6f * (1f - (p - .8f) / .2f) }
         translationX = k * u
