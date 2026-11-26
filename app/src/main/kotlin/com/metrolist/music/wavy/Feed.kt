@@ -1,5 +1,6 @@
 package com.metrolist.music.wavy
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.shadow
 import com.metrolist.music.extensions.toMediaItem
 import android.widget.Toast
 import androidx.compose.foundation.verticalScroll
@@ -271,16 +272,20 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                 } else {
                     BoxWithConstraints(Modifier.fillMaxSize()) {
                         val heroH = (maxHeight - 392.dp).coerceIn(300.dp, maxWidth)
-                        Box(Modifier.fillMaxWidth().height(heroH)) {
-                            Box(Modifier.fillMaxSize().graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
-                                .drawWithContent { drawContent(); drawRect(Brush.verticalGradient(0.62f to Color.Black, 1f to Color.Transparent), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn) }) {
-                                AsyncImage(hiRes(t.cover), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x55000000), 0.3f to Color.Transparent, 0.55f to Color(0x66000000), 1f to Color(0xCC000000))))
+                        val side = (maxWidth - 64.dp).coerceAtMost(maxHeight - 430.dp).coerceAtLeast(200.dp)
+                        var art by remember(t.id) { mutableStateOf(t.cover) }
+                        LaunchedEffect(t.id) { art = squareArt(t) ?: t.cover }
+                        if (!Reduce.on) AsyncImage(hiRes(art), null, Modifier.fillMaxSize().graphicsLayer { alpha = 0.32f }.blur(60.dp), contentScale = ContentScale.Crop)
+                        Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(Modifier.size(side).shadow(24.dp, RoundedCornerShape(22.dp), clip = false, ambientColor = Color.Black, spotColor = Color.Black).clip(RoundedCornerShape(22.dp)).background(Color(0xFF1A1620))) {
+                                AsyncImage(hiRes(art), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                             }
-                            val synced = if (lyricsPref.value) lyrics.filter { it.t >= 0 } else emptyList()
-                            val ci = synced.indexOfLast { it.t <= pos + 250 }
-                            if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modifier.align(Alignment.BottomStart).padding(start = 24.dp, end = 24.dp, bottom = 26.dp).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { lyricStyle = (lyricStyle + 1) % LYRIC_STYLES.size; S.put("lyric_style", lyricStyle.toFloat()) })
-                            else if (lyricsPref.value && lyrics.none { it.t >= 0 } && lyrics.isNotEmpty()) Text("Lyrics", Modifier.align(Alignment.BottomStart).padding(start = 24.dp, bottom = 26.dp).clip(RoundedCornerShape(50)).background(Color(0x55000000)).border(1.dp, Color(0x66FFFFFF), RoundedCornerShape(50)).clickable { showPlain = true }.padding(horizontal = 20.dp, vertical = 9.dp), style = ts(15, FontWeight.SemiBold))
+                            Box(Modifier.fillMaxWidth().padding(top = 14.dp).heightIn(min = 64.dp, max = 120.dp)) {
+                                val synced = if (lyricsPref.value) lyrics.filter { it.t >= 0 } else emptyList()
+                                val ci = synced.indexOfLast { it.t <= pos + 250 }
+                            if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modifier.align(Alignment.CenterStart).padding(horizontal = 28.dp).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { lyricStyle = (lyricStyle + 1) % LYRIC_STYLES.size; S.put("lyric_style", lyricStyle.toFloat()) })
+                            else if (lyricsPref.value && lyrics.none { it.t >= 0 } && lyrics.isNotEmpty()) Text("Lyrics", Modifier.align(Alignment.CenterStart).padding(start = 28.dp).clip(RoundedCornerShape(50)).background(Color(0x55000000)).border(1.dp, Color(0x66FFFFFF), RoundedCornerShape(50)).clickable { showPlain = true }.padding(horizontal = 20.dp, vertical = 9.dp), style = ts(15, FontWeight.SemiBold))
+                            }
                         }
                     }
                 }
@@ -394,4 +399,14 @@ object SleepTimer {
         job?.cancel(); if (min <= 0 || pc == null) return
         job = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) { kotlinx.coroutines.delay(min * 60_000L); pc.player.pause() }
     }
+}
+
+private val artCache = HashMap<String, String?>()
+/** Best square artwork for a song: the album art YouTube Music has for it, not the 16:9 video frame. */
+suspend fun squareArt(t: Track): String? {
+    if (artCache.containsKey(t.id)) return artCache[t.id]
+    val u = try { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.metrolist.innertube.YouTube.queue(listOf(t.id)).getOrNull()?.firstOrNull()?.thumbnail } } catch (e: Exception) { null }
+    val good = u?.takeIf { it.contains("googleusercontent.com") || it.contains("ggpht.com") }
+    artCache[t.id] = good
+    return good
 }

@@ -1,5 +1,7 @@
 package com.metrolist.music.wavy
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.offset
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -150,16 +152,21 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
 @Composable
 fun NavBar(sel: Int, haze: dev.chrisbanes.haze.HazeState? = null, onDouble: (Int) -> Unit = {}, onSel: (Int) -> Unit) {
     var lastTap by remember { mutableStateOf(-1 to 0L) }
-    val shape = RoundedCornerShape(30.dp)
-    Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 14.dp, end = 14.dp, bottom = 6.dp, top = 4.dp).clip(shape).then(if (haze != null) Modifier.hazeBlur(input = dev.chrisbanes.haze.HazeInput.Sources(haze), style = dev.chrisbanes.haze.blur.HazeBlurStyle { blurRadius(48.dp) }) else Modifier).background(if (haze != null) Color(0xC8141019) else Color(0xEB141019)).padding(top = 10.dp, bottom = 8.dp)) {
-        tabs.forEachIndexed { i, (name, icon) ->
-            val on = i == sel
-            val col by animateColorAsState(if (on) W.Pink else Color(0xFFBDB8C4), tween(200), label = "c")
-            Column(Modifier.weight(1f).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { val now = System.currentTimeMillis(); onSel(i); if (lastTap.first == i && now - lastTap.second < 400) { onDouble(i); lastTap = -1 to 0L } else lastTap = i to now }, horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(painterResource(if (i == 0 && on) R.drawable.home_filled else icon), null, Modifier.size(28.dp), tint = col)
-                Text(name, style = ts(12, FontWeight.Medium, col), maxLines = 1)
-                Spacer(Modifier.height(4.dp))
-                Box(Modifier.height(3.dp).width(if (on) 36.dp else 0.dp).clip(RoundedCornerShape(2.dp)).background(W.Pink))
+    val hap = androidx.compose.ui.platform.LocalHapticFeedback.current
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().then(if (haze != null) Modifier.hazeBlur(input = dev.chrisbanes.haze.HazeInput.Sources(haze), style = dev.chrisbanes.haze.blur.HazeBlurStyle { blurRadius(48.dp) }) else Modifier).background(if (haze != null) Color(0xC8141019) else Color(0xEB141019))) {
+        val tabW = maxWidth / tabs.size
+        val ind by androidx.compose.animation.core.animateDpAsState(tabW * sel + (tabW - 36.dp) / 2, androidx.compose.animation.core.spring(dampingRatio = 0.65f, stiffness = 420f), label = "ind")
+        Box(Modifier.offset(x = ind, y = 4.dp).width(36.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(W.Pink))
+        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 12.dp, bottom = 8.dp)) {
+            tabs.forEachIndexed { i, (name, icon) ->
+                val on = i == sel
+                val col by animateColorAsState(if (on) W.Pink else Color(0xFFBDB8C4), tween(200), label = "c")
+                val sc by androidx.compose.animation.core.animateFloatAsState(if (on) 1.18f else 1f, androidx.compose.animation.core.spring(dampingRatio = 0.4f, stiffness = 500f), label = "sc")
+                Column(Modifier.weight(1f).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { hap.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove); val now = System.currentTimeMillis(); onSel(i); if (lastTap.first == i && now - lastTap.second < 400) { onDouble(i); lastTap = -1 to 0L } else lastTap = i to now }, horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(painterResource(if (i == 0 && on) R.drawable.home_filled else icon), null, Modifier.size(28.dp).graphicsLayer { scaleX = sc; scaleY = sc }, tint = col)
+                    Text(name, style = ts(12, FontWeight.Medium, col), maxLines = 1)
+                    Spacer(Modifier.height(2.dp))
+                }
             }
         }
     }
