@@ -171,7 +171,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
 if (!chat && !(PartyState.full && page == "party")) NavBar(tab, haze, onDouble = { if (tabs[it].first == "Music") MusicRefresh.n++ }) { page = null; full = false; tab = it }
         }
         if (meta != null && pc != null && tab != 2 && !full && (page == "agent" || page == "support")) IslandPill(pc) { page = null; full = false; tab = 2 }
-        if (meta != null && pc != null && PartyState.active && page != "party" && !full) IslandPill(pc) { page = "party"; full = false }
+        if (PartyState.active && page != "party" && !full) { RoomPill { page = "party"; full = false }; Box(Modifier.size(0.dp)) { PartyScreen(pc) { page = null } } }
         AnimatedVisibility(full && pc != null, enter = slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(200)),
             exit = slideOutVertically(tween(300)) { it } + fadeOut(tween(200))) {
             if (pc != null) PlayerScreen(pc) { full = false }

@@ -165,6 +165,7 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
     val admin = s.optString("my_role") == "admin"; val can = s.optBoolean("my_can_control"); val muted = s.optBoolean("my_muted")
     val pb = s.getJSONObject("playback"); val cur = pb.optJSONObject("track")?.toTrack(); val playing = pb.optBoolean("is_playing"); val qid = pb.optLong("queue_id")
     val members = s.getJSONArray("members"); val queue = s.getJSONArray("queue"); val msgs = s.getJSONArray("messages")
+    SideEffect { PartyState.title = cur?.title ?: ""; PartyState.artist = cur?.artist ?: ""; PartyState.thumb = cur?.cover; PartyState.playing = playing; PartyState.members = members.length() }
     val skip = s.getJSONObject("skip")
     // the one who can control moves the room to the next song when this one ends
     LaunchedEffect(can, qid) { while (can && qid != 0L) { delay(1500); if (pc?.player?.playbackState == androidx.media3.common.Player.STATE_ENDED) { try { call("party_next", "p_party" to pid, "p_ended_queue" to qid) } catch (e: Exception) { }; break } } }
@@ -288,4 +289,23 @@ fun PartyBackdrop(tint: Color, content: @Composable androidx.compose.foundation.
 
 
 /** True while this phone is in a Party room. The normal mini player is replaced by the island pill, and room songs are the only ones playing. */
-object PartyState { var active by mutableStateOf(false); var full by mutableStateOf(false) }
+object PartyState { var active by mutableStateOf(false); var full by mutableStateOf(false)
+    var title by mutableStateOf(""); var artist by mutableStateOf(""); var thumb by mutableStateOf<String?>(null); var playing by mutableStateOf(false); var members by mutableIntStateOf(0) }
+
+@Composable
+fun RoomPill(onGo: () -> Unit) {
+    val ps = PartyState
+    androidx.compose.animation.AnimatedVisibility(ps.active, enter = androidx.compose.animation.slideInVertically(androidx.compose.animation.core.spring(0.75f, 420f)) { -it } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(180)),
+        exit = androidx.compose.animation.slideOutVertically(androidx.compose.animation.core.tween(200)) { -it } + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(150))) {
+        Box(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 6.dp, start = 12.dp, end = 12.dp), contentAlignment = Alignment.TopCenter) {
+            Row(Modifier.widthIn(max = 380.dp).fillMaxWidth().height(52.dp).clip(RoundedCornerShape(26.dp)).background(Color.Black).clickable(onClick = onGo).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                coil.compose.AsyncImage(ps.thumb, null, Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0x22FFFFFF)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                    Text(if (ps.title.isEmpty()) "Party room" else ps.title, style = ts(13, androidx.compose.ui.text.font.FontWeight.SemiBold), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text((if (ps.playing) "Playing" else "Paused") + " · " + ps.members + " in room" + (if (ps.artist.isNotEmpty()) " · " + ps.artist else ""), style = ts(11, color = Color(0xFFB9B2C4)), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+                Text("Go to room", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).padding(horizontal = 10.dp, vertical = 6.dp), style = ts(11, androidx.compose.ui.text.font.FontWeight.SemiBold))
+            }
+        }
+    }
+}
