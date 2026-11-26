@@ -304,7 +304,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                     Icon(painterResource(R.drawable.search), null, Modifier.clickable { onSearch() }.padding(8.dp).size(24.dp), tint = Color.White)
                     Icon(painterResource(R.drawable.more_vert), null, Modifier.clickable { showFx = true }.padding(8.dp).size(24.dp), tint = Color.White)
                 }
-                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 96.dp)) {
+                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 84.dp)) {
                     Text(t.title, style = ts(26, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Row(Modifier.padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(t.artist, Modifier.weight(1f, fill = false), style = ts(17, color = Color(0xDDFFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -322,15 +322,6 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                     WavySeek((pos.toFloat() / dur).coerceIn(0f, 1f), playing && meta?.id == t.id, androidx.compose.ui.graphics.lerp(bg, Color.White, 0.82f), onSeekTo = { f -> pc?.seekTo((f * dur).toLong()) })
                     fun mmss(ms: Long): String { val s = (ms / 1000).coerceAtLeast(0); return "%d:%02d".format(s / 60, s % 60) }
                     Row(Modifier.fillMaxWidth()) { Text(mmss(pos), style = ts(12, color = Color(0xCCFFFFFF))); Spacer(Modifier.weight(1f)); Text(mmss(dur), style = ts(12, color = Color(0xCCFFFFFF))) }
-                    Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                        Icon(painterResource(R.drawable.skip_previous), null, Modifier.size(40.dp).clip(CircleShape).clickable { if (page > 0) scope.launch { userMoved = true; pager.animateScrollToPage(page - 1) } }, tint = Color.White)
-                        Spacer(Modifier.width(26.dp))
-                        Box(Modifier.size(68.dp).clip(CircleShape).background(Color.White).clickable { pc?.player?.let { p -> if (p.isPlaying) p.pause() else p.play() } }, contentAlignment = Alignment.Center) {
-                            Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(36.dp), tint = Color.Black) }
-                        Spacer(Modifier.width(26.dp))
-                        Icon(painterResource(R.drawable.skip_next), null, Modifier.size(40.dp).clip(CircleShape).clickable { if (page < tracks.size - 1) scope.launch { userMoved = true; pager.animateScrollToPage(page + 1) } }, tint = Color.White)
-                    }
-                    if (videoOn && diag.isNotEmpty()) Text(diag, Modifier.padding(top = 4.dp), style = ts(11, color = Color(0xFFFFB4C8)))
                 }
             }
         }
