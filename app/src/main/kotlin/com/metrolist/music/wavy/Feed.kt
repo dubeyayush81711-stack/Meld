@@ -160,7 +160,10 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
         val m = meta ?: return@LaunchedEffect
         if (first?.id != m.id && feed.none { it.id == m.id }) first = Track(m.id, m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, m.duration, m.artists.firstOrNull()?.id, m.album?.title)
     }
-    val tracks = remember(feed, refreshN, first) { listOfNotNull(first) + feed.filter { it.id != first?.id } }
+    val tracks = remember(feed, refreshN, first) {
+        val head = listOfNotNull(first); val hk = head.map { normKey(it) }.toSet()
+        head + feed.filter { it.id != first?.id && normKey(it) !in hk }.distinctBy { normKey(it) }
+    }
     if (tracks.isEmpty()) {
         Backdrop { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(err ?: "Loading...", style = ts(15, color = W.Dim)) } }
         return

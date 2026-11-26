@@ -27,10 +27,10 @@ suspend fun feedPage(titles: List<String>, offset: Int, seed: String): List<Trac
     // light, seed-based shuffle inside groups of 6 so each refresh feels different but stays near the chart order
     val mixed = out.chunked(6).flatMap { g -> g.sortedBy { Math.abs((seed + it.id).hashCode()) % 100 } }
     val fresh = Played.filter(mixed)
-    return if (fresh.size >= 6) fresh else mixed
+    return if (fresh.size >= 6 || offset > 0) fresh else mixed
 }
 
-private fun normKey(t: Track) = (t.title.lowercase().replace(Regex("\\(.*?\\)|\\[.*?\\]|official|video|audio|lyrical|lyrics|\\bhd\\b|[^a-z0-9\u0900-\u0DFF ]"), " ").replace(Regex("\\s+"), " ").trim() + "|" + t.artist.lowercase().split(Regex("[,&]| x | feat\\.?")).first().trim())
+fun normKey(t: Track) = (t.title.lowercase().replace(Regex("\\(.*?\\)|\\[.*?\\]|official|video|audio|lyrical|lyrics|\\bhd\\b|[^a-z0-9\u0900-\u0DFF ]"), " ").replace(Regex("\\s+"), " ").trim() + "|" + t.artist.lowercase().split(Regex("[,&]| x | feat\\.?")).first().trim())
 
 /** Songs the user has already seen in the language feed; kept across refreshes so repeats do not come back. */
 object Played {
