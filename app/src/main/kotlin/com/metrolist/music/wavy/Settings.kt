@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -28,9 +29,10 @@ import com.metrolist.music.utils.rememberPreference
 
 @Composable
 fun SPage(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    Backdrop(streaks = false) {
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF050507), Color(0xFF09090D), Color(0xFF0B0B10))))) {
+        Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(Color(0x14E91E63), Color.Transparent), center = androidx.compose.ui.geometry.Offset(1000f, 0f), radius = 1100f)))
         Column(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxWidth().background(GlassBar)) { BackBar(title, onBack) }
+            Box(Modifier.fillMaxWidth().background(Color(0xFF050507))) { BackBar(title, onBack) }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = 210.dp), content = content)
         }
     }
