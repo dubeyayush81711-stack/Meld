@@ -69,7 +69,7 @@ fun WelcomeScreen(onStart: () -> Unit) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 26.dp)) {
             Text("Wavy", Modifier.fillMaxWidth().padding(top = 18.dp), style = ts(34, FontWeight.SemiBold, W.Pink2).copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, letterSpacing = 3.sp), textAlign = TextAlign.Center)
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Image(painterResource(R.drawable.welcome_headphones), null, Modifier.fillMaxWidth(0.92f).offset(y = float.value.dp), contentScale = ContentScale.Fit)
+                HeadphoneHero(Modifier.fillMaxWidth(0.9f).aspectRatio(1f))
                 Text("\u2726", Modifier.align(Alignment.TopStart).padding(start = 10.dp, top = 20.dp).alpha(tw.value), style = ts(34, color = Color(0xFFEDE6FF)))
                 Text("\u2726", Modifier.align(Alignment.BottomEnd).padding(end = 30.dp, bottom = 30.dp).alpha(1.3f - tw.value), style = ts(22, color = Color(0xFFEDE6FF)))
             }

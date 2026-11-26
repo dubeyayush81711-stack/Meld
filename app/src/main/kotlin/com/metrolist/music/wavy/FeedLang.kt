@@ -1,0 +1,29 @@
+package com.metrolist.music.wavy
+
+import org.json.JSONArray
+import org.json.JSONObject
+
+private var tileCache: List<Pair<String, String>>? = null
+
+/** (language code, title) pairs from the backend. */
+suspend fun languageTiles(): List<Pair<String, String>> {
+    tileCache?.let { return it }
+    val arr = try { Api.rpc("language_tiles") as? JSONArray } catch (e: Exception) { null } ?: return emptyList()
+    val l = (0 until arr.length()).map { arr.getJSONObject(it) }.map { it.getString("lang") to it.getString("title") }
+    tileCache = l
+    return l
+}
+
+/** One page of the Music tab feed for the chosen languages (titles). Empty selection = the mixed For You feed. Ranked by the backend's chart rank, interleaved across languages. */
+suspend fun feedPage(titles: List<String>, offset: Int, seed: String): List<Track> {
+    if (titles.isEmpty()) return (Api.rpc("player_feed_ig", JSONObject().put("p_limit", 30).put("p_offset", offset).put("p_region", "IN").put("p_seed", seed)) as? JSONArray).tracks()
+    val tiles = languageTiles()
+    val codes = titles.mapNotNull { t -> tiles.firstOrNull { it.second.equals(t, true) || it.first.equals(t, true) }?.first }
+    if (codes.isEmpty()) return emptyList()
+    val per = 24
+    val lists = codes.map { c -> try { (Api.rpc("language_top", JSONObject().put("p_lang", c).put("p_limit", per).put("p_offset", offset / codes.size)) as? JSONArray).tracks() } catch (e: Exception) { emptyList() } }
+    val out = ArrayList<Track>()
+    for (i in 0 until per) for (l in lists) l.getOrNull(i)?.let { out.add(it) }
+    // light, seed-based shuffle inside groups of 6 so each refresh feels different but stays near the chart order
+    return out.chunked(6).flatMap { g -> g.sortedBy { Math.abs((seed + it.id).hashCode()) % 100 } }
+}

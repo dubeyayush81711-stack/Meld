@@ -125,6 +125,7 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
     var showFx by remember { mutableStateOf(false) }
@@ -145,8 +146,11 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
     var userMoved by remember { mutableStateOf(false) }
     var followed by remember { mutableStateOf<List<Track>>(emptyList()) }
     LaunchedEffect(Unit) { followed = followedSongs() }
-    LaunchedEffect(refreshN) {
-        try { feed = mixFollowed((Api.rpc("player_feed_ig", JSONObject().put("p_limit", 30).put("p_offset", 0).put("p_region", "IN").put("p_seed", seed)) as? JSONArray).tracks(), followedSongs()); err = null}
+    var langs by remember { mutableStateOf(S.s("feed_langs", "Punjabi,Haryanvi").split(",").filter { it.isNotBlank() }) }
+    var showLang by remember { mutableStateOf(false) }
+    var langSkip by remember { mutableStateOf(true) }
+    LaunchedEffect(refreshN, langs) {
+        try { feed = mixFollowed(feedPage(langs, 0, seed), followedSongs()); err = null}
         catch (e: ApiError) { err = humanErr(e) }
     }
     LaunchedEffect(meta?.id) {
@@ -164,10 +168,12 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
     LaunchedEffect(pager.settledPage, tracks.size) {
         if (tracks.size - pager.settledPage <= 5 && !loadingMore && feed.size < 200) {
             loadingMore = true
-            try { val more = (Api.rpc("player_feed_ig", JSONObject().put("p_limit", 30).put("p_offset", feed.size).put("p_region", "IN").put("p_seed", seed)) as? JSONArray).tracks(); val have = feed.map { it.id }.toSet(); feed = feed + mixFollowed(more, followed, HashSet(have)).filter { it.id !in have } } catch (e: Exception) { }
+            try { val more = feedPage(langs, feed.size, seed); val have = feed.map { it.id }.toSet(); feed = feed + mixFollowed(more, followed, HashSet(have)).filter { it.id !in have } } catch (e: Exception) { }
             loadingMore = false
         }
     }
+    LaunchedEffect(MusicRefresh.n) { if (MusicRefresh.n > 0) { seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; refreshN++ } }
+    LaunchedEffect(langs) { if (langSkip) langSkip = false else { seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; refreshN++ } }
     LaunchedEffect(refreshN) { if (refreshN > 0) { lastDriven = 0; pager.scrollToPage(0) } }
     // when the song changes by itself (auto next, notification, screen off/on), the pager follows it; it never forces a song
     LaunchedEffect(meta?.id) {
@@ -286,12 +292,15 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                         Icon(painterResource(R.drawable.close), "Close", Modifier.padding(20.dp).size(28.dp).clickable { showPlain = false }, tint = Color.White)
                     }
                 }
-                if (flash != 0) Text(when (flash) { 1 -> if (playing) "Playing" else "Paused"; 2 -> "-10s"; else -> "+10s" }, Modifier.align(when (flash) { 2 -> Alignment.CenterStart; 3 -> Alignment.CenterEnd; else -> Alignment.Center }).padding(horizontal = 40.dp).clip(RoundedCornerShape(50)).background(Color(0x88000000)).padding(horizontal = 18.dp, vertical = 10.dp), style = ts(18, FontWeight.SemiBold))
+                if (flash == 1) Box(Modifier.align(Alignment.Center).size(84.dp).clip(CircleShape).background(Color(0x88000000)), contentAlignment = Alignment.Center) { Icon(painterResource(if (playing) R.drawable.play else R.drawable.pause), null, Modifier.size(46.dp), tint = Color.White) }
+                if (flash > 1) Text(when (flash) { 2 -> "-10s"; else -> "+10s" }, Modifier.align(when (flash) { 2 -> Alignment.CenterStart; 3 -> Alignment.CenterEnd; else -> Alignment.Center }).padding(horizontal = 40.dp).clip(RoundedCornerShape(50)).background(Color(0x88000000)).padding(horizontal = 18.dp, vertical = 10.dp), style = ts(18, FontWeight.SemiBold))
                 if (hs > 0.01f) Icon(painterResource(R.drawable.favorite), null, Modifier.align(Alignment.Center).size((60 + 80 * hs).dp), tint = W.Pink.copy(alpha = hs))
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x55000000), 0.2f to Color.Transparent, 0.62f to Color.Transparent, 1f to Color(0xDD000000))))
                 Row(Modifier.align(Alignment.TopStart).fillMaxWidth().statusBarsPadding().padding(start = 20.dp, end = 12.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("For You", style = ts(18, FontWeight.SemiBold))
-                    Icon(painterResource(R.drawable.expand_more), null, Modifier.size(22.dp), tint = Color.White)
+                    Row(Modifier.clip(RoundedCornerShape(50)).clickable { showLang = true }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (langs.isEmpty()) "For You" else langs.joinToString(" + "), style = ts(18, FontWeight.SemiBold), maxLines = 1)
+                        Icon(painterResource(R.drawable.expand_more), null, Modifier.size(22.dp), tint = Color.White)
+                    }
                     Spacer(Modifier.weight(1f))
                     Icon(painterResource(R.drawable.search), null, Modifier.clickable { onSearch() }.padding(8.dp).size(24.dp), tint = Color.White)
                     Icon(painterResource(R.drawable.more_vert), null, Modifier.clickable { showFx = true }.padding(8.dp).size(24.dp), tint = Color.White)
@@ -326,6 +335,21 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                 }
             }
         }
+        if (showLang) {
+            var titles by remember { mutableStateOf<List<String>>(emptyList()) }
+            LaunchedEffect(Unit) { titles = languageTiles().map { it.second } }
+            Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { showLang = false })
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF2121016)).navigationBarsPadding().padding(20.dp)) {
+                Text("What do you want to hear?", style = ts(18, FontWeight.SemiBold))
+                Text("Pick one or more. The feed follows them.", Modifier.padding(top = 4.dp, bottom = 14.dp), style = ts(13, color = Color(0xFFB9B2C4)))
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    @Composable fun Chip(label: String, on: Boolean, click: () -> Unit) = Text(label, Modifier.clip(RoundedCornerShape(50)).background(if (on) W.Pink else Color(0x22FFFFFF)).clickable { click() }.padding(horizontal = 18.dp, vertical = 10.dp), style = ts(15, FontWeight.Medium))
+                    Chip("Mixed", langs.isEmpty()) { langs = emptyList(); S.put("feed_langs", ""); showLang = false }
+                    titles.forEach { t -> val on = langs.any { it.equals(t, true) }
+                        Chip(t, on) { langs = if (on) langs.filterNot { it.equals(t, true) } else langs + t; S.put("feed_langs", langs.joinToString(",")) } }
+                }
+            }
+        }
         if (showOpts && pc != null) PlayerOptions(pc, onBoost = {}, onClose = { showOpts = false })
         if (showFx) {
             Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { showFx = false })
@@ -349,3 +373,5 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
         }
     }
 }
+/** Double-tapping the Music item in the nav bar bumps this; the feed refreshes. */
+object MusicRefresh { var n by androidx.compose.runtime.mutableIntStateOf(0) }

@@ -137,7 +137,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         }
         Column(Modifier.align(Alignment.BottomCenter)) {
             if (meta != null && pc != null && tab != 2) MiniPlayer(pc) { full = true }
-            NavBar(tab, haze) { page = null; full = false; tab = it }
+            NavBar(tab, haze, onDouble = { if (tabs[it].first == "Music") MusicRefresh.n++ }) { page = null; full = false; tab = it }
         }
         AnimatedVisibility(full && pc != null, enter = slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(200)),
             exit = slideOutVertically(tween(300)) { it } + fadeOut(tween(200))) {
@@ -148,12 +148,13 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
 }
 
 @Composable
-fun NavBar(sel: Int, haze: dev.chrisbanes.haze.HazeState? = null, onSel: (Int) -> Unit) {
+fun NavBar(sel: Int, haze: dev.chrisbanes.haze.HazeState? = null, onDouble: (Int) -> Unit = {}, onSel: (Int) -> Unit) {
+    var lastTap by remember { mutableStateOf(-1 to 0L) }
     Row(Modifier.fillMaxWidth().then(if (haze != null) Modifier.hazeBlur(input = dev.chrisbanes.haze.HazeInput.Sources(haze), style = dev.chrisbanes.haze.blur.HazeBlurStyle { blurRadius(24.dp) }) else Modifier).background(GlassBar).navigationBarsPadding().padding(top = 10.dp, bottom = 8.dp)) {
         tabs.forEachIndexed { i, (name, icon) ->
             val on = i == sel
             val col by animateColorAsState(if (on) W.Pink else Color(0xFFBDB8C4), tween(200), label = "c")
-            Column(Modifier.weight(1f).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSel(i) }, horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(Modifier.weight(1f).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { val now = System.currentTimeMillis(); onSel(i); if (lastTap.first == i && now - lastTap.second < 400) { onDouble(i); lastTap = -1 to 0L } else lastTap = i to now }, horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(painterResource(if (i == 0 && on) R.drawable.home_filled else icon), null, Modifier.size(28.dp), tint = col)
                 Text(name, style = ts(12, FontWeight.Medium, col), maxLines = 1)
                 Spacer(Modifier.height(4.dp))
