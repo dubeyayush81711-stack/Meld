@@ -67,7 +67,13 @@ fun WavyApp(pc: PlayerConnection?) {
         } catch (e: Exception) { if (Api.signedIn) "main" else "welcome" }
     }
     Box(Modifier.fillMaxSize().background(W.Bg)) {
-        AnimatedContent(stage, transitionSpec = { (fadeIn(tween(450)) + slideInVertically(tween(450)) { it / 14 }) togetherWith fadeOut(tween(250)) }, label = "stage") { s ->
+        if (stage == "welcome" || stage == "login") {
+            // WebView screens are drawn outside AnimatedContent: a WebView under a fade/slide layer renders black.
+            key(stage) {
+                if (stage == "welcome") WelcomeScreen { stage = "login" }
+                else LoginScreen { needs -> stage = if (needs) "ob1" else "main" }
+            }
+        } else AnimatedContent(stage, transitionSpec = { (fadeIn(tween(450)) + slideInVertically(tween(450)) { it / 14 }) togetherWith fadeOut(tween(250)) }, label = "stage") { s ->
             when (s) {
                 "splash" -> SplashScreen()
                 "welcome" -> WelcomeScreen { stage = "login" }
