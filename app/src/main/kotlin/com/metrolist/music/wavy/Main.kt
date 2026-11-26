@@ -140,11 +140,13 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
             }
         }
         Column(Modifier.align(Alignment.BottomCenter)) {
-            if (meta != null && pc != null && tab != 2) MiniPlayer(pc) { full = true }
+            val chat = page == "agent" || page == "support"
+            if (meta != null && pc != null && tab != 2 && !chat) MiniPlayer(pc) { full = true }
             LaunchedEffect(tab) { ErrorLog.screen = listOf("home", "search", "music", "library", "profile").getOrElse(tab) { "tab" + tab } }
             if (pc != null) LaunchedEffect(pc) { pc.error.collect { e -> if (e != null) ErrorLog.report("playback", "Playback error " + e.errorCodeName, e) } }
-            NavBar(tab, haze, onDouble = { if (tabs[it].first == "Music") MusicRefresh.n++ }) { page = null; full = false; tab = it }
+if (!chat) NavBar(tab, haze, onDouble = { if (tabs[it].first == "Music") MusicRefresh.n++ }) { page = null; full = false; tab = it }
         }
+        if (meta != null && pc != null && tab != 2 && !full && (page == null || page == "agent" || page == "support")) IslandPill(pc) { page = null; full = false; tab = 2 }
         AnimatedVisibility(full && pc != null, enter = slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(200)),
             exit = slideOutVertically(tween(300)) { it } + fadeOut(tween(200))) {
             if (pc != null) PlayerScreen(pc) { full = false }
