@@ -58,20 +58,19 @@ fun SplashScreen() {
 
 @Composable
 fun WelcomeScreen(onStart: () -> Unit) {
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { shown = true }
-    val fade by animateFloatAsState(if (shown) 1f else 0f, tween(600), label = "fa")
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF07020D))) {
-        val iw = 1010f; val ih = 2060f
-        val wpx = with(androidx.compose.ui.platform.LocalDensity.current) { maxWidth.toPx() }
-        val hpx = with(androidx.compose.ui.platform.LocalDensity.current) { maxHeight.toPx() }
-        val sc = maxOf(wpx / iw, hpx / ih)
-        val ox = (wpx - iw * sc) / 2f; val oy = (hpx - ih * sc) / 2f
-        androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(com.metrolist.music.R.drawable.welcome_ref), null, Modifier.fillMaxSize().alpha(fade), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-        val d = androidx.compose.ui.platform.LocalDensity.current
-        val bx = ox + 104f * sc; val by = oy + 1784f * sc; val bw = 526f * sc; val bh = 112f * sc
-        Box(Modifier.offset(with(d) { bx.toDp() }, with(d) { by.toDp() }).size(with(d) { bw.toDp() }, with(d) { bh.toDp() }).clip(RoundedCornerShape(50)).clickable(onClick = onStart))
-    }
+    val go by rememberUpdatedState(onStart)
+    androidx.compose.ui.viewinterop.AndroidView(modifier = Modifier.fillMaxSize().background(Color.Black), factory = { c ->
+        android.webkit.WebView(c).apply {
+            setBackgroundColor(android.graphics.Color.BLACK)
+            overScrollMode = android.view.View.OVER_SCROLL_NEVER
+            isVerticalScrollBarEnabled = false
+            settings.javaScriptEnabled = true
+            settings.allowFileAccess = true
+            settings.mediaPlaybackRequiresUserGesture = false
+            addJavascriptInterface(object { @android.webkit.JavascriptInterface fun start() { post { go() } } }, "WavyApp")
+            loadUrl("file:///android_asset/welcome/index.html")
+        }
+    })
 }
 
 @Composable
