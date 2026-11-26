@@ -25,7 +25,9 @@ object Ai {
         val msgs = JSONArray(); history.takeLast(10).forEach { msgs.put(JSONObject().put("role", it.first).put("content", it.second)) }
         val r = Api.fn("wavy-ai", JSONObject().put("task", task).put("messages", msgs))
         r?.optString("reply")?.takeIf { it.isNotBlank() }
-    } catch (e: Exception) { null }
+    } catch (e: Exception) { lastErr = (e as? ApiError)?.let { "E" + it.code } ?: ("E:" + (e::class.simpleName ?: "x")); null }
+
+    var lastErr = ""
 
     /** Returns the ids in the order the AI prefers, or null so the caller keeps its own order. */
     suspend fun rerank(query: String, langs: List<String>, items: List<Track>): List<String>? = try {
@@ -64,7 +66,7 @@ fun AiChatScreen(task: String, title: String, hello: String, onBack: () -> Unit)
         msgs = msgs + ("user" to t.trim()); input = ""; busy = true
         scope.launch {
             val r = Ai.chat(task, msgs)
-            msgs = msgs + ("assistant" to (r ?: "I can't reach the assistant right now. Please try again in a bit."))
+            msgs = msgs + ("assistant" to (r ?: ("I can't reach the assistant right now. Please try again in a bit. (" + (Ai.lastErr.ifEmpty { "E:empty" }) + ")")))
             busy = false
         }
     }

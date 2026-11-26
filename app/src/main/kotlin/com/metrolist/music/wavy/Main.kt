@@ -9,6 +9,9 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -73,7 +76,7 @@ fun WavyApp(pc: PlayerConnection?) {
                 "ob2" -> GenderScreen(taste, { stage = "ob1" }) { stage = "ob3" }
                 "ob3" -> LanguagesScreen(taste) { stage = "picker" }
                 "picker" -> ArtistPicker(taste) { stage = "main" }
-                else -> Shell(pc) { Api.signOut(); stage = "welcome" }
+                else -> Shell(pc) { try { pc?.player?.let { it.pause(); it.stop(); it.clearMediaItems() } } catch (_: Exception) {}; Api.signOut(); stage = "welcome" }
             }
         }
     }
@@ -448,35 +451,65 @@ fun TrackRow(t: Track, pc: PlayerConnection?, onPlay: () -> Unit) {
         }
         Box {
             Icon(painterResource(R.drawable.more_vert), null, Modifier.size(34.dp).clip(CircleShape).clickable { menu = true }.padding(4.dp), tint = Color(0xFFB9B2C4))
-            DropdownMenu(menu, { menu = false }) {
-                DropdownMenuItem(text = { Text("Play next") }, onClick = { menu = false; pc?.playNext(t.toMeta().toMediaItem()) })
-                DropdownMenuItem(text = { Text("Add to queue") }, onClick = { menu = false; pc?.addToQueue(t.toMeta().toMediaItem()) })
-                DropdownMenuItem(text = { Text("Add to playlist") }, onClick = {
-                    menu = false; pick = true
-                    scope.launch {
-                        try {
-                            val a = (Api.rpc("profile_stats") as? JSONObject)?.optJSONArray("playlists")
-                            pls = (0 until (a?.length() ?: 0)).map { a!!.getJSONObject(it) }.filter { !it.optBoolean("is_favourite") }.map { it.optLong("id") to it.optString("name") }
-                        } catch (e: Exception) { }
-                    }
-                })
-                DropdownMenuItem(text = { Text("Like") }, onClick = { menu = false; scope.launch { Toast.makeText(ctx, if (likeTrack(t.id)) "Added to Favourites" else "Could not add. Try again.", Toast.LENGTH_SHORT).show() } })
-                DropdownMenuItem(text = { Text("Share") }, onClick = {
-                    menu = false
-                    ctx.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
-                        .putExtra(android.content.Intent.EXTRA_TEXT, "${t.title} - ${t.artist}\nhttps://music.youtube.com/watch?v=${t.id}"), "Share").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
-                })
-            }
-            DropdownMenu(pick, { pick = false }) {
-                if (pls.isEmpty()) DropdownMenuItem(text = { Text("No playlists yet") }, onClick = { pick = false })
-                pls.forEach { (id, name) ->
-                    DropdownMenuItem(text = { Text(name) }, onClick = {
-                        pick = false
-                        scope.launch {
-                            val ok = try { Api.post("playlist_tracks", JSONObject().put("playlist_id", id).put("track_id", t.id).put("position", (System.currentTimeMillis() / 1000).toInt()).put("added_by", Api.uid)); true } catch (e: Exception) { false }
-                            Toast.makeText(ctx, if (ok) "Added to $name" else "Could not add. Try again.", Toast.LENGTH_SHORT).show()
+            if (menu || pick) {
+                val dls by (WDl.util?.downloads ?: kotlinx.coroutines.flow.MutableStateFlow(emptyMap())).collectAsState()
+                val isDone = WDl.doneIds(dls).contains(t.id)
+                androidx.compose.ui.window.Dialog(onDismissRequest = { menu = false; pick = false }, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+                    Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { menu = false; pick = false }) {
+                        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(Color(0xF2121018)).clickable(enabled = false) {}.navigationBarsPadding().padding(bottom = 12.dp)) {
+                            Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp).size(width = 44.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x55FFFFFF)))
+                            Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Cover(t.cover, 56.dp, 10)
+                                Column(Modifier.padding(start = 14.dp)) {
+                                    Text(t.title, style = ts(18, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(t.artist, style = ts(14, color = Color(0xFFC9C1D3)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                            @Composable fun R2(icon: Int, title: String, sub: String?, red: Boolean = false, go: () -> Unit) {
+                                Row(Modifier.fillMaxWidth().clickable(onClick = go).padding(horizontal = 24.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(painterResource(icon), null, Modifier.size(24.dp), tint = if (red) Color(0xFFFF6B8A) else Color(0xFFE9E4EE))
+                                    Column(Modifier.padding(start = 20.dp)) {
+                                        Text(title, style = ts(16, FontWeight.Medium, if (red) Color(0xFFFF6B8A) else Color.White))
+                                        if (sub != null) Text(sub, style = ts(12, color = Color(0xFF9F98AB)))
+                                    }
+                                }
+                            }
+                            if (pick) {
+                                Text("Add to playlist", Modifier.padding(horizontal = 24.dp, vertical = 4.dp), style = ts(14, color = Color(0xFF9F98AB)))
+                                if (pls.isEmpty()) Text("No playlists yet", Modifier.padding(24.dp), style = ts(15, color = Color(0xFFB9B2C4)))
+                                Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                                    pls.forEach { (id, name) ->
+                                        R2(R.drawable.playlist_add, name, null) {
+                                            pick = false
+                                            scope.launch {
+                                                val ok = try { Api.post("playlist_tracks", JSONObject().put("playlist_id", id).put("track_id", t.id).put("position", (System.currentTimeMillis() / 1000).toInt()).put("added_by", Api.uid)); true } catch (e: Exception) { false }
+                                                Toast.makeText(ctx, if (ok) "Added to $name" else "Could not add. Try again.", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                R2(R.drawable.skip_next, "Play next", "Plays right after this song") { menu = false; pc?.playNext(t.toMeta().toMediaItem()) }
+                                R2(R.drawable.queue_music, "Add to queue", "Adds to the end of the queue") { menu = false; pc?.addToQueue(t.toMeta().toMediaItem()) }
+                                R2(R.drawable.playlist_add, "Add to playlist", "Pick one of your playlists") {
+                                    menu = false; pick = true
+                                    scope.launch {
+                                        try {
+                                            val a = (Api.rpc("profile_stats") as? JSONObject)?.optJSONArray("playlists")
+                                            pls = (0 until (a?.length() ?: 0)).map { a!!.getJSONObject(it) }.filter { !it.optBoolean("is_favourite") }.map { it.optLong("id") to it.optString("name") }
+                                        } catch (e: Exception) { }
+                                    }
+                                }
+                                R2(R.drawable.favorite_border, "Like", "Add to Favourites") { menu = false; scope.launch { Toast.makeText(ctx, if (likeTrack(t.id)) "Added to Favourites" else "Could not add. Try again.", Toast.LENGTH_SHORT).show() } }
+                                R2(R.drawable.share, "Share", "Send the song link") {
+                                    menu = false
+                                    ctx.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
+                                        .putExtra(android.content.Intent.EXTRA_TEXT, "${t.title} - ${t.artist}\nhttps://music.youtube.com/watch?v=${t.id}"), "Share").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                                }
+                                if (isDone) R2(R.drawable.delete, "Remove download", "Delete the offline copy", red = true) { menu = false; WDl.remove(ctx, t.id); Toast.makeText(ctx, "Removed from Downloads", Toast.LENGTH_SHORT).show() }
+                            }
                         }
-                    })
+                    }
                 }
             }
         }

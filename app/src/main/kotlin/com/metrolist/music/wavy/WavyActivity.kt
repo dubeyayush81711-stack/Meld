@@ -11,6 +11,7 @@ import android.os.IBinder
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -48,7 +49,7 @@ class WavyActivity : ComponentActivity() {
         enableEdgeToEdge()
         Api.init(this); S.init(this); ErrorLog.init(this)
         WDl.util = downloadUtil; WDl.db = database
-        setContent { val d = androidx.compose.ui.platform.LocalDensity.current; androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(d.density, minOf(d.fontScale, 1f))) { WavyApp(pc) } }
+        setContent { val d = androidx.compose.ui.platform.LocalDensity.current; androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(d.density, minOf(d.fontScale, 1f))) { androidx.compose.material3.MaterialTheme(colorScheme = androidx.compose.material3.darkColorScheme(primary = Color(0xFFFF2D87), surface = Color(0xFF14111A), background = Color(0xFF0B0A10), surfaceVariant = Color(0xFF1E1A26), surfaceContainer = Color(0xFF1A1620), surfaceContainerHigh = Color(0xFF1E1A26), surfaceContainerHighest = Color(0xFF241F2D), surfaceContainerLow = Color(0xFF14111A), surfaceContainerLowest = Color(0xFF0B0A10), onSurface = Color.White, onSurfaceVariant = Color(0xFFB9B2C4), onBackground = Color.White, outline = Color(0x33FFFFFF), outlineVariant = Color(0x22FFFFFF)), shapes = androidx.compose.material3.Shapes(extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(16.dp), small = androidx.compose.foundation.shape.RoundedCornerShape(16.dp), medium = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), large = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(28.dp))) { WavyApp(pc) } } }
     }
 
     override fun onStart() {
