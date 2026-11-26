@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -124,6 +125,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val playing by (pc?.isPlaying ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }).collectAsState()
     if (showMic) MicScreen(onClose = { showMic = false }, onResult = { said -> showMic = false; q = said; submitted = said; filter = "All"; saveHistory(ctxS, said); hist = loadHistory(ctxS) })
+    var searchFocused by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize().background(W.Bg)) {
         LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 210.dp)) {
             col {
@@ -133,7 +135,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                         Spacer(Modifier.width(12.dp))
                         Box(Modifier.weight(1f)) {
                             if (q.isEmpty()) Text("Search", style = ts(18, color = Color(0xCCFFFFFF)))
-                            BasicTextField(q, { q = it; submitted = null }, singleLine = true, textStyle = ts(18), cursorBrush = SolidColor(W.Pink), modifier = Modifier.fillMaxWidth(), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search), keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { go(q) }))
+                            BasicTextField(q, { q = it; submitted = null }, singleLine = true, textStyle = ts(18), cursorBrush = SolidColor(W.Pink), modifier = Modifier.fillMaxWidth().onFocusChanged { searchFocused = it.isFocused }, keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search), keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { go(q) }))
                         }
                         if (q.isNotEmpty()) Icon(painterResource(R.drawable.close), null, Modifier.size(22.dp).clickable { q = ""; submitted = null }, tint = Color.White)
                         Icon(painterResource(R.drawable.mic), null, Modifier.padding(start = 10.dp).size(24.dp).clickable { showMic = true }, tint = Color.White)
@@ -143,7 +145,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 }
                 Spacer(Modifier.height(16.dp))
             }
-            if (q.isEmpty() && hist.isNotEmpty()) col {
+            if (q.isEmpty() && hist.isNotEmpty() && searchFocused) col {
                 Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Recent searches", Modifier.weight(1f), style = ts(20, FontWeight.SemiBold))
                     Text("Clear all", Modifier.clickable { clearHistory(ctxS); hist = emptyList() }.padding(8.dp), style = ts(14, FontWeight.Medium, W.Pink))
