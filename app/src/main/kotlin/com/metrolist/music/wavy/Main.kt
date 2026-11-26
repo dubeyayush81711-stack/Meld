@@ -165,12 +165,13 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         }
         Column(Modifier.align(Alignment.BottomCenter)) {
             val chat = page == "agent" || page == "support"
-            if (meta != null && pc != null && tab != 2 && !chat) MiniPlayer(pc) { full = true }
+            if (meta != null && pc != null && tab != 2 && !chat && page != "party" && !PartyState.active) MiniPlayer(pc) { full = true }
             LaunchedEffect(tab) { ErrorLog.screen = listOf("home", "search", "music", "library", "profile").getOrElse(tab) { "tab" + tab } }
             if (pc != null) LaunchedEffect(pc) { pc.error.collect { e -> if (e != null) ErrorLog.report("playback", "Playback error " + e.errorCodeName, e) } }
-if (!chat) NavBar(tab, haze, onDouble = { if (tabs[it].first == "Music") MusicRefresh.n++ }) { page = null; full = false; tab = it }
+if (!chat && !(PartyState.full && page == "party")) NavBar(tab, haze, onDouble = { if (tabs[it].first == "Music") MusicRefresh.n++ }) { page = null; full = false; tab = it }
         }
         if (meta != null && pc != null && tab != 2 && !full && (page == "agent" || page == "support")) IslandPill(pc) { page = null; full = false; tab = 2 }
+        if (meta != null && pc != null && PartyState.active && page != "party" && !full) IslandPill(pc) { page = "party"; full = false }
         AnimatedVisibility(full && pc != null, enter = slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(200)),
             exit = slideOutVertically(tween(300)) { it } + fadeOut(tween(200))) {
             if (pc != null) PlayerScreen(pc) { full = false }

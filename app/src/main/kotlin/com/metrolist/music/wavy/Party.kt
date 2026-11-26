@@ -135,16 +135,22 @@ fun partyErr(e: Exception): String { val m = (e.message ?: "").lowercase(); retu
 @Composable
 fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: () -> Unit) {
     val scope = rememberCoroutineScope(); val ctx = LocalContext.current
+    // The room is its own playback space: the user's own queue is stopped on entry, and everything stops when the room is left or ends.
+    val leaveRoom = { PartyState.active = false; PartyState.full = false; try { pc?.player?.let { it.pause(); it.clearMediaItems() } } catch (_: Exception) { }; onLeft() }
+    LaunchedEffect(pid) { PartyState.active = true; try { pc?.player?.let { it.pause(); it.clearMediaItems() } } catch (_: Exception) { } }
     var st by remember { mutableStateOf<JSONObject?>(null) }
     var tab by remember { mutableIntStateOf(0) }
     var msg by remember { mutableStateOf("") }; var q by remember { mutableStateOf("") }
     var found by remember { mutableStateOf<List<Track>>(emptyList()) }
     var tick by remember { mutableIntStateOf(0) }
     var settings by remember { mutableStateOf(false) }
+    var showMic by remember { mutableStateOf(false) }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { PartyState.full = false } }
     val partyLife = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(pid, tick) { partyLife.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) { while (true) { try { st = call("party_state", "p_party" to pid) as? JSONObject } catch (e: Exception) { }; delay(1800) } } }
     LaunchedEffect(q) { if (q.length < 2) { found = emptyList(); return@LaunchedEffect }; delay(350)
-        try { found = ((Api.rpc("search_all", JSONObject().put("p_q", q).put("p_limit", 20)) as? JSONObject)?.optJSONArray("tracks")).tracks() } catch (e: Exception) { } }
+        try { found = ((Api.rpc("search_all", JSONObject().put("p_q", q).put("p_limit", 20)) as? JSONObject)?.optJSONArray("tracks")).tracks() } catch (e: Exception) { }
+        if (found.isEmpty()) found = try { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.metrolist.innertube.YouTube.search(q, com.metrolist.innertube.YouTube.SearchFilter.FILTER_SONG).getOrNull()?.items?.mapNotNull { it.asTrack() } ?: emptyList() } } catch (e: Exception) { emptyList() } }
     val s = st
     // keep this phone in step with the room
     LaunchedEffect(s?.optJSONObject("playback")?.optInt("version"), s?.optJSONObject("playback")?.optString("queue_id")) {
@@ -154,7 +160,7 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
         val pos = pb.optLong("position_ms"); if (kotlin.math.abs(pc.player.currentPosition - pos) > 2500) pc.player.seekTo(pos)
         if (pb.optBoolean("is_playing")) pc.player.play() else pc.player.pause()
     }
-    LaunchedEffect(s?.optBoolean("ended")) { if (s?.optBoolean("ended") == true) { Toast.makeText(ctx, "The party ended", Toast.LENGTH_SHORT).show(); onLeft() } }
+    LaunchedEffect(s?.optBoolean("ended")) { if (s?.optBoolean("ended") == true) { Toast.makeText(ctx, "The party ended", Toast.LENGTH_SHORT).show(); leaveRoom() } }
     if (s == null || s.optString("my_status") != "active") { Backdrop { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(if (s?.optString("my_status") == "pending") "Waiting for the host to let you in..." else "Joining...", style = ts(16, color = W.Dim)) } }; return }
     val admin = s.optString("my_role") == "admin"; val can = s.optBoolean("my_can_control"); val muted = s.optBoolean("my_muted")
     val pb = s.getJSONObject("playback"); val cur = pb.optJSONObject("track")?.toTrack(); val playing = pb.optBoolean("is_playing"); val qid = pb.optLong("queue_id")
@@ -189,12 +195,17 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                 }
             }
             if (cur != null && !can) Text("Skip votes ${skip.optInt("votes")}/${skip.optInt("needed")}", Modifier.padding(start = 20.dp, top = 6.dp), style = ts(12, color = Color(0xFFCFC8D9)))
+            Text(if (PartyState.full) "Exit full screen" else "Full screen", Modifier.padding(start = 20.dp, top = 6.dp).clickable { PartyState.full = !PartyState.full }, style = ts(12, color = W.Pink))
             Row(Modifier.padding(16.dp, 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 listOf("Queue", "Chat", "People").forEachIndexed { i, n -> Box(Modifier.clip(RoundedCornerShape(50)).background(if (tab == i) W.Pink else Color(0x2EFFFFFF)).clickable { tab = i }.padding(horizontal = 20.dp, vertical = 9.dp)) { Text(n, style = ts(15, FontWeight.SemiBold)) } }
             }
             when (tab) {
                 0 -> Column(Modifier.weight(1f)) {
-                    PillField(q, { q = it }, "Search a song to add")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f)) { PillField(q, { q = it }, "Search a song to add") }
+                        Icon(painterResource(R.drawable.mic), null, tint = Color.White, modifier = Modifier.padding(end = 16.dp).size(26.dp).clickable { showMic = true })
+                    }
+                    if (showMic) MicScreen(onClose = { showMic = false }, onResult = { said -> showMic = false; q = said })
                     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 24.dp)) {
                         if (q.length >= 2) items(found) { t -> TrackRow(t, null) { scope.launch { try { call("party_add_song", "p_party" to pid, "p_video_id" to t.id); q = ""; tick++ } catch (e: Exception) { Toast.makeText(ctx, humanErr(e), Toast.LENGTH_SHORT).show() } } } }
                         else items((0 until queue.length()).map { queue.getJSONObject(it) }) { it2 ->
@@ -246,11 +257,11 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                 Ctl(R.drawable.chat_bubble, "Chat", tab == 1) { tab = 1 }
                 Ctl(R.drawable.group, "People", tab == 2) { tab = 2 }
                 Ctl(R.drawable.share, "Invite") { ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "Join my Wavy party. Code: ${s.optString("code")}"), "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                Ctl(R.drawable.close, if (admin) "End" else "Leave", red = true) { if (admin) confirmEnd = true else scope.launch { try { call("party_leave", "p_party" to pid); onLeft() } catch (e: Exception) { } } }
+                Ctl(R.drawable.close, if (admin) "End" else "Leave", red = true) { if (admin) confirmEnd = true else scope.launch { try { call("party_leave", "p_party" to pid); leaveRoom() } catch (e: Exception) { } } }
             }
         }
         if (confirmEnd) AlertDialog(onDismissRequest = { confirmEnd = false }, title = { Text("End party for everyone?") }, text = { Text("Everyone in the room is removed and the room closes.") },
-            confirmButton = { Text("End party", Modifier.clickable { confirmEnd = false; scope.launch { try { call("party_end", "p_party" to pid); onLeft() } catch (e: Exception) { } } }.padding(12.dp), color = Color(0xFFFF6B8A)) },
+            confirmButton = { Text("End party", Modifier.clickable { confirmEnd = false; scope.launch { try { call("party_end", "p_party" to pid); leaveRoom() } catch (e: Exception) { } } }.padding(12.dp), color = Color(0xFFFF6B8A)) },
             dismissButton = { Text("Cancel", Modifier.clickable { confirmEnd = false }.padding(12.dp), color = Color.White) })
         if (settings) {
             val set = s.getJSONObject("settings")
@@ -274,3 +285,7 @@ fun PartyBackdrop(tint: Color, content: @Composable androidx.compose.foundation.
         drawRect(Brush.verticalGradient(listOf(tint.copy(alpha = 0.16f), Color.Transparent), 0f, size.height * 0.4f))
     }, content = content)
 }
+
+
+/** True while this phone is in a Party room. The normal mini player is replaced by the island pill, and room songs are the only ones playing. */
+object PartyState { var active by mutableStateOf(false); var full by mutableStateOf(false) }
