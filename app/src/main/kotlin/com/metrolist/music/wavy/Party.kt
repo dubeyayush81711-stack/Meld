@@ -145,6 +145,8 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
     var tick by remember { mutableIntStateOf(0) }
     var settings by remember { mutableStateOf(false) }
     var showMic by remember { mutableStateOf(false) }
+    var lockInfo by remember { mutableStateOf<JSONObject?>(null) }
+    LaunchedEffect(pid, tick) { try { lockInfo = call("party_locks", "p_party" to pid) as? JSONObject } catch (e: Exception) { } }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { PartyState.full = false } }
     val partyLife = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(pid, tick) { partyLife.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) { while (true) { try { st = call("party_state", "p_party" to pid) as? JSONObject } catch (e: Exception) { }; delay(1800) } } }
@@ -244,7 +246,10 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                                 else { Icon(painterResource(R.drawable.more_vert), null, Modifier.size(28.dp).clickable { menu = true }, tint = Color.White)
                                     DropdownMenu(menu, { menu = false }) {
                                         listOf(if (m.optBoolean("can_control")) "listen_only" to "Listen only" else "allow_control" to "Allow control", if (m.optBoolean("muted")) "unmute" to "Unmute chat" else "mute" to "Mute chat", "remove" to "Remove").forEach { (a, l) ->
-                                            DropdownMenuItem(text = { Text(l) }, onClick = { menu = false; scope.launch { try { call("party_member_action", "p_party" to pid, "p_user" to uid, "p_action" to a); tick++ } catch (e: Exception) { } } }) } } }
+                                            DropdownMenuItem(text = { Text(l) }, onClick = { menu = false; scope.launch { try { call("party_member_action", "p_party" to pid, "p_user" to uid, "p_action" to a); tick++ } catch (e: Exception) { } } }) }
+                                        val gr = lockInfo?.optJSONObject("members")?.optJSONArray(uid)
+                                        val has = (0 until (gr?.length() ?: 0)).any { gr!!.optString(it) == "add" }
+                                        DropdownMenuItem(text = { Text(if (has) "Take back song adding" else "Let add songs") }, onClick = { menu = false; scope.launch { try { call("party_grant", "p_party" to pid, "p_user" to uid, "p_feature" to "add", "p_on" to !has); tick++ } catch (e: Exception) { } } }) } }
                             }
                         }
                     }
@@ -270,6 +275,10 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                 Column {
                     listOf(Triple("invite_locked", "Lock invite code", set.optBoolean("invite_locked")), Triple("require_approval", "Approve people before they join", set.optBoolean("require_approval")), Triple("default_can_control", "Everyone can control playback", set.optBoolean("default_can_control"))).forEach { (k, l, v) ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) { Text(l, Modifier.weight(1f)); Switch(v, { nv -> scope.launch { try { call("party_settings", "p_party" to pid, "p_" + k to nv); tick++ } catch (e: Exception) { } } }) } }
+                    val lk = lockInfo?.optJSONObject("locks")
+                    Text("Lock for members (you can still allow people one by one)", Modifier.padding(top = 10.dp, bottom = 2.dp), style = ts(12, color = Color(0xFFB9B2C4)))
+                    listOf("add" to "Adding songs", "skip" to "Skip votes", "chat" to "Chat").forEach { (k, l) ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) { Text(l, Modifier.weight(1f)); Switch(lk?.optBoolean(k) == true, { nv -> scope.launch { try { call("party_set_lock", "p_party" to pid, "p_feature" to k, "p_locked" to nv); tick++ } catch (e: Exception) { Toast.makeText(ctx, "Could not change this", Toast.LENGTH_SHORT).show() } } }) } }
                     Text("Room theme", Modifier.padding(top = 10.dp, bottom = 6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { PARTY_THEMES.forEach { (n, c) -> Box(Modifier.size(36.dp).clip(CircleShape).background(c).border(if (S.s("party_theme_$pid", "Wavy") == n) 3.dp else 1.dp, if (S.s("party_theme_$pid", "Wavy") == n) W.Pink else Color(0x55FFFFFF), CircleShape).clickable { S.put("party_theme_$pid", n); themeTick++ }) } }
                     Text("New code", Modifier.padding(top = 10.dp).clickable { scope.launch { try { call("party_settings", "p_party" to pid, "p_new_code" to true); tick++ } catch (e: Exception) { } } }, color = W.Pink)
