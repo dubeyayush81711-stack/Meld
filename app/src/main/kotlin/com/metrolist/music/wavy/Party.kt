@@ -299,7 +299,7 @@ fun RoomPill(onGo: () -> Unit) {
         exit = androidx.compose.animation.slideOutVertically(androidx.compose.animation.core.tween(200)) { -it } + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(150))) {
         Box(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 6.dp, start = 12.dp, end = 12.dp), contentAlignment = Alignment.TopCenter) {
             Row(Modifier.widthIn(max = 380.dp).fillMaxWidth().height(52.dp).clip(RoundedCornerShape(26.dp)).background(Color.Black).clickable(onClick = onGo).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                coil.compose.AsyncImage(ps.thumb, null, Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0x22FFFFFF)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                coil3.compose.AsyncImage(ps.thumb, null, Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0x22FFFFFF)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                 Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
                     Text(if (ps.title.isEmpty()) "Party room" else ps.title, style = ts(13, androidx.compose.ui.text.font.FontWeight.SemiBold), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     Text((if (ps.playing) "Playing" else "Paused") + " · " + ps.members + " in room" + (if (ps.artist.isNotEmpty()) " · " + ps.artist else ""), style = ts(11, color = Color(0xFFB9B2C4)), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
