@@ -98,7 +98,18 @@ fun MicScreen(onClose: () -> Unit, onResult: (String) -> Unit) {
                 }
                 val sc by animateFloatAsState(1f + level * 0.35f, tween(120), label = "lv")
                 Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 90.dp).size(190.dp).clickable { if (!granted) perm.launch(Manifest.permission.RECORD_AUDIO) else restart++ }, contentAlignment = Alignment.Center) {
-                    Canvas(Modifier.fillMaxSize().scale(sc)) { drawCircle(Color(0x66FFFFFF), radius = size.minDimension / 2f, style = Stroke(2f)) }
+                    val rip = rememberInfiniteTransition(label = "rip")
+                    val rt by rip.animateFloat(0f, 1f, infiniteRepeatable(tween(2600, easing = LinearEasing), RepeatMode.Restart), label = "rt")
+                    Canvas(Modifier.fillMaxSize()) {
+                        val c = Offset(size.width / 2, size.height / 2); val r0 = 55.dp.toPx(); val span = 150.dp.toPx() * (1f + level * 0.5f)
+                        if (Reduce.on) drawCircle(Color(0x66FFFFFF), r0 * 1.7f * sc, c, style = Stroke(2f))
+                        else for (k in 0..3) {
+                            val t = (rt + k / 4f) % 1f; val e = 1f - (1f - t) * (1f - t)
+                            val a = (1f - t) * (0.28f + 0.5f * level)
+                            drawCircle(Brush.radialGradient(listOf(Color(0x00FF2E7E), Color(0xFFFF2E7E).copy(alpha = a * 0.55f)), center = c, radius = r0 + span * e), r0 + span * e, c)
+                            drawCircle(Color(0xFFFF4F8B).copy(alpha = a), r0 + span * e, c, style = Stroke(2.5f.dp.toPx() * (1f - t) + 1f))
+                        }
+                    }
                     Box(Modifier.size(110.dp).clip(CircleShape).background(W.Pink), contentAlignment = Alignment.Center) {
                         Icon(painterResource(R.drawable.mic), "Mic", Modifier.size(46.dp), tint = Color.White)
                     }

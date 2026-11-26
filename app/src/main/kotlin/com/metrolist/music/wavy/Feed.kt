@@ -160,9 +160,12 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
         val m = meta ?: return@LaunchedEffect
         if (first?.id != m.id && feed.none { it.id == m.id }) first = Track(m.id, m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, m.duration, m.artists.firstOrNull()?.id, m.album?.title)
     }
-    val tracks = remember(feed, refreshN, first) {
+    val tracks = remember(feed, refreshN, first, meta?.id) {
+        val curId = meta?.id
         val head = listOfNotNull(first); val hk = head.map { normKey(it) }.toSet()
-        head + feed.filter { it.id != first?.id && normKey(it) !in hk }.distinctBy { normKey(it) }
+        val curKey = feed.firstOrNull { it.id == curId }?.let { normKey(it) }
+        // the song the player is actually on is never dropped, so the page can always follow it
+        head + feed.filter { it.id != first?.id && (it.id == curId || (normKey(it) !in hk && normKey(it) != curKey)) }.distinctBy { if (it.id == curId) "cur:" + it.id else normKey(it) }
     }
     if (tracks.isEmpty()) {
         Backdrop { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(err ?: "Loading...", style = ts(15, color = W.Dim)) } }
@@ -182,8 +185,9 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
     LaunchedEffect(langs) { if (langSkip) langSkip = false else { seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; first = null; refreshN++ } }
     LaunchedEffect(refreshN) { if (refreshN > 0) { lastDriven = 0; pager.scrollToPage(0) } }
     // when the song changes by itself (auto next, notification, screen off/on), the pager follows it; it never forces a song
-    LaunchedEffect(meta?.id, first?.id) {
+    LaunchedEffect(meta?.id, first?.id, tracks.size) {
         val idx = tracks.indexOfFirst { it.id == meta?.id }
+        if (idx < 0) { meta?.let { m -> first = Track(m.id, m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, m.duration, m.artists.firstOrNull()?.id, m.album?.title) } }
         if (idx >= 0 && idx != pager.currentPage && !pager.isScrollInProgress) { lastDriven = idx; pager.scrollToPage(idx) }
     }
     var pull by remember { mutableFloatStateOf(0f) }
