@@ -21,7 +21,7 @@ private val typeCache = object : LinkedHashMap<String, SPage>(32, 0.75f, true) {
 
 suspend fun meldSummary(q: String): List<SSection> = withContext(Dispatchers.IO) {
     sumCache[q.lowercase()]?.let { return@withContext it }
-    val r = YouTube.searchSummary(q).getOrNull()?.summaries?.map { SSection(it.title, it.items) } ?: emptyList()
+    val r = promoteBest(q, YouTube.searchSummary(q).getOrNull()?.summaries?.map { SSection(it.title, it.items) } ?: emptyList())
     if (r.isNotEmpty()) sumCache[q.lowercase()] = r
     r
 }
@@ -88,4 +88,30 @@ fun rankTyped(q: String, items: List<YTItem>): List<YTItem> {
         }
     }
     return items.withIndex().sortedByDescending { (i, x) -> rel(x) * 0.65 + 0.35 / (1 + i * 0.15) }.map { it.value }
+}
+
+private fun phon(x: String) = fold(x).replace(Regex("[^a-z0-9 ]"), "").replace(Regex("(.)\\1+"), "$1").replace(Regex("h(?=\\b|[aeiou])"), "").replace(Regex("[aeiouy]"), "")
+
+private fun titleScore(q: String, x: YTItem): Double {
+    val want = fold(q); if (want.isEmpty()) return 0.0
+    val t = fold(x.title)
+    if (t == want) return 1.0
+    val ws = want.split(' ').filter { it.length > 1 }; if (ws.isEmpty()) return 0.0
+    val hit = ws.count { t.contains(it) } / ws.size.toDouble()
+    val pw = phon(want); val pt = phon(x.title)
+    val ph = if (pw.length >= 4 && (pt.contains(pw) || pw.contains(pt) && pt.length >= 4)) 0.9 else 0.0
+    return maxOf(if (t.startsWith(want)) 0.95 else 0.0, hit * 0.9, ph)
+}
+
+/** An exact or near-exact title match goes first as the Top result; artist matches only lead when nothing matches by title. */
+fun promoteBest(q: String, secs: List<SSection>): List<SSection> {
+    if (secs.isEmpty()) return secs
+    val ranked = secs.map { SSection(it.title, if (it.items.any { i -> i is SongItem }) rankTyped(q, it.items) else it.items) }
+    var best: YTItem? = null; var bs = 0.0
+    ranked.forEach { sec -> sec.items.filter { it is SongItem || it is YAlbum }.forEachIndexed { i, x -> val sc = titleScore(q, x) - i * 0.001; if (sc > bs) { bs = sc; best = x } } }
+    val b = best ?: return ranked
+    if (bs < 0.8) return ranked
+    val top = ranked.indexOfFirst { it.title.contains("Top", true) }
+    if (top < 0) return listOf(SSection("Top result", listOf(b))) + ranked.map { SSection(it.title, it.items.filterNot { i -> i.id == b.id }) }.filter { it.items.isNotEmpty() }
+    return ranked.mapIndexed { i, sec -> if (i == top) SSection(sec.title, listOf(b) + sec.items.filterNot { it.id == b.id }) else SSection(sec.title, sec.items.filterNot { it.id == b.id }) }.filter { it.items.isNotEmpty() }
 }
