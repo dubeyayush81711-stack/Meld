@@ -302,6 +302,19 @@ fun ProSettings(onBack: () -> Unit, askMic: () -> Unit) {
                 }
             }
         }
+        run {
+            val hp = WavyFx.device.value.first.let { it == "earbuds" || it == "wired" }
+            val e8 = boolPref("fx_8d", false)
+            Box(Modifier.alpha(if (hp) 1f else 0.4f)) {
+                if (hp) Column {
+                    SToggle("8D audio", "Sound slowly circles around your head. Earphones only.", e8)
+                    if (e8.value) { var sp8 by floatPref("fx_8d_speed", 0.3f); SSlider("Rotation speed", sp8) { sp8 = it } }
+                } else Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f).padding(end = 16.dp)) { Text("8D audio", style = ts(17, FontWeight.Medium)); Text("Connect Bluetooth or wired earphones to turn this on.", style = ts(13, color = Color(0xFFB9B2C4))) }
+                    Switch2(false)
+                }
+            }
+        }
         SDivider()
         SSection("Beat effects")
         SNote("Beat effects listen to the song's own sound. Android asks for the microphone permission for that, nothing is recorded.")

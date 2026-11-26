@@ -198,6 +198,11 @@ object WavyFx {
         if (kind != "earbuds" && kind != "wired") spaceV = 0f   // 3D audio only with earphones
         if (S.b("gym_mode")) bassV = 1f
         if (pocket) { bassV = 1f }
+        run {
+            val hp = kind == "earbuds" || kind == "wired"
+            WavySpatial.rotationHz = 0.05f + 0.35f * S.f("fx_8d_speed", 0.3f)
+            WavySpatial.mode = if (hp && S.b("fx_8d")) 2 else if (hp && S.b("fx_spatial")) 1 else 0
+        }
         try { bass?.let { it.setStrength((bassV * 1000).toInt().toShort()); it.enabled = bassV > 0.01f } } catch (e: Exception) { }
         try { virt?.let {
             if (it.strengthSupported) it.setStrength((spaceV * 1000).toInt().toShort())
