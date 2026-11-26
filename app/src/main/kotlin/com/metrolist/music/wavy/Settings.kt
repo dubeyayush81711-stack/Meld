@@ -90,6 +90,7 @@ fun SettingsHub(onBack: () -> Unit, onSignOut: () -> Unit = {}, go: (String) -> 
     SPage("Settings", onBack) {
         Spacer(Modifier.height(10.dp))
         SNav("Content and display", "Videos, languages, explicit content and display") { go("set:content") }
+        SNav("Display", "Theme, font and look of Wavy") { go("set:display") }
         SNav("Playback", "Audio quality, gapless playback, autoplay") { go("set:playback") }
         SNav("Data-saving and offline", "Data saver, storage and cache") { go("set:data") }
         SNav("Sound profiles", "Earbuds, speaker and car detection") { go("set:sound") }

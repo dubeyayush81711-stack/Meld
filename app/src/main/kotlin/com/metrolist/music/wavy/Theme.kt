@@ -23,18 +23,18 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.runtime.getValue
 import com.metrolist.music.R
 
-const val WAVY_BUILD = "dev-81"
+const val WAVY_BUILD = "dev-82"
 
 object W {
-    val Pink = Color(0xFFFF2D78)
-    val Pink2 = Color(0xFFF53D8C)
-    val Violet = Color(0xFF8E3BEA)
-    val Bg = Color(0xFF0B141A)
+    val Pink get() = Theming.cur().accent
+    val Pink2 get() = Theming.cur().accent
+    val Violet get() = Theming.cur().accent2
+    val Bg get() = Theming.cur().bg
     val Bg2 = Color(0xFF0D0A12)
     val Card = Color(0xFF1B1920)
     val Maroon = Color(0xFF3B0C20)
     val Dim = Color(0xFFA9A3B3)
-    val Grad = Brush.linearGradient(listOf(Color(0xFFFF3D8B), Color(0xFF8E3BEA)))
+    val Grad get() = Brush.linearGradient(listOf(Theming.cur().accent, Theming.cur().accent2))
 }
 
 @OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
@@ -52,7 +52,7 @@ val Poppins = FontFamily(
 )
 
 fun ts(size: Int, weight: FontWeight = FontWeight.Normal, color: Color = Color.White) =
-    TextStyle(fontFamily = Figtree, fontSize = (size * 0.92f).sp, fontWeight = weight, color = color, lineHeight = (size * 0.92f * 1.25f).sp)
+    TextStyle(fontFamily = Theming.family(), fontSize = (size * 0.92f).sp, fontWeight = weight, color = color, lineHeight = (size * 0.92f * 1.25f).sp)
 
 /** Liquid-glass surface (from Ayush's glass design): translucent gradient, light rim, soft shadow. Central place to restyle. */
 fun Modifier.glass(shape: androidx.compose.ui.graphics.Shape, strength: Float = 1f): Modifier = this

@@ -151,6 +151,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
                     p == "editprofile" -> EditProfileRoute { page = null }
                     p == "set:hub" -> SettingsHub({ page = null }, onSignOut) { page = it }
                     p == "set:content" -> ContentSettings { page = "set:hub" }
+                    p == "set:display" -> DisplaySettings { page = "set:hub" }
                     p == "set:playback" -> PlaybackSettings { page = "set:hub" }
                     p == "set:data" -> DataSettings { page = "set:hub" }
                     p == "set:sound" -> SoundProfiles { page = "set:hub" }
