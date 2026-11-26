@@ -205,6 +205,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
         }
     }
     LaunchedEffect(pager.interactionSource) { pager.interactionSource.interactions.collect { if (it is androidx.compose.foundation.interaction.DragInteraction.Start) userMoved = true } }
+    LaunchedEffect(meta?.id) { meta?.let { m -> Played.mark(Track(m.id, m.title.toString(), m.artists.joinToString { it.name }, null, 0, null, null)) } }
     LaunchedEffect(pager.settledPage, pc != null) {
         if (pc == null) return@LaunchedEffect
         val cur = tracks[pager.settledPage]

@@ -334,7 +334,7 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
             if (chip == "Downloads") col {
                 val dls by (WDl.util?.downloads ?: kotlinx.coroutines.flow.MutableStateFlow(emptyMap())).collectAsState()
                 val ids = WDl.doneIds(dls)
-                val tl = remember(ids) { ids.mapNotNull { WDl.toTrack(it) } }
+                val tl by produceState(emptyList<Track>(), ids) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ids.mapNotNull { WDl.toTrack(it) } } }
                 if (tl.isEmpty()) Text("Open a song in the player, tap the tune icon and choose Download. Downloaded songs play offline.", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
                 else {
                     Row(Modifier.padding(20.dp, 4.dp, 20.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
