@@ -46,7 +46,7 @@ class WavyActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        Api.init(this); S.init(this)
+        Api.init(this); S.init(this); ErrorLog.init(this)
         WDl.util = downloadUtil; WDl.db = database
         setContent { val d = androidx.compose.ui.platform.LocalDensity.current; androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(d.density, minOf(d.fontScale, 1f))) { WavyApp(pc) } }
     }

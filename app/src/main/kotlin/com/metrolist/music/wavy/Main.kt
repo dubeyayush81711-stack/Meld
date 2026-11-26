@@ -141,6 +141,8 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         }
         Column(Modifier.align(Alignment.BottomCenter)) {
             if (meta != null && pc != null && tab != 2) MiniPlayer(pc) { full = true }
+            LaunchedEffect(tab) { ErrorLog.screen = listOf("home", "search", "music", "library", "profile").getOrElse(tab) { "tab" + tab } }
+            if (pc != null) LaunchedEffect(pc) { pc.error.collect { e -> if (e != null) ErrorLog.report("playback", "Playback error " + e.errorCodeName, e) } }
             NavBar(tab, haze, onDouble = { if (tabs[it].first == "Music") MusicRefresh.n++ }) { page = null; full = false; tab = it }
         }
         AnimatedVisibility(full && pc != null, enter = slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(200)),

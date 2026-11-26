@@ -64,7 +64,7 @@ object Api {
         if (authed && (code == 401 || (code == 400 && body.contains("JWT")))) {
             if (refreshToken()) { val r = once(); code = r.first; body = r.second }
         }
-        if (code !in 200..299) throw ApiError(errText(body, code), code)
+        if (code !in 200..299) { if (code != 401 && code != 429 && !b.build().url.encodedPath.contains("/functions/")) ErrorLog.report("network", "HTTP " + code + " " + b.build().method + " " + b.build().url.encodedPath + " " + body.take(120)); throw ApiError(errText(body, code), code) }
         body
     }
 

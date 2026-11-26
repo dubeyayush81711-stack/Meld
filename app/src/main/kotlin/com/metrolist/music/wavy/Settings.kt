@@ -210,6 +210,7 @@ fun AboutSettings(onBack: () -> Unit, go: (String) -> Unit = {}) {
     SPage("About and support", onBack) {
         Row(Modifier.padding(20.dp, 28.dp)) { Text("Version", Modifier.weight(1f), style = ts(18, FontWeight.Medium)); Text("${ver ?: ""} ($WAVY_BUILD)", style = ts(15, color = Color(0xFFB9B2C4))) }
         SDivider()
+        SToggle("Send error reports", "Sends crashes and errors (app version, screen, error text, phone model). No personal data.", boolPref("send_errors", true))
         SNav("Third-party licenses", "Wavy is built on open-source software (GPL-3.0).") { }
         SNav("Talk with agent", "Ask how Wavy works or report a bug.") { go("support") }
     }
