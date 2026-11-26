@@ -222,7 +222,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                         }
                     }
                 }
-                val sm = summary; val ty = typed
+                val sm = summary?.map { SSection(it.title, dedupeItems(it.items)) }; val ty = typed?.let { dedupeItems(it) }
                 if (filter == "All" && sm != null) {
                     val songsAll = sm.flatMap { it.items }.mapNotNull { it.asTrack() }
                     sm.forEach { sec ->
@@ -247,7 +247,7 @@ fun ResultRow(it0: com.metrolist.innertube.models.YTItem, pc: PlayerConnection?,
     val t = it0.asTrack()
     if (t != null) { TrackRow(t, pc) { playTracks(pc, songs, songs.indexOfFirst { it.id == t.id }.coerceAtLeast(0), "Search") }; return }
     val artist = it0 is com.metrolist.innertube.models.ArtistItem
-    Row(Modifier.fillMaxWidth().clickable { if (artist) onArtist(it0.title) else playItem(pc, it0) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().clickable { if (artist) (ArtistNav.open?.invoke(it0.id, it0.title) ?: onArtist(it0.title)) else playItem(pc, it0) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Cover(it0.thumbnail, 56.dp, if (artist) 50 else 10)
         Column(Modifier.weight(1f).padding(start = 14.dp)) {
             Text(it0.title, style = ts(16, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -370,7 +370,7 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
             } else col {
                 artists.chunked(3).forEach { row ->
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        row.forEach { a -> Column(Modifier.weight(1f)) { Cover(a.thumb, 110.dp, 55, Modifier.align(Alignment.CenterHorizontally))
+                        row.forEach { a -> Column(Modifier.weight(1f).clickable { ArtistNav.open?.invoke(a.id, a.name) }) { Cover(a.thumb, 110.dp, 55, Modifier.align(Alignment.CenterHorizontally))
                             Text(a.name, Modifier.padding(top = 8.dp), style = ts(15, FontWeight.SemiBold), maxLines = 2); Text("Artist", style = ts(13, color = W.Dim)) } }
                         repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                     }

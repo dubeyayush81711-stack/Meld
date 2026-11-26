@@ -106,6 +106,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         delay(15000)
         try { Api.post("plays", JSONObject().put("user_id", Api.uid).put("track_id", id)) } catch (e: Exception) { }
     }
+    LaunchedEffect(Unit) { ArtistNav.open = { id, n -> page = "artist:" + (id ?: "") + ":" + n } }
     BackHandler(full) { full = false }
     BackHandler(!full && page != null) { page = when { page == "set:hub" -> null; page!!.startsWith("set:") -> "set:hub"; else -> null } }
     BackHandler(!full && tab != 0) { tab = 0 }
@@ -127,6 +128,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
             val p = remember { page ?: "" }.let { page ?: it }
             Box(Modifier.fillMaxSize().background(W.Bg)) {
                 when {
+                    p.startsWith("artist:") -> { val parts = p.split(":", limit = 3); key(p) { ArtistScreen(parts[1].ifBlank { null }, parts[2], pc) { page = null } } }
                     p.startsWith("lang:") -> { val parts = p.split(":"); LangListScreen(parts[2], parts[1], pc) { page = null } }
                     p.startsWith("pl:") -> { val parts = p.split(":", limit = 3); TrackListScreen(parts[2], pc, { page = null }) { loadPlaylistTracks(parts[1].toLong()) } }
                     p == "picker" -> ArtistPicker(null) { page = null }
@@ -388,7 +390,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc
                 SectionHeader(s.title)
                 LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     itemsIndexed(s.artists) { _, a ->
-                        Column(Modifier.width(130.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(Modifier.width(130.dp).clickable { ArtistNav.open?.invoke(a.id, a.name) }, horizontalAlignment = Alignment.CenterHorizontally) {
                             Cover(a.thumb, 130.dp, 65)
                             Text(a.name, Modifier.padding(top = 8.dp), style = ts(14, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
@@ -402,7 +404,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc
                 Spacer(Modifier.height(28.dp))
             }
             s.tracks.isNotEmpty() -> col(s.id) {
-                if (s.type == "more_like") Row(Modifier.padding(start = 20.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (s.type == "more_like") Row(Modifier.padding(start = 20.dp, bottom = 12.dp).clickable { ArtistNav.open?.invoke(null, s.title.removePrefix("More like ")) }, verticalAlignment = Alignment.CenterVertically) {
                     Cover(s.cover, 46.dp, 23)
                     Column(Modifier.padding(start = 12.dp)) {
                         Text("More like", style = ts(13, color = Color(0xFFB9B2C4)))
