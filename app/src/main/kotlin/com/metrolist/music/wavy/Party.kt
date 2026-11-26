@@ -208,7 +208,7 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                     }
                     if (showMic) MicScreen(onClose = { showMic = false }, onResult = { said -> showMic = false; q = said })
                     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 24.dp)) {
-                        if (q.length >= 2) items(found) { t -> TrackRow(t, null) { scope.launch { try { call("party_add_song", "p_party" to pid, "p_video_id" to t.id); q = ""; tick++ } catch (e: Exception) { Toast.makeText(ctx, humanErr(e), Toast.LENGTH_SHORT).show() } } } }
+                        if (q.length >= 2) items(found) { t -> TrackRow(t, null) { scope.launch { try { call("party_add_external_song", "p_party" to pid, "p_video_id" to t.id, "p_title" to t.title, "p_artist" to t.artist, "p_cover" to (t.cover ?: ""), "p_dur" to t.dur); q = ""; tick++ } catch (e: Exception) { Toast.makeText(ctx, humanErr(e), Toast.LENGTH_SHORT).show() } } } }
                         else items((0 until queue.length()).map { queue.getJSONObject(it) }) { it2 ->
                             val t = it2.getJSONObject("track").toTrack(); val id = it2.optLong("id")
                             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
