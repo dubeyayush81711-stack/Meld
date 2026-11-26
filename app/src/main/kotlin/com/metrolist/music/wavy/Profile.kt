@@ -80,7 +80,7 @@ fun EditProfile(name: String, onClose: () -> Unit, onSave: (String) -> Unit) {
         Spacer(Modifier.height(10.dp))
         val pctx = androidx.compose.ui.platform.LocalContext.current
         val av = rememberAvatar(pctx)
-        val picker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()) { u -> if (u != null) AvatarStore.save(pctx, u) }
+        val picker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()) { u -> if (u != null) kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { AvatarStore.save(pctx, u) } }
         Box(Modifier.align(Alignment.CenterHorizontally).size(140.dp).clip(CircleShape).background(W.Grad).clickable { picker.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly)) }, contentAlignment = Alignment.Center) {
             if (av != null) androidx.compose.foundation.Image(av.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
             else Text(n.take(1).uppercase(), style = ts(70, FontWeight.Bold)) }

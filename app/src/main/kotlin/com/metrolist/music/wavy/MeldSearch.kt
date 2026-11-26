@@ -149,12 +149,14 @@ suspend fun viewScores(ids: List<String>): Map<String, Float> = withContext(Disp
     ids.mapNotNull { id -> scoreCache[id]?.let { id to it } }.toMap()
 }
 
-/** Songs with a score take the slots of scored songs, highest score first. Everything else keeps its place. */
+/** Songs with a score take the slots of scored songs, best combined score first (match likelihood + views + recency). Everything else keeps its place. */
 fun byViews(items: List<YTItem>, sc: Map<String, Float>): List<YTItem> {
     if (sc.isEmpty()) return items
     val slots = items.indices.filter { (items[it] as? SongItem)?.let { s -> sc.containsKey(s.id) } == true }
     if (slots.size < 2) return items
-    val sorted = slots.map { items[it] }.sortedByDescending { sc[(it as SongItem).id] ?: 0f }
+    // Final score = views score (log10 views + recency bonus) + 2.5 * match likelihood (1.0 for the top relevance result, down to 0.0 for the last one).
+    val n = slots.size
+    val sorted = slots.mapIndexed { r, pos -> items[pos] to ((sc[(items[pos] as SongItem).id] ?: 0f) + 2.5f * (1f - r.toFloat() / (n - 1))) }.sortedByDescending { it.second }.map { it.first }
     val out = items.toMutableList()
     slots.forEachIndexed { i, pos -> out[pos] = sorted[i] }
     return out

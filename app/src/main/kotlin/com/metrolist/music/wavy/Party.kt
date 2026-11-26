@@ -1,5 +1,6 @@
 package com.metrolist.music.wavy
 
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -138,7 +139,8 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
     var found by remember { mutableStateOf<List<Track>>(emptyList()) }
     var tick by remember { mutableIntStateOf(0) }
     var settings by remember { mutableStateOf(false) }
-    LaunchedEffect(pid, tick) { while (true) { try { st = call("party_state", "p_party" to pid) as? JSONObject } catch (e: Exception) { }; delay(1800) } }
+    val partyLife = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(pid, tick) { partyLife.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) { while (true) { try { st = call("party_state", "p_party" to pid) as? JSONObject } catch (e: Exception) { }; delay(1800) } } }
     LaunchedEffect(q) { if (q.length < 2) { found = emptyList(); return@LaunchedEffect }; delay(350)
         try { found = ((Api.rpc("search_all", JSONObject().put("p_q", q).put("p_limit", 20)) as? JSONObject)?.optJSONArray("tracks")).tracks() } catch (e: Exception) { } }
     val s = st

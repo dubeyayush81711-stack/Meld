@@ -33,6 +33,7 @@
         </intent>
         <package android:name="com.google.android.projection.gearhead" />
     </queries>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <application
         android:name=".App"
         android:allowBackup="true"
@@ -182,7 +183,7 @@
             android:name=".playback.alarm.MusicAlarmRescheduleReceiver"
             android:directBootAware="true"
             android:enabled="true"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

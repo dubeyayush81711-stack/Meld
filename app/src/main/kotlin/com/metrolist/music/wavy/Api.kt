@@ -9,6 +9,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.TimeUnit
 
 class ApiError(message: String, val code: Int = 0) : Exception(message)
@@ -27,9 +28,21 @@ object Api {
     var email: String = ""; private set
     val signedIn get() = refresh.isNotEmpty()
 
+    private var processStarted = false
+    private val refreshLock = kotlinx.coroutines.sync.Mutex()
+
+    private fun clearSession(p: android.content.SharedPreferences) {
+        val rem = p.getBoolean("remember", true)
+        p.edit().clear().putBoolean("remember", rem).apply()
+    }
+
     fun init(ctx: Context) {
         val p = ctx.applicationContext.getSharedPreferences("wavy_session", Context.MODE_PRIVATE); prefs = p
-        if (!p.getBoolean("remember", true) && p.getBoolean("cold", false)) p.edit().clear().apply()
+        // Only a brand-new process can mean "the app was closed". An activity re-create (rotate, dark mode, language) must not log the user out.
+        if (!processStarted) {
+            processStarted = true
+            if (!p.getBoolean("remember", true) && p.getBoolean("cold", false)) clearSession(p)
+        }
         access = p.getString("a", "") ?: ""; refresh = p.getString("r", "") ?: ""
         uid = p.getString("uid", "") ?: ""; email = p.getString("email", "") ?: ""
         p.edit().putBoolean("cold", true).apply()
@@ -40,7 +53,7 @@ object Api {
 
     fun signOut() {
         access = ""; refresh = ""; uid = ""; email = ""
-        prefs?.edit()?.clear()?.apply()
+        prefs?.let { clearSession(it) }
     }
 
     private fun saveSession(j: JSONObject) {
@@ -55,22 +68,26 @@ object Api {
     } catch (e: Exception) { if (body.isNotBlank() && body.length < 200) body else "Error $code" }
 
     private suspend fun exec(b: Request.Builder, authed: Boolean): String = withContext(Dispatchers.IO) {
+        var usedAccess = access
         suspend fun once(): Pair<Int, String> {
+            usedAccess = access
             val rb = b.build().newBuilder().header("apikey", KEY)
                 .header("Authorization", "Bearer " + (if (authed && access.isNotEmpty()) access else KEY)).build()
             http.newCall(rb).execute().use { r -> return r.code to (r.body?.string() ?: "") }
         }
         var (code, body) = try { once() } catch (e: java.io.IOException) { throw ApiError("No connection. Check your internet.") }
         if (authed && (code == 401 || (code == 400 && body.contains("JWT")))) {
-            if (refreshToken()) { val r = once(); code = r.first; body = r.second }
+            if (refreshToken(usedAccess)) { val r = once(); code = r.first; body = r.second }
         }
         if (code !in 200..299) { if (code != 401 && code != 429 && !b.build().url.encodedPath.contains("/functions/")) ErrorLog.report("network", "HTTP " + code + " " + b.build().method + " " + b.build().url.encodedPath + " " + body.take(120)); throw ApiError(errText(body, code), code) }
         body
     }
 
-    private suspend fun refreshToken(): Boolean {
-        if (refresh.isEmpty()) return false
-        return try {
+    /** One refresh at a time. If another request already refreshed while we waited for the lock, reuse its new token instead of spending the old refresh token again. */
+    private suspend fun refreshToken(usedAccess: String): Boolean = refreshLock.withLock {
+        if (access.isNotEmpty() && access != usedAccess) return@withLock true
+        if (refresh.isEmpty()) return@withLock false
+        try {
             val req = Request.Builder().url("$URL/auth/v1/token?grant_type=refresh_token")
                 .post(JSONObject().put("refresh_token", refresh).toString().toRequestBody(JSON))
             saveSession(JSONObject(exec(req, false))); true

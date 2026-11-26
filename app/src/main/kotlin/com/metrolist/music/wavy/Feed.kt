@@ -466,10 +466,9 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
 object MusicRefresh { var n by androidx.compose.runtime.mutableIntStateOf(0) }
 
 object SleepTimer {
-    private var job: kotlinx.coroutines.Job? = null
+    /** Uses the player service's own sleep timer, so it survives this screen closing and fades the music out. */
     fun set(pc: com.metrolist.music.playback.PlayerConnection?, min: Int) {
-        job?.cancel(); if (min <= 0 || pc == null) return
-        job = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) { kotlinx.coroutines.delay(min * 60_000L); pc.player.pause() }
+        try { if (min <= 0) pc?.service?.sleepTimer?.clear() else pc?.service?.sleepTimer?.start(min) } catch (e: Exception) { }
     }
 }
 

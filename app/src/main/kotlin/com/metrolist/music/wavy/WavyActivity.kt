@@ -55,9 +55,10 @@ class WavyActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        val askedPrefs = getSharedPreferences("wavy_flags", MODE_PRIVATE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !askedPrefs.getBoolean("asked_notif", false) &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1000)
+        ) { askedPrefs.edit().putBoolean("asked_notif", true).apply(); ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1000) }
         if (!MusicService.isRunning) {
             try { ContextCompat.startForegroundService(this, Intent(this, MusicService::class.java)) } catch (e: Exception) { }
         }
