@@ -1,5 +1,7 @@
 package com.metrolist.music.wavy
 import androidx.compose.foundation.shape.CircleShape
+import com.metrolist.music.extensions.toMediaItem
+import android.widget.Toast
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
@@ -155,9 +157,9 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
     }
     LaunchedEffect(meta?.id) {
         val m = meta ?: return@LaunchedEffect
-        if (refreshN == 0 && first?.id != m.id && feed.none { it.id == m.id }) first = Track(m.id, m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, m.duration, m.artists.firstOrNull()?.id, m.album?.title)
+        if (first?.id != m.id && feed.none { it.id == m.id }) first = Track(m.id, m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, m.duration, m.artists.firstOrNull()?.id, m.album?.title)
     }
-    val tracks = remember(feed, refreshN, first) { (if (refreshN == 0) listOfNotNull(first) else emptyList()) + feed.filter { it.id != first?.id || refreshN > 0 } }
+    val tracks = remember(feed, refreshN, first) { listOfNotNull(first) + feed.filter { it.id != first?.id } }
     if (tracks.isEmpty()) {
         Backdrop { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(err ?: "Loading...", style = ts(15, color = W.Dim)) } }
         return
@@ -172,11 +174,11 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
             loadingMore = false
         }
     }
-    LaunchedEffect(MusicRefresh.n) { if (MusicRefresh.n > 0) { seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; refreshN++ } }
-    LaunchedEffect(langs) { if (langSkip) langSkip = false else { seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; refreshN++ } }
+    LaunchedEffect(MusicRefresh.n) { if (MusicRefresh.n > 0) { seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; first = null; refreshN++ } }
+    LaunchedEffect(langs) { if (langSkip) langSkip = false else { seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; first = null; refreshN++ } }
     LaunchedEffect(refreshN) { if (refreshN > 0) { lastDriven = 0; pager.scrollToPage(0) } }
     // when the song changes by itself (auto next, notification, screen off/on), the pager follows it; it never forces a song
-    LaunchedEffect(meta?.id) {
+    LaunchedEffect(meta?.id, first?.id) {
         val idx = tracks.indexOfFirst { it.id == meta?.id }
         if (idx >= 0 && idx != pager.currentPage && !pager.isScrollInProgress) { lastDriven = idx; pager.scrollToPage(idx) }
     }
@@ -329,7 +331,8 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
             var titles by remember { mutableStateOf<List<String>>(emptyList()) }
             LaunchedEffect(Unit) { titles = languageTiles().map { it.second } }
             Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { showLang = false })
-            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF2121016)).navigationBarsPadding().padding(20.dp)) {
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF0121016)).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 112.dp)) {
+                Box(Modifier.align(Alignment.CenterHorizontally).padding(bottom = 12.dp).size(width = 40.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x55FFFFFF)))
                 Text("What do you want to hear?", style = ts(18, FontWeight.SemiBold))
                 Text("Pick one or more. The feed follows them.", Modifier.padding(top = 4.dp, bottom = 14.dp), style = ts(13, color = Color(0xFFB9B2C4)))
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -344,7 +347,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
         if (showFx) {
             Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { showFx = false })
             BoxWithConstraints(Modifier.align(Alignment.BottomCenter)) {
-            Column(Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.86f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF2121016)).navigationBarsPadding().verticalScroll(rememberScrollState()).padding(vertical = 14.dp)) {
+            Column(Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.86f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF0121016)).navigationBarsPadding().verticalScroll(rememberScrollState()).padding(top = 14.dp, bottom = 120.dp)) {
                 Text("Music features", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = ts(18, FontWeight.SemiBold))
                 SToggle("Video player", "Play the music video behind the song. Off shows the cover.", videoPref)
                 SToggle("Lyrics", "Show synced lyrics on the cover when a song has them.", lyricsPref)
@@ -356,6 +359,25 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                     Row2("Copy link", "Copy the YouTube Music link of this song.") {
                         (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("song", "https://music.youtube.com/watch?v=${cur.id}")); showFx = false
                     }
+                    val ct = tracks.getOrNull(pager.settledPage)
+                    if (ct != null) {
+                        Text("This song", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = ts(14, FontWeight.SemiBold, W.Pink))
+                        Row2("Add to favourites", "Save it to your liked songs.") { scope.launch { Toast.makeText(ctx, if (likeTrack(ct.id)) "Added to Favourites" else "Could not add. Try again.", Toast.LENGTH_SHORT).show() } }
+                        Row2("Play next", "Plays right after this song.") { pc?.playNext(ct.toMeta().toMediaItem()); Toast.makeText(ctx, "Playing next", Toast.LENGTH_SHORT).show() }
+                        Row2("Add to queue", "Adds it to the end of the queue.") { pc?.addToQueue(ct.toMeta().toMediaItem()); Toast.makeText(ctx, "Added to queue", Toast.LENGTH_SHORT).show() }
+                        var plOpen by remember { mutableStateOf(false) }
+                        var pls by remember { mutableStateOf<List<Pair<Long, String>>>(emptyList()) }
+                        Row2("Add to playlist", "Pick one of your playlists.") { plOpen = !plOpen; if (plOpen) scope.launch { try { val arr = (Api.rpc("profile_stats") as? JSONObject)?.optJSONArray("playlists"); pls = (0 until (arr?.length() ?: 0)).map { arr!!.getJSONObject(it) }.filter { !it.optBoolean("is_favourite") }.map { it.optLong("id") to it.optString("name") } } catch (e: Exception) { } } }
+                        if (plOpen) {
+                            if (pls.isEmpty()) Text("No playlists yet", Modifier.padding(horizontal = 40.dp, vertical = 8.dp), style = ts(14, color = W.Dim))
+                            pls.forEach { (id, nm) -> Text(nm, Modifier.fillMaxWidth().clickable { plOpen = false; scope.launch { val ok = try { Api.post("playlist_tracks", JSONObject().put("playlist_id", id).put("track_id", ct.id).put("position", (System.currentTimeMillis() / 1000).toInt()).put("added_by", Api.uid)); true } catch (e: Exception) { false }; Toast.makeText(ctx, if (ok) "Added to $nm" else "Could not add. Try again.", Toast.LENGTH_SHORT).show() } }.padding(horizontal = 40.dp, vertical = 12.dp), style = ts(16)) }
+                        }
+                        var sleepMin by remember { mutableIntStateOf(0) }
+                        Row2("Sleep timer", if (sleepMin == 0) "Off. Tap to pause the music after 15, 30 or 60 minutes." else "Pausing in $sleepMin min. Tap to change.") {
+                            sleepMin = when (sleepMin) { 0 -> 15; 15 -> 30; 30 -> 60; else -> 0 }
+                            SleepTimer.set(pc, sleepMin)
+                        }
+                    }
                     if (pc != null) Row2("Player options", "Equalizer, tempo and pitch, download and more for this song.") { showFx = false; showOpts = true }
                 }
             }
@@ -365,3 +387,11 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
 }
 /** Double-tapping the Music item in the nav bar bumps this; the feed refreshes. */
 object MusicRefresh { var n by androidx.compose.runtime.mutableIntStateOf(0) }
+
+object SleepTimer {
+    private var job: kotlinx.coroutines.Job? = null
+    fun set(pc: com.metrolist.music.playback.PlayerConnection?, min: Int) {
+        job?.cancel(); if (min <= 0 || pc == null) return
+        job = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) { kotlinx.coroutines.delay(min * 60_000L); pc.player.pause() }
+    }
+}

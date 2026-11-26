@@ -54,6 +54,9 @@ import androidx.compose.material3.*
 import android.content.Intent
 import com.metrolist.music.playback.PlayerConnection
 
+val PARTY_THEMES = listOf("Wavy" to Color(0xFF2B0B3A), "Ocean" to Color(0xFF0B2A4A), "Forest" to Color(0xFF0E3A2A), "Sunset" to Color(0xFF4A1E0B), "Midnight" to Color(0xFF14142E))
+fun partyTheme(key: String): Color = PARTY_THEMES.firstOrNull { it.first == S.s("party_theme_$key", "Wavy") }?.second ?: PARTY_THEMES[0].second
+
 private suspend fun call(fn: String, vararg kv: Pair<String, Any?>): Any? {
     val o = JSONObject(); kv.forEach { o.put(it.first, it.second ?: JSONObject.NULL) }; return Api.rpc(fn, o)
 }
@@ -64,8 +67,42 @@ fun PartyScreen(pc: PlayerConnection?, onBack: () -> Unit) {
     var pid by remember { mutableStateOf<String?>(null) }
     var name by remember { mutableStateOf("") }; var code by remember { mutableStateOf("") }
     var err by remember { mutableStateOf<String?>(null) }; var busy by remember { mutableStateOf(false) }
+    var step by remember { mutableIntStateOf(0) }
+    var optLock by remember { mutableStateOf(false) }; var optApprove by remember { mutableStateOf(false) }; var optControl by remember { mutableStateOf(true) }; var optTheme by remember { mutableStateOf("Wavy") }
     LaunchedEffect(Unit) { try { val a = call("party_mine") as? JSONArray; if (a != null && a.length() > 0 && a.getJSONObject(0).optString("status") == "active") pid = a.getJSONObject(0).optString("id") } catch (e: Exception) { } }
-    if (pid != null) { PartyRoom(pc, pid!!, onLeft = { pid = null }, onBack = onBack); return }
+    if (pid != null) { PartyRoom(pc, pid!!, onLeft = { pid = null; step = 0 }, onBack = onBack); return }
+    if (step == 1) {
+        Backdrop(tint = PARTY_THEMES.first { it.first == optTheme }.second) {
+            Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 22.dp).verticalScroll(rememberScrollState())) {
+                BackBar("Room settings", { step = 0 })
+                Text("Set it up first. You can change all of this live once the room is running.", style = ts(14, color = Color(0xFFCFC8D9)))
+                Spacer(Modifier.height(16.dp))
+                PillField(name, { name = it }, "Party name")
+                Spacer(Modifier.height(14.dp))
+                Column(Modifier.fillMaxWidth().glass(RoundedCornerShape(18.dp)).padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    listOf(Triple("Everyone can control playback", optControl, { v: Boolean -> optControl = v }), Triple("Approve people before they join", optApprove, { v: Boolean -> optApprove = v }), Triple("Lock the invite code", optLock, { v: Boolean -> optLock = v })).forEach { (l, v, set) ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) { Text(l, Modifier.weight(1f), style = ts(15)); Switch(v, { set(it) }) } }
+                }
+                Spacer(Modifier.height(18.dp))
+                Text("Room theme", style = ts(16, FontWeight.SemiBold)); Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PARTY_THEMES.forEach { (n, c) -> Box(Modifier.size(46.dp).clip(CircleShape).background(c).border(if (optTheme == n) 3.dp else 1.dp, if (optTheme == n) W.Pink else Color(0x55FFFFFF), CircleShape).clickable { optTheme = n }) }
+                }
+                Spacer(Modifier.height(28.dp))
+                Box(Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(50)).background(W.Pink).clickable(enabled = !busy) {
+                    busy = true; err = null
+                    scope.launch { try {
+                        val id = ((call("party_create", "p_name" to name.ifBlank { "Party" }) as JSONObject).optString("id"))
+                        try { call("party_settings", "p_party" to id, "p_invite_locked" to optLock, "p_require_approval" to optApprove, "p_default_can_control" to optControl) } catch (e: Exception) { }
+                        S.put("party_theme_$id", optTheme); pid = id
+                    } catch (e: Exception) { err = humanErr(e) }; busy = false }
+                }, contentAlignment = Alignment.Center) { Text(if (busy) "Creating..." else "Create room", style = ts(17, FontWeight.SemiBold)) }
+                if (err != null) Text(err!!, Modifier.padding(top = 14.dp), style = ts(14, color = Color(0xFFFF6B8A)))
+                Spacer(Modifier.height(40.dp))
+            }
+        }
+        return
+    }
     Backdrop(tint = Color(0xFF2B0B3A)) {
         Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 22.dp)) {
             BackBar("Party", onBack)
@@ -74,10 +111,7 @@ fun PartyScreen(pc: PlayerConnection?, onBack: () -> Unit) {
             Spacer(Modifier.height(28.dp))
             PillField(name, { name = it }, "Room name")
             Spacer(Modifier.height(12.dp))
-            Box(Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(50)).background(W.Pink).clickable(enabled = !busy) {
-                busy = true; err = null
-                scope.launch { try { pid = ((call("party_create", "p_name" to name.ifBlank { "Party" }) as JSONObject).optString("id")) } catch (e: Exception) { err = humanErr(e) }; busy = false }
-            }, contentAlignment = Alignment.Center) { Text("Create room", style = ts(17, FontWeight.SemiBold)) }
+            Box(Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(50)).background(W.Pink).clickable { step = 1 }, contentAlignment = Alignment.Center) { Text("Set up room", style = ts(17, FontWeight.SemiBold)) }
             Spacer(Modifier.height(34.dp))
             PillField(code, { code = it.uppercase().take(6) }, "Room code")
             Spacer(Modifier.height(12.dp))
@@ -124,7 +158,9 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
     val skip = s.getJSONObject("skip")
     // the one who can control moves the room to the next song when this one ends
     LaunchedEffect(can, qid) { while (can && qid != 0L) { delay(1500); if (pc?.player?.playbackState == androidx.media3.common.Player.STATE_ENDED) { try { call("party_next", "p_party" to pid, "p_ended_queue" to qid) } catch (e: Exception) { }; break } } }
-    Backdrop(tint = Color(0xFF2B0B3A)) {
+    var themeTick by remember { mutableIntStateOf(0) }
+    var confirmEnd by remember { mutableStateOf(false) }
+    Backdrop(tint = remember(themeTick) { partyTheme(pid) }) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.arrow_back), null, Modifier.size(26.dp).clickable(onClick = onBack), tint = Color.White)
@@ -198,15 +234,28 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                     }
                 }
             }
-            Box(Modifier.fillMaxWidth().padding(bottom = 12.dp).navigationBarsPadding(), contentAlignment = Alignment.Center) {
-                Text(if (admin) "End party" else "Leave party", Modifier.clickable { scope.launch { try { if (admin) call("party_end", "p_party" to pid) else call("party_leave", "p_party" to pid); onLeft() } catch (e: Exception) { } } }, style = ts(15, FontWeight.SemiBold, Color(0xFFFF6B8A))) }
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 168.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                @Composable fun Ctl(icon: Int, label: String, on: Boolean = false, red: Boolean = false, click: () -> Unit) = Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(54.dp).clip(CircleShape).background(if (red) Color(0xFFE5354F) else if (on) W.Pink else Color(0x33FFFFFF)).clickable(onClick = click), contentAlignment = Alignment.Center) { Icon(painterResource(icon), null, Modifier.size(26.dp), tint = Color.White) }
+                    Text(label, Modifier.padding(top = 4.dp), style = ts(11, color = Color(0xFFCFC8D9))) }
+                Ctl(R.drawable.queue_music, "Queue", tab == 0) { tab = 0 }
+                Ctl(R.drawable.chat_bubble, "Chat", tab == 1) { tab = 1 }
+                Ctl(R.drawable.group, "People", tab == 2) { tab = 2 }
+                Ctl(R.drawable.share, "Invite") { ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "Join my Wavy party. Code: ${s.optString("code")}"), "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                Ctl(R.drawable.close, if (admin) "End" else "Leave", red = true) { if (admin) confirmEnd = true else scope.launch { try { call("party_leave", "p_party" to pid); onLeft() } catch (e: Exception) { } } }
+            }
         }
+        if (confirmEnd) AlertDialog(onDismissRequest = { confirmEnd = false }, title = { Text("End party for everyone?") }, text = { Text("Everyone in the room is removed and the room closes.") },
+            confirmButton = { Text("End party", Modifier.clickable { confirmEnd = false; scope.launch { try { call("party_end", "p_party" to pid); onLeft() } catch (e: Exception) { } } }.padding(12.dp), color = Color(0xFFFF6B8A)) },
+            dismissButton = { Text("Cancel", Modifier.clickable { confirmEnd = false }.padding(12.dp), color = Color.White) })
         if (settings) {
             val set = s.getJSONObject("settings")
             AlertDialog(onDismissRequest = { settings = false }, confirmButton = { Text("Done", Modifier.clickable { settings = false }.padding(12.dp), color = W.Pink) }, title = { Text("Room settings") }, text = {
                 Column {
                     listOf(Triple("invite_locked", "Lock invite code", set.optBoolean("invite_locked")), Triple("require_approval", "Approve people before they join", set.optBoolean("require_approval")), Triple("default_can_control", "Everyone can control playback", set.optBoolean("default_can_control"))).forEach { (k, l, v) ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) { Text(l, Modifier.weight(1f)); Switch(v, { nv -> scope.launch { try { call("party_settings", "p_party" to pid, "p_" + k to nv); tick++ } catch (e: Exception) { } } }) } }
+                    Text("Room theme", Modifier.padding(top = 10.dp, bottom = 6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { PARTY_THEMES.forEach { (n, c) -> Box(Modifier.size(36.dp).clip(CircleShape).background(c).border(if (S.s("party_theme_$pid", "Wavy") == n) 3.dp else 1.dp, if (S.s("party_theme_$pid", "Wavy") == n) W.Pink else Color(0x55FFFFFF), CircleShape).clickable { S.put("party_theme_$pid", n); themeTick++ }) } }
                     Text("New code", Modifier.padding(top = 10.dp).clickable { scope.launch { try { call("party_settings", "p_party" to pid, "p_new_code" to true); tick++ } catch (e: Exception) { } } }, color = W.Pink)
                 } })
         }

@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -394,21 +395,57 @@ fun FavPlayer(pc: PlayerConnection) {
     }
 }
 
-/** Language tile screen: "Most viewed" is the backend chart for that language; "Latest hits" is a live YouTube Music search for new songs in it. */
+/** Endless list for one language: backend chart first (Most viewed) or fresh searches (Latest), then older famous songs from YouTube Music, deduped, paged with continuation tokens. */
+class LangPager(val code: String, val title: String, val latest: Boolean) {
+    val seen = HashSet<String>()
+    private var off = 0; private var backendDone = latest
+    private var cont: String? = null; private var qi = 0
+    private val queries: List<String> = (if (latest) listOf("new $title songs 2026", "latest $title songs", "$title new releases") else emptyList()) +
+        listOf("best $title songs of all time", "$title evergreen hits", "top $title songs 2025", "$title hit songs 2024", "$title old classics", "$title hit songs 2023", "$title superhit songs 2022", "$title songs 2021", "$title songs 2020", "$title hits 2019", "$title hits 2018", "$title hits 2017", "$title hits 2016", "$title hits 2015")
+    var exhausted = false
+    suspend fun more(): List<Track> {
+        val out = ArrayList<Track>()
+        var guard = 0
+        while (out.size < 15 && !exhausted && guard++ < 6) {
+            var got: List<Track> = emptyList()
+            if (!backendDone) {
+                got = try { (Api.rpc("language_top", JSONObject().put("p_lang", code).put("p_limit", 30).put("p_offset", off)) as? JSONArray).tracks() } catch (e: Exception) { emptyList() }
+                off += 30; if (got.size < 30) backendDone = true
+            } else {
+                val r = withContext(Dispatchers.IO) {
+                    try {
+                        val c = cont
+                        if (c != null) com.metrolist.innertube.YouTube.searchContinuation(c).getOrNull()?.let { it.items to it.continuation }
+                        else if (qi < queries.size) com.metrolist.innertube.YouTube.search(queries[qi++], com.metrolist.innertube.YouTube.SearchFilter.FILTER_SONG).getOrNull()?.let { it.items to it.continuation }
+                        else null
+                    } catch (e: Exception) { null }
+                }
+                if (r == null) { if (cont != null) cont = null else if (qi >= queries.size) exhausted = true }
+                else { cont = r.second; got = r.first.mapNotNull { it.asTrack() } }
+            }
+            got.forEach { if (seen.add(it.id)) out.add(it) }
+        }
+        return out
+    }
+}
+
+/** Language tile screen: "Most viewed" and "Latest hits" are both endless. */
 @Composable
 fun LangListScreen(title: String, code: String, pc: PlayerConnection?, onBack: () -> Unit) {
     var tab by remember { mutableIntStateOf(0) }
-    var most by remember { mutableStateOf<List<Track>?>(null) }
-    var latest by remember { mutableStateOf<List<Track>?>(null) }
-    LaunchedEffect(code) { try { most = (Api.rpc("language_top", JSONObject().put("p_lang", code).put("p_limit", 50)) as? JSONArray).tracks() } catch (e: Exception) { most = emptyList() } }
-    LaunchedEffect(tab) {
-        if (tab == 1 && latest == null) latest = try {
-            val r = withContext(Dispatchers.IO) { com.metrolist.innertube.YouTube.search("new $title songs " + java.time.Year.now().value, com.metrolist.innertube.YouTube.SearchFilter.FILTER_SONG).getOrNull() }
-            r?.items?.mapNotNull { it.asTrack() }?.distinctBy { it.id } ?: emptyList()
-        } catch (e: Exception) { emptyList() }
+    val pagers = remember(code) { listOf(LangPager(code, title, false), LangPager(code, title, true)) }
+    val lists = remember(code) { listOf(mutableStateListOf<Track>(), mutableStateListOf<Track>()) }
+    var loading by remember { mutableStateOf(false) }
+    val state = rememberLazyListState()
+    val pager = pagers[tab]; val l = lists[tab]
+    LaunchedEffect(tab, l.size) {
+        if (loading || pager.exhausted) return@LaunchedEffect
+        val last = state.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+        if (l.isEmpty() || last >= l.size - 6) { loading = true; l.addAll(pager.more()); loading = false }
     }
+    LaunchedEffect(tab) { snapshotFlow { state.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }.collect { last ->
+        if (!loading && !pager.exhausted && l.isNotEmpty() && last >= l.size - 6) { loading = true; l.addAll(pager.more()); loading = false } } }
     val name = if (tab == 0) "Most viewed in $title" else "Latest $title hits"
-    val l = if (tab == 0) most else latest
     Backdrop(tint = Color(0xFF2B0B3A)) {
         Column(Modifier.fillMaxSize()) {
             BackBar(title, onBack)
@@ -417,13 +454,13 @@ fun LangListScreen(title: String, code: String, pc: PlayerConnection?, onBack: (
                     Text(s, Modifier.clip(RoundedCornerShape(50)).background(if (tab == i) W.Pink else Color(0x22FFFFFF)).clickable { tab = i }.padding(horizontal = 18.dp, vertical = 9.dp), style = ts(14, FontWeight.Medium))
                 }
             }
-            if (l == null) Text("Loading...", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
-            else if (l.isEmpty()) Text("Nothing here yet.", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
-            else LazyColumn(contentPadding = PaddingValues(bottom = 210.dp)) {
+            if (l.isEmpty()) Text(if (pager.exhausted) "Nothing here yet." else "Loading...", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
+            else LazyColumn(state = state, contentPadding = PaddingValues(bottom = 210.dp)) {
                 col { Row(Modifier.padding(20.dp, 8.dp, 20.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("${l.size} songs", Modifier.weight(1f), style = ts(14, color = W.Dim))
-                    Text("Play all", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { playTracks(pc, l, 0, name) }.padding(20.dp, 9.dp), style = ts(14, FontWeight.SemiBold)) } }
-                l.forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, l, i, name) } } }
+                    Text(name, Modifier.weight(1f), style = ts(14, color = W.Dim))
+                    Text("Play all", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { playTracks(pc, l.toList(), 0, name) }.padding(20.dp, 9.dp), style = ts(14, FontWeight.SemiBold)) } }
+                l.forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, l.toList(), i, name) } } }
+                if (loading) col { Text("Loading more...", Modifier.padding(20.dp), style = ts(13, color = W.Dim)) }
             }
         }
     }
