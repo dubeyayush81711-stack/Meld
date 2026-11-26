@@ -153,7 +153,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
 fun NavBar(sel: Int, haze: dev.chrisbanes.haze.HazeState? = null, onDouble: (Int) -> Unit = {}, onSel: (Int) -> Unit) {
     var lastTap by remember { mutableStateOf(-1 to 0L) }
     val hap = androidx.compose.ui.platform.LocalHapticFeedback.current
-    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().then(if (haze != null) Modifier.hazeBlur(input = dev.chrisbanes.haze.HazeInput.Sources(haze), style = dev.chrisbanes.haze.blur.HazeBlurStyle { blurRadius(64.dp) }) else Modifier).background(if (haze != null) Color(0xEE141019) else Color(0xEB141019))) {
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().then(if (haze != null) Modifier.hazeBlur(input = dev.chrisbanes.haze.HazeInput.Sources(haze), style = dev.chrisbanes.haze.blur.HazeBlurStyle { blurRadius(64.dp) }) else Modifier).then(if (haze != null) Modifier.background(androidx.compose.ui.graphics.Brush.verticalGradient(0f to Color(0x00141019), 0.3f to Color(0xE6141019), 1f to Color(0xF0141019))) else Modifier.background(Color(0xEB141019)))) {
         val tabW = maxWidth / tabs.size
         val ind by androidx.compose.animation.core.animateDpAsState(tabW * sel + (tabW - 36.dp) / 2, androidx.compose.animation.core.spring(dampingRatio = 0.65f, stiffness = 420f), label = "ind")
         Box(Modifier.offset(x = ind, y = 4.dp).width(36.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(W.Pink))
