@@ -11,6 +11,7 @@ import com.metrolist.music.playback.PlayerConnection
 import com.metrolist.music.playback.queues.YouTubeQueue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
 
 /** Search the way Meld does it: one sectioned summary search for "All", and a typed search (with paging) for each chip. */
 data class SSection(val title: String, val items: List<YTItem>)
@@ -114,4 +115,47 @@ fun promoteBest(q: String, secs: List<SSection>): List<SSection> {
     val top = ranked.indexOfFirst { it.title.contains("Top", true) }
     if (top < 0) return listOf(SSection("Top result", listOf(b))) + ranked.map { SSection(it.title, it.items.filterNot { i -> i.id == b.id }) }.filter { it.items.isNotEmpty() }
     return ranked.mapIndexed { i, sec -> if (i == top) SSection(sec.title, listOf(b) + sec.items.filterNot { it.id == b.id }) else SSection(sec.title, sec.items.filterNot { it.id == b.id }) }.filter { it.items.isNotEmpty() }
+}
+
+// ---- Sort by views (with a recency bonus) ----
+private val scoreCache = HashMap<String, Float>()
+
+private fun parseUploadAgeYears(d: String?): Float? {
+    if (d.isNullOrBlank()) return null
+    val fmts = listOf("MMM d, yyyy", "d MMM yyyy", "MMMM d, yyyy", "d MMMM yyyy")
+    for (f in fmts) {
+        try {
+            val dt = java.text.SimpleDateFormat(f, java.util.Locale.ENGLISH).parse(d.trim()) ?: continue
+            return ((System.currentTimeMillis() - dt.time) / (365.25 * 24 * 3600 * 1000)).toFloat().coerceAtLeast(0f)
+        } catch (e: Exception) { }
+    }
+    return null
+}
+
+/** Score per video id: log10(views) plus up to +1.0 for songs under 1 year old (+0.5 under 2 years). Ids with no view count are left out. */
+suspend fun viewScores(ids: List<String>): Map<String, Float> = withContext(Dispatchers.IO) {
+    val need = ids.filter { !scoreCache.containsKey(it) }.take(15)
+    kotlinx.coroutines.coroutineScope {
+        need.map { id -> async {
+            val mi = try { YouTube.getMediaInfo(id).getOrNull() } catch (e: Exception) { null }
+            val v = mi?.viewCount
+            if (v != null && v > 0) {
+                val age = parseUploadAgeYears(mi.uploadDate)
+                val bonus = if (age == null) 0f else if (age < 1f) 1f else if (age < 2f) 0.5f else 0f
+                synchronized(scoreCache) { scoreCache[id] = kotlin.math.log10(v.toFloat() + 1f) + bonus }
+            }
+        } }.forEach { it.await() }
+    }
+    ids.mapNotNull { id -> scoreCache[id]?.let { id to it } }.toMap()
+}
+
+/** Songs with a score take the slots of scored songs, highest score first. Everything else keeps its place. */
+fun byViews(items: List<YTItem>, sc: Map<String, Float>): List<YTItem> {
+    if (sc.isEmpty()) return items
+    val slots = items.indices.filter { (items[it] as? SongItem)?.let { s -> sc.containsKey(s.id) } == true }
+    if (slots.size < 2) return items
+    val sorted = slots.map { items[it] }.sortedByDescending { sc[(it as SongItem).id] ?: 0f }
+    val out = items.toMutableList()
+    slots.forEachIndexed { i, pos -> out[pos] = sorted[i] }
+    return out
 }

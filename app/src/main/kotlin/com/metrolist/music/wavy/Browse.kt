@@ -73,16 +73,8 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     }
     var sugg by remember { mutableStateOf<List<String>>(emptyList()) }
     var trending by remember { mutableStateOf<List<Track>>(emptyList()) }
-    var popular by remember { mutableStateOf<List<Track>>(emptyList()) }
-    var popTitle by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
         try { trending = (Api.rpc("player_feed_ig", JSONObject().put("p_limit", 8).put("p_offset", 0).put("p_region", "IN").put("p_seed", "trend")) as? JSONArray).tracks() } catch (e: Exception) { }
-        try {
-            val sel = S.s("feed_langs", "Punjabi,Haryanvi").split(",").map { it.trim() }.filter { it.isNotEmpty() }
-            val use = if (sel.isEmpty()) listOf("Punjabi", "Haryanvi") else sel
-            popTitle = "Popular in " + use.joinToString(" and ")
-            popular = feedPage(use, 0, "pop").take(8)
-        } catch (e: Exception) { }
     }
     val ctxS = androidx.compose.ui.platform.LocalContext.current
     var hist by remember { mutableStateOf(loadHistory(ctxS)) }
@@ -99,6 +91,12 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     var nextTok by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var showMic by remember { mutableStateOf(false) }
+    var vscores by remember { mutableStateOf<Map<String, Float>>(emptyMap()) }
+    LaunchedEffect(summary, typed) {
+        val ids = ((summary?.flatMap { it.items } ?: emptyList()) + (typed ?: emptyList())).filterIsInstance<com.metrolist.innertube.models.SongItem>().map { it.id }.distinct().take(15)
+        if (ids.size < 2) { vscores = emptyMap(); return@LaunchedEffect }
+        vscores = try { viewScores(ids) } catch (e: Exception) { emptyMap() }
+    }
     val speech = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { r ->
         val said = r.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
         if (!said.isNullOrBlank()) { q = said; submitted = said.trim(); filter = "All"; saveHistory(ctxS, said.trim()) }
@@ -176,8 +174,6 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 Text("Trending now", Modifier.padding(bottom = 4.dp), style = ts(20, FontWeight.SemiBold))
             }
             if (q.isEmpty() && !page) trending.forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, trending, i, "Trending now") } } }
-            if (q.isEmpty() && !page && popular.isNotEmpty()) col { Text(popTitle, Modifier.padding(top = 16.dp, bottom = 4.dp), style = ts(20, FontWeight.SemiBold)) }
-            if (q.isEmpty() && !page) popular.forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, popular, i, popTitle) } } }
             if (q.isEmpty() && !page) col { Spacer(Modifier.height(18.dp)) }
             if (q.isEmpty() && !page) {
                 val m = meta
@@ -237,7 +233,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                         }
                     }
                 }
-                val sm = summary?.map { SSection(it.title, dedupeItems(it.items)) }; val ty = typed?.let { dedupeItems(it) }
+                val sm = summary?.map { SSection(it.title, byViews(dedupeItems(it.items), vscores)) }; val ty = typed?.let { byViews(dedupeItems(it), vscores) }
                 if (filter == "All" && sm != null) {
                     val songsAll = sm.flatMap { it.items }.mapNotNull { it.asTrack() }
                     sm.forEach { sec ->
