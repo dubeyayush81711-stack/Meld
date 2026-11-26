@@ -66,6 +66,17 @@ fun WelcomeScreen(onStart: () -> Unit) {
     val rise by animateFloatAsState(if (shown) 0f else 40f, tween(700, easing = FastOutSlowInEasing), label = "r")
     val fade by animateFloatAsState(if (shown) 1f else 0f, tween(700), label = "fa")
     Backdrop(streaks = false, tint = Color(0xFF2A0B3A)) {
+        Canvas(Modifier.fillMaxSize()) {
+            val w = size.width; val h = size.height
+            fun swirl(y0: Float, y1: Float, y2: Float, c: Color, sw: Float) {
+                val pth = androidx.compose.ui.graphics.Path(); pth.moveTo(-w * 0.1f, h * y0); pth.cubicTo(w * 0.25f, h * y1, w * 0.6f, h * y2, w * 1.1f, h * (y0 + 0.05f))
+                drawPath(pth, c, style = androidx.compose.ui.graphics.drawscope.Stroke(sw, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            }
+            val ph = tw.value * 0.01f
+            for (k in 0..5) swirl(0.60f + k * 0.03f, 0.50f + k * 0.04f + ph, 0.80f - k * 0.03f, Color(0xFFB0206F).copy(alpha = 0.10f + 0.03f * k), w * (0.02f + 0.012f * k))
+            for (k in 0..3) swirl(0.05f + k * 0.04f, 0.20f - k * 0.03f, -0.05f + k * 0.05f + ph, Color(0xFF7B2CBF).copy(alpha = 0.12f), w * (0.015f + 0.01f * k))
+            drawCircle(Brush.radialGradient(listOf(Color(0x55E91E63), Color.Transparent), Offset(w * 0.9f, h * 0.78f), w * 0.7f), w * 0.7f, Offset(w * 0.9f, h * 0.78f))
+        }
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 26.dp)) {
             Text("Wavy", Modifier.fillMaxWidth().padding(top = 18.dp), style = ts(34, FontWeight.SemiBold, W.Pink2).copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, letterSpacing = 3.sp), textAlign = TextAlign.Center)
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
