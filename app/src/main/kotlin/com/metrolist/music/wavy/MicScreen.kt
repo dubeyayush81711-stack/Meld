@@ -76,7 +76,7 @@ fun MicScreen(onClose: () -> Unit, onResult: (String) -> Unit) {
     }
 
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        val bg = if (tab == 0) Modifier.background(Color(0xFF0F0E11)) else Modifier.background(Brush.linearGradient(listOf(Color(0xFF8E3C9E), Color(0xFFB03A7E), Color(0xFFA83A7A))))
+        val bg = if (tab == 0) Modifier.background(Color(0xFF0B090E)) else Modifier.background(Brush.verticalGradient(listOf(Color(0xFF0B090E), Color(0xFF1E1030), Color(0xFF2B0B3A))))
         Box(Modifier.fillMaxSize().then(bg).statusBarsPadding().navigationBarsPadding()) {
             Icon(painterResource(R.drawable.close), "Close", Modifier.padding(start = 20.dp, top = 22.dp).size(30.dp).clickable { onClose() }, tint = Color.White)
             Row(Modifier.align(Alignment.TopCenter).padding(top = 14.dp).clip(RoundedCornerShape(50)).background(Color(0x33FFFFFF)).padding(4.dp)) {
@@ -99,7 +99,7 @@ fun MicScreen(onClose: () -> Unit, onResult: (String) -> Unit) {
                 val sc by animateFloatAsState(1f + level * 0.35f, tween(120), label = "lv")
                 Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 90.dp).size(190.dp).clickable { if (!granted) perm.launch(Manifest.permission.RECORD_AUDIO) else restart++ }, contentAlignment = Alignment.Center) {
                     Canvas(Modifier.fillMaxSize().scale(sc)) { drawCircle(Color(0x66FFFFFF), radius = size.minDimension / 2f, style = Stroke(2f)) }
-                    Box(Modifier.size(110.dp).clip(CircleShape).background(Color(0xFFE0003A)), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(110.dp).clip(CircleShape).background(W.Pink), contentAlignment = Alignment.Center) {
                         Icon(painterResource(R.drawable.mic), "Mic", Modifier.size(46.dp), tint = Color.White)
                     }
                 }
@@ -109,11 +109,11 @@ fun MicScreen(onClose: () -> Unit, onResult: (String) -> Unit) {
                 val p by inf.animateFloat(0.85f, 1.25f, infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "p")
                 Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 90.dp).size(240.dp).clickable { songMsg = "Song identify is not set up yet" }, contentAlignment = Alignment.Center) {
                     Canvas(Modifier.fillMaxSize().scale(p)) {
-                        drawCircle(Brush.radialGradient(listOf(Color(0xAA7A2BD6), Color(0x66D02A6A), Color.Transparent), center = Offset(size.width / 2, size.height / 2), radius = size.minDimension / 2f))
+                        drawCircle(Brush.radialGradient(listOf(Color(0x887A4BE0), Color(0x44FF4F8B), Color.Transparent), center = Offset(size.width / 2, size.height / 2), radius = size.minDimension / 2f))
                     }
                     Box(Modifier.size(118.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            listOf(16, 26, 40, 40).forEach { h -> Box(Modifier.width(6.dp).height(h.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFFF2607A))) }
+                            listOf(16, 26, 40, 40).forEach { h -> Box(Modifier.width(6.dp).height(h.dp).clip(RoundedCornerShape(3.dp)).background(W.Pink)) }
                         }
                     }
                 }
