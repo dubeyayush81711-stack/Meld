@@ -15,6 +15,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
@@ -208,6 +210,10 @@ fun AboutSettings(onBack: () -> Unit, go: (String) -> Unit = {}) {
     val ctx = LocalContext.current
     val ver = remember { try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName } catch (e: Exception) { "1.0.0" } }
     SPage("About and support", onBack) {
+        Row(Modifier.padding(20.dp, 20.dp, 20.dp, 0.dp), verticalAlignment = Alignment.CenterVertically) { Text("Developer", Modifier.weight(1f), style = ts(18, FontWeight.Medium)); Text("Ayush Dubey", Modifier.clip(RoundedCornerShape(50)).background(W.Pink.copy(alpha = 0.22f)).border(1.dp, W.Pink, RoundedCornerShape(50)).padding(horizontal = 14.dp, vertical = 5.dp), style = ts(14, FontWeight.SemiBold)) }
+        Row(Modifier.padding(20.dp, 14.dp, 20.dp, 0.dp), verticalAlignment = Alignment.CenterVertically) { val c0 = androidx.compose.ui.platform.LocalContext.current
+            Text("Instagram", Modifier.weight(1f), style = ts(18, FontWeight.Medium))
+            Text("@theayush.ad", Modifier.clip(RoundedCornerShape(50)).clickable { try { c0.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://instagram.com/theayush.ad")).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) { } }.background(Color(0x14FFFFFF)).padding(horizontal = 14.dp, vertical = 5.dp), style = ts(14, FontWeight.SemiBold, W.Pink)) }
         Row(Modifier.padding(20.dp, 28.dp)) { Text("Version", Modifier.weight(1f), style = ts(18, FontWeight.Medium)); Text("${ver ?: ""} ($WAVY_BUILD)", style = ts(15, color = Color(0xFFB9B2C4))) }
         SDivider()
         SToggle("Send error reports", "Sends crashes and errors (app version, screen, error text, phone model). No personal data.", boolPref("send_errors", true))
