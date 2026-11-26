@@ -122,8 +122,8 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
                     p.startsWith("pl:") -> { val parts = p.split(":", limit = 3); TrackListScreen(parts[2], pc, { page = null }) { loadPlaylistTracks(parts[1].toLong()) } }
                     p == "picker" -> ArtistPicker(null) { page = null }
                     p == "party" -> PartyScreen(pc) { page = null }
-                    p == "agent" -> AiChatScreen("agent", "Wavy", "Hello, I am Wavy. Tell me a mood, an artist or a language and I will help you choose songs. I can also explain how the app works.") { page = null }
-                    p == "support" -> AiChatScreen("support", "Support", "Hi! Ask me how anything in Wavy works. If something is broken, describe it and tap Send a bug report.") { page = "set:about" }
+                    p == "agent" -> AiChatScreen("agent", "Ultron", "I am Ultron. Name a mood, an artist or a language and I will choose your songs. Ask me how this app works, if you must.") { page = null }
+                    p == "support" -> AiChatScreen("support", "Ultron", "Ultron here. Ask how anything in Wavy works. If something is broken, describe it and tap Send a bug report.") { page = "set:about" }
                     p == "profile" -> ProfileScreen(onBack = { page = null }, onSignOut = onSignOut, onSettings = { page = "set:hub" })
                     p == "editprofile" -> EditProfileRoute { page = null }
                     p == "set:hub" -> SettingsHub({ page = null }, onSignOut) { page = it }

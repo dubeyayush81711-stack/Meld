@@ -115,9 +115,9 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
             if (p != null) {
                 val want = p.currentPosition
                 ex.playWhenReady = p.isPlaying
-                if (kotlin.math.abs(ex.currentPosition - want) > 700) ex.seekTo(want)
+                if (kotlin.math.abs(ex.currentPosition - want) > 350) ex.seekTo(want)
             }
-            delay(500)
+            delay(150)
         }
     }
     val tvRef = remember(ex) { mutableStateOf<android.view.TextureView?>(null) }
@@ -288,8 +288,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                         else { if (!liked) { liked = true; scope.launch { likeTrack(t.id) } }; burst++ }
                     }) }) {
                 if (videoOn) {
-                    AsyncImage(t.cover, null, Modifier.fillMaxSize().blur(28.dp), contentScale = ContentScale.Crop)
-                    Box(Modifier.fillMaxSize().background(Color(0x66000000)))
+                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0xFF0B0A10), 1f to Color(0xFF000000))))
                     if (page == pager.settledPage) StreamVideo(t.id, pc, Modifier.fillMaxSize()) { diag = it }
                     run {
                         val synced = if (lyricsPref.value) lyrics.filter { it.t >= 0 } else emptyList()
