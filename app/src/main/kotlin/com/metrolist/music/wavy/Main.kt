@@ -116,8 +116,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
             val p = remember { page ?: "" }.let { page ?: it }
             Box(Modifier.fillMaxSize().background(W.Bg)) {
                 when {
-                    p.startsWith("lang:") -> { val parts = p.split(":"); TrackListScreen(parts[2], pc, { page = null }) {
-                        (Api.rpc("language_top", JSONObject().put("p_lang", parts[1]).put("p_limit", 50)) as? JSONArray).tracks() } }
+                    p.startsWith("lang:") -> { val parts = p.split(":"); LangListScreen(parts[2], parts[1], pc) { page = null } }
                     p.startsWith("pl:") -> { val parts = p.split(":", limit = 3); TrackListScreen(parts[2], pc, { page = null }) { loadPlaylistTracks(parts[1].toLong()) } }
                     p == "picker" -> ArtistPicker(null) { page = null }
                     p == "party" -> PartyScreen(pc) { page = null }
@@ -152,7 +151,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
 fun NavBar(sel: Int, haze: dev.chrisbanes.haze.HazeState? = null, onDouble: (Int) -> Unit = {}, onSel: (Int) -> Unit) {
     var lastTap by remember { mutableStateOf(-1 to 0L) }
     val shape = RoundedCornerShape(30.dp)
-    Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 14.dp, end = 14.dp, bottom = 6.dp, top = 4.dp).clip(shape).then(if (haze != null) Modifier.hazeBlur(input = dev.chrisbanes.haze.HazeInput.Sources(haze), style = dev.chrisbanes.haze.blur.HazeBlurStyle { blurRadius(24.dp) }) else Modifier).background(if (haze != null) Color(0x66141019) else Color(0xE6141019)).padding(top = 10.dp, bottom = 8.dp)) {
+    Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 14.dp, end = 14.dp, bottom = 6.dp, top = 4.dp).clip(shape).then(if (haze != null) Modifier.hazeBlur(input = dev.chrisbanes.haze.HazeInput.Sources(haze), style = dev.chrisbanes.haze.blur.HazeBlurStyle { blurRadius(48.dp) }) else Modifier).background(if (haze != null) Color(0xC8141019) else Color(0xEB141019)).padding(top = 10.dp, bottom = 8.dp)) {
         tabs.forEachIndexed { i, (name, icon) ->
             val on = i == sel
             val col by animateColorAsState(if (on) W.Pink else Color(0xFFBDB8C4), tween(200), label = "c")
@@ -191,7 +190,7 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
         } catch (_: Exception) {}
     }
     val tintA by androidx.compose.animation.animateColorAsState(tint, label = "tint")
-    Column(Modifier.padding(horizontal = 12.dp).clip(RoundedCornerShape(22.dp)).background(tintA.copy(alpha = 0.86f)).clickable(onClick = onOpen)) {
+    Column(Modifier.padding(horizontal = 12.dp).clip(RoundedCornerShape(22.dp)).background(tintA.copy(alpha = 0.94f)).clickable(onClick = onOpen)) {
         Row(Modifier.padding(start = 10.dp, end = 6.dp, top = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(hiRes(m.thumbnailUrl), null, Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(W.Card), contentScale = ContentScale.Crop)
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {

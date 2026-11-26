@@ -29,6 +29,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.metrolist.music.R
 import com.metrolist.music.playback.PlayerConnection
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -67,6 +69,18 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
         } catch (e: Exception) { }
     }
     var sugg by remember { mutableStateOf<List<String>>(emptyList()) }
+    var trending by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var popular by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var popTitle by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        try { trending = (Api.rpc("player_feed_ig", JSONObject().put("p_limit", 8).put("p_offset", 0).put("p_region", "IN").put("p_seed", "trend")) as? JSONArray).tracks() } catch (e: Exception) { }
+        try {
+            val sel = S.s("feed_langs", "Punjabi,Haryanvi").split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            val use = if (sel.isEmpty()) listOf("Punjabi", "Haryanvi") else sel
+            popTitle = "Popular in " + use.joinToString(" and ")
+            popular = feedPage(use, 0, "pop").take(8)
+        } catch (e: Exception) { }
+    }
     val ctxS = androidx.compose.ui.platform.LocalContext.current
     var hist by remember { mutableStateOf(loadHistory(ctxS)) }
     LaunchedEffect(q) {
@@ -142,6 +156,13 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 }
                 Spacer(Modifier.height(14.dp))
             }
+            if (q.isEmpty() && trending.isNotEmpty()) col {
+                Text("Trending now", Modifier.padding(bottom = 4.dp), style = ts(20, FontWeight.SemiBold))
+            }
+            if (q.isEmpty()) trending.forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, trending, i, "Trending now") } } }
+            if (q.isEmpty() && popular.isNotEmpty()) col { Text(popTitle, Modifier.padding(top = 16.dp, bottom = 4.dp), style = ts(20, FontWeight.SemiBold)) }
+            if (q.isEmpty()) popular.forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, popular, i, popTitle) } } }
+            if (q.isEmpty()) col { Spacer(Modifier.height(18.dp)) }
             if (q.isEmpty()) {
                 val m = meta
                 if (m != null) col {
@@ -163,7 +184,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                             pair.forEach { t ->
                                 val c = langColors[t.lang] ?: listOf(W.Pink, W.Maroon)
                                 val lctx = LocalContext.current
-                                val rid = remember(t.lang) { lctx.resources.getIdentifier("lang_" + t.lang, "drawable", lctx.packageName) }
+                                val rid = when (t.lang) { "punjabi" -> R.drawable.lang_punjabi; "hindi" -> R.drawable.lang_hindi; "bhojpuri" -> R.drawable.lang_bhojpuri; "haryanvi" -> R.drawable.lang_haryanvi; "international" -> R.drawable.lang_international; "south" -> R.drawable.lang_south; else -> 0 }
                                 Box(Modifier.weight(1f).height(150.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(c)).clickable { onLang(t) }) {
                                     if (rid != 0) {
                                         Image(painterResource(rid), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -370,5 +391,40 @@ fun FavPlayer(pc: PlayerConnection) {
         }
         Spacer(Modifier.height(10.dp))
         Box(Modifier.fillMaxWidth().height(3.dp).background(Color(0x55FFFFFF))) { Box(Modifier.fillMaxWidth((pos.toFloat() / dur).coerceIn(0f, 1f)).fillMaxHeight().background(W.Pink)) }
+    }
+}
+
+/** Language tile screen: "Most viewed" is the backend chart for that language; "Latest hits" is a live YouTube Music search for new songs in it. */
+@Composable
+fun LangListScreen(title: String, code: String, pc: PlayerConnection?, onBack: () -> Unit) {
+    var tab by remember { mutableIntStateOf(0) }
+    var most by remember { mutableStateOf<List<Track>?>(null) }
+    var latest by remember { mutableStateOf<List<Track>?>(null) }
+    LaunchedEffect(code) { try { most = (Api.rpc("language_top", JSONObject().put("p_lang", code).put("p_limit", 50)) as? JSONArray).tracks() } catch (e: Exception) { most = emptyList() } }
+    LaunchedEffect(tab) {
+        if (tab == 1 && latest == null) latest = try {
+            val r = withContext(Dispatchers.IO) { com.metrolist.innertube.YouTube.search("new $title songs " + java.time.Year.now().value, com.metrolist.innertube.YouTube.SearchFilter.FILTER_SONG).getOrNull() }
+            r?.items?.mapNotNull { it.asTrack() }?.distinctBy { it.id } ?: emptyList()
+        } catch (e: Exception) { emptyList() }
+    }
+    val name = if (tab == 0) "Most viewed in $title" else "Latest $title hits"
+    val l = if (tab == 0) most else latest
+    Backdrop(tint = Color(0xFF2B0B3A)) {
+        Column(Modifier.fillMaxSize()) {
+            BackBar(title, onBack)
+            Row(Modifier.padding(horizontal = 20.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                listOf("Most viewed", "Latest hits").forEachIndexed { i, s ->
+                    Text(s, Modifier.clip(RoundedCornerShape(50)).background(if (tab == i) W.Pink else Color(0x22FFFFFF)).clickable { tab = i }.padding(horizontal = 18.dp, vertical = 9.dp), style = ts(14, FontWeight.Medium))
+                }
+            }
+            if (l == null) Text("Loading...", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
+            else if (l.isEmpty()) Text("Nothing here yet.", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
+            else LazyColumn(contentPadding = PaddingValues(bottom = 210.dp)) {
+                col { Row(Modifier.padding(20.dp, 8.dp, 20.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("${l.size} songs", Modifier.weight(1f), style = ts(14, color = W.Dim))
+                    Text("Play all", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { playTracks(pc, l, 0, name) }.padding(20.dp, 9.dp), style = ts(14, FontWeight.SemiBold)) } }
+                l.forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, l, i, name) } } }
+            }
+        }
     }
 }
