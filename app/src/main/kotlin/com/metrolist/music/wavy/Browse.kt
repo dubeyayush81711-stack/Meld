@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -126,26 +127,38 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     val playing by (pc?.isPlaying ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }).collectAsState()
     if (showMic) MicScreen(onClose = { showMic = false }, onResult = { said -> showMic = false; q = said; submitted = said; filter = "All"; saveHistory(ctxS, said); hist = loadHistory(ctxS) })
     var searchFocused by remember { mutableStateOf(false) }
+    var page by remember { mutableStateOf(false) }
+    val focusReq = remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.activity.compose.BackHandler(enabled = page) { page = false; q = ""; submitted = null }
+    LaunchedEffect(searchFocused) { if (searchFocused) page = true }
+    LaunchedEffect(page) { if (page) { try { focusReq.requestFocus() } catch (e: Exception) { } } }
     Box(Modifier.fillMaxSize().background(W.Bg)) {
         LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 210.dp)) {
             col {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (page) { Icon(painterResource(R.drawable.arrow_back), null, Modifier.padding(end = 12.dp).size(28.dp).clickable { page = false; q = ""; submitted = null }, tint = Color.White) }
                     Row(Modifier.weight(1f).height(56.dp).glass(RoundedCornerShape(50)).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(painterResource(R.drawable.search), null, Modifier.size(24.dp), tint = Color.White)
                         Spacer(Modifier.width(12.dp))
                         Box(Modifier.weight(1f)) {
-                            if (q.isEmpty()) Text("Search", style = ts(18, color = Color(0xCCFFFFFF)))
-                            BasicTextField(q, { q = it; submitted = null }, singleLine = true, textStyle = ts(18), cursorBrush = SolidColor(W.Pink), modifier = Modifier.fillMaxWidth().onFocusChanged { searchFocused = it.isFocused }, keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search), keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { go(q) }))
+                            if (q.isEmpty()) Text(if (page) "What do you want to listen to?" else "Search", style = ts(18, color = Color(0xCCFFFFFF)))
+                            BasicTextField(q, { q = it; submitted = null }, singleLine = true, textStyle = ts(18), cursorBrush = SolidColor(W.Pink), modifier = Modifier.fillMaxWidth().focusRequester(focusReq).onFocusChanged { searchFocused = it.isFocused }, keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search), keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { go(q) }))
                         }
                         if (q.isNotEmpty()) Icon(painterResource(R.drawable.close), null, Modifier.size(22.dp).clickable { q = ""; submitted = null }, tint = Color.White)
                         Icon(painterResource(R.drawable.mic), null, Modifier.padding(start = 10.dp).size(24.dp).clickable { showMic = true }, tint = Color.White)
                     }
-                    Spacer(Modifier.width(12.dp))
-                    Avatar(40, onProfile)
+                    if (!page) { Spacer(Modifier.width(12.dp)); Avatar(40, onProfile) }
                 }
                 Spacer(Modifier.height(16.dp))
             }
-            if (q.isEmpty() && hist.isNotEmpty() && searchFocused) col {
+            if (q.isEmpty() && page && hist.isEmpty()) col {
+                Column(Modifier.fillMaxWidth().padding(top = 120.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Play what you love", style = ts(22, FontWeight.Bold))
+                    Spacer(Modifier.height(6.dp))
+                    Text("Search for artists, songs, playlists.", style = ts(15, color = W.Dim))
+                }
+            }
+            if (q.isEmpty() && hist.isNotEmpty() && page) col {
                 Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Recent searches", Modifier.weight(1f), style = ts(20, FontWeight.SemiBold))
                     Text("Clear all", Modifier.clickable { clearHistory(ctxS); hist = emptyList() }.padding(8.dp), style = ts(14, FontWeight.Medium, W.Pink))
@@ -159,14 +172,14 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 }
                 Spacer(Modifier.height(14.dp))
             }
-            if (q.isEmpty() && trending.isNotEmpty()) col {
+            if (q.isEmpty() && !page && trending.isNotEmpty()) col {
                 Text("Trending now", Modifier.padding(bottom = 4.dp), style = ts(20, FontWeight.SemiBold))
             }
-            if (q.isEmpty()) trending.forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, trending, i, "Trending now") } } }
-            if (q.isEmpty() && popular.isNotEmpty()) col { Text(popTitle, Modifier.padding(top = 16.dp, bottom = 4.dp), style = ts(20, FontWeight.SemiBold)) }
-            if (q.isEmpty()) popular.forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, popular, i, popTitle) } } }
-            if (q.isEmpty()) col { Spacer(Modifier.height(18.dp)) }
-            if (q.isEmpty()) {
+            if (q.isEmpty() && !page) trending.forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, trending, i, "Trending now") } } }
+            if (q.isEmpty() && !page && popular.isNotEmpty()) col { Text(popTitle, Modifier.padding(top = 16.dp, bottom = 4.dp), style = ts(20, FontWeight.SemiBold)) }
+            if (q.isEmpty() && !page) popular.forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, popular, i, popTitle) } } }
+            if (q.isEmpty() && !page) col { Spacer(Modifier.height(18.dp)) }
+            if (q.isEmpty() && !page) {
                 val m = meta
                 if (m != null) col {
                     Text("Continue Listening", style = ts(24, FontWeight.SemiBold)); Spacer(Modifier.height(12.dp))
