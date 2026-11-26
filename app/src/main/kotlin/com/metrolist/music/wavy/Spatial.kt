@@ -15,6 +15,7 @@ import kotlin.math.tanh
 object WavySpatial {
     @Volatile var mode = 0          // 0 off, 1 = 3D, 2 = 8D
     @Volatile var rotationHz = 0.12f // 8D: turns per second around the head
+    @Volatile var night = false      // Night mode: gentle compressor that evens out loud and quiet parts
 }
 
 /**
@@ -29,6 +30,7 @@ class WavySpatialProcessor : BaseAudioProcessor() {
     private val dl = FloatArray(128); private val dr = FloatArray(128); private var wp = 0
     private var lpL = 0f; private var lpR = 0f
     private var lastMode = 0
+    private var env = 0f; private var gainS = 1f
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT || inputAudioFormat.channelCount != 2) throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
@@ -55,7 +57,8 @@ class WavySpatialProcessor : BaseAudioProcessor() {
         val out = replaceOutputBuffer(n)
         val mode = WavySpatial.mode
         if (mode != lastMode) { dl.fill(0f); dr.fill(0f); lpL = 0f; lpR = 0f; lastMode = mode }
-        if (mode == 0) { out.put(inputBuffer); out.flip(); return }
+        val night = WavySpatial.night
+        if (mode == 0 && !night) { out.put(inputBuffer); out.flip(); gainS = 1f; env = 0f; return }
         val inc = 2.0 * PI * WavySpatial.rotationHz.coerceIn(0.03f, 0.6f) / rate
         val itdMax = 0.0006f * rate           // about 0.6 ms
         val cross = 0.00025f * rate
@@ -66,7 +69,8 @@ class WavySpatialProcessor : BaseAudioProcessor() {
             val l = inputBuffer.short * k; val r = inputBuffer.short * k
             dl[wp and 127] = l; dr[wp and 127] = r
             var ol: Float; var or: Float
-            if (mode == 2) {
+            if (mode == 0) { ol = l; or = r }
+            else if (mode == 2) {
                 val th = phase; phase += inc; if (phase > 2 * PI) phase -= 2 * PI
                 val p = sin(th).toFloat()                       // -1 left .. +1 right
                 val m = (l + r) * 0.5f; val s = (l - r) * 0.5f
@@ -91,8 +95,15 @@ class WavySpatialProcessor : BaseAudioProcessor() {
                 or = m * 0.9f - s * 1.6f - 0.22f * cl
             }
             wp = (wp + 1) and 127
-            out.putShort((limit(ol * 0.84f) * 32767f).toInt().coerceIn(-32768, 32767).toShort())
-            out.putShort((limit(or * 0.84f) * 32767f).toInt().coerceIn(-32768, 32767).toShort())
+            if (night) {
+                val pk = maxOf(abs(ol), abs(or))
+                env = if (pk > env) env + (pk - env) * 0.02f else env + (pk - env) * 0.0004f   // fast attack, slow release
+                val tgt = if (env > 0.3f) (0.3f + (env - 0.3f) / 3f) / env else 1f           // 3:1 above 0.3
+                gainS += (tgt - gainS) * 0.01f
+                ol *= gainS * 1.15f; or *= gainS * 1.15f
+            }
+            out.putShort((limit(ol * (if (mode == 0) 1f else 0.84f)) * 32767f).toInt().coerceIn(-32768, 32767).toShort())
+            out.putShort((limit(or * (if (mode == 0) 1f else 0.84f)) * 32767f).toInt().coerceIn(-32768, 32767).toShort())
             i++
         }
         out.flip()
