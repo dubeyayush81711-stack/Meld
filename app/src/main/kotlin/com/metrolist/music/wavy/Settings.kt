@@ -263,7 +263,7 @@ fun AdvancedSettings(pc: PlayerConnection?, onBack: () -> Unit) {
         SDivider()
         SSection("Sound")
         SToggle("Bass boost", "Adds extra power to the bass.", boolPref("fx_bass_boost", false))
-        SToggle("Pocket Mode", "Auto boosts bass and volume when in your pocket.", boolPref("pocket", true))
+        SToggle("Pocket Mode", "Auto boosts bass and volume when in your pocket.", boolPref("pocket", false))
         SDivider()
         SSection("Smart controls")
         SToggle("Shake to skip", "Shake your phone for the next song.", boolPref("shake", false))
@@ -287,7 +287,7 @@ fun ProSettings(onBack: () -> Unit, askMic: () -> Unit) {
         }
         SToggle("Reverb", "Hall preset.", boolPref("fx_reverb", false))
         SToggle("Bass + Treble knobs", "Separate sliders.", knobs)
-        if (knobs.value) { var tr by floatPref("treble", 0.5f); var bs by floatPref("prof_bass_manual", 0.3f); SSlider("Treble", tr) { tr = it }
+        if (knobs.value) { var tr by floatPref("treble", 0.5f); var bs by floatPref("prof_bass_manual", 0f); SSlider("Treble", tr) { tr = it }
             SSlider("Bass", S.f("bassknob", 0.3f)) { S.put("bassknob", it); S.put("fx_bass_boost", it > 0.5f) } }
         SToggle("Night mode", "Evens out loud and quiet parts. For late night.", boolPref("fx_night", false))
         SToggle("Voice boost", "Clearer, louder vocals.", boolPref("fx_voice", false))
@@ -348,7 +348,7 @@ fun SoundProfiles(onBack: () -> Unit) {
                 Column(Modifier.weight(1f)) { Text(d.first, style = ts(17, FontWeight.Medium)); Text(d.second, style = ts(13, color = Color(0xFFB9B2C4))) }
                 Text("Edit", Modifier.clickable { edit = if (edit == k) null else k }, style = ts(14, FontWeight.Medium, W.Pink)) }
             if (edit == k) {
-                var b by floatPref("prof_${k}_bass", 0.2f); var sp by floatPref("prof_${k}_space", 0f); var l by floatPref("prof_${k}_loud", 0f)
+                var b by floatPref("prof_${k}_bass", 0f); var sp by floatPref("prof_${k}_space", 0f); var l by floatPref("prof_${k}_loud", 0f)
                 SSlider("Bass", b) { b = it }; SSlider("Spatial", sp) { sp = it }; SSlider("Loudness", l) { l = it }
             }
         }

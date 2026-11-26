@@ -189,9 +189,9 @@ object WavyFx {
         val auto = S.b("auto_switch", true)
         // profile values (per device kind), editable in Sound profiles
         fun prof(name: String, def: Float) = if (auto) S.f("prof_${kind}_$name", def) else def
-        val dBass = mapOf("earbuds" to 0.3f, "wired" to 0f, "phone" to 0.2f)[kind] ?: 0.2f
-        val dSpace = mapOf("earbuds" to 0.5f, "wired" to 0f, "phone" to 0f)[kind] ?: 0f
-        val dLoud = mapOf("earbuds" to 0f, "wired" to 0f, "phone" to 0.3f)[kind] ?: 0f
+        val dBass = 0f
+        val dSpace = 0f
+        val dLoud = 0f
         var bassV = prof("bass", dBass); var spaceV = prof("space", dSpace); val loudV = prof("loud", dLoud)
         if (S.b("fx_bass_boost")) bassV = maxOf(bassV, 0.8f)
         if (S.b("fx_spatial")) spaceV = maxOf(spaceV, 0.8f)
@@ -212,7 +212,7 @@ object WavyFx {
                 if (it.canVirtualize(android.media.AudioFormat.CHANNEL_OUT_STEREO, mode)) it.forceVirtualizationMode(mode)
             } catch (e: Exception) { } }
             it.enabled = spaceV > 0.01f } } catch (e: Exception) { }
-        try { loud?.let { it.setTargetGain(((loudV + (if (pocket && !S.b("fx_night")) 0.2f else 0f) + (if (S.b("gym_mode")) 0.5f else 0f)) * 1000).toInt() + (S.f("vol_boost", 0f) * 1500).toInt()); it.enabled = true } } catch (e: Exception) { }
+        try { loud?.let { it.setTargetGain(((loudV + (if (pocket && !S.b("fx_night")) 0.2f else 0f) + (if (S.b("gym_mode")) 0.5f else 0f)) * 1000).toInt() + (S.f("vol_boost", 0f) * 1500).toInt()); it.enabled = it.targetGain > 0 } } catch (e: Exception) { }
         try {
             rev?.let { val on = S.b("fx_reverb"); it.preset = if (on) PresetReverb.PRESET_LARGEHALL else PresetReverb.PRESET_NONE; it.enabled = on }
         } catch (e: Exception) { }
@@ -220,13 +220,15 @@ object WavyFx {
             eq?.let { e ->
                 val n = e.numberOfBands.toInt(); val r = e.bandLevelRange; val lo = r[0]; val hi = r[1]
                 val treble = if (S.b("fx_knobs")) S.f("treble", 0.5f) else 0.5f
+                var nonFlat = false
                 for (i in 0 until n) {
                     var g = S.f("eq_$i", 0.5f)                       // 0..1, 0.5 flat
                     if (S.b("fx_knobs") && i >= n / 2) g += (treble - 0.5f)
                     if (S.b("fx_voice") && i in (n / 3)..(2 * n / 3)) g += 0.15f
+                    if (kotlin.math.abs(g - 0.5f) > 0.005f) nonFlat = true
                     e.setBandLevel(i.toShort(), (lo + (hi - lo) * g.coerceIn(0f, 1f)).toInt().toShort())
                 }
-                e.enabled = true
+                e.enabled = nonFlat
             }
         } catch (e: Exception) { }
         setupVis(); setupSensors(c)
@@ -297,7 +299,7 @@ object WavyFx {
         override fun onSensorChanged(e: SensorEvent) {
             if (e.sensor.type == Sensor.TYPE_PROXIMITY) {
                 val near = e.values[0] < (e.sensor.maximumRange.coerceAtMost(5f)).coerceAtLeast(1f) && e.values[0] < 3f
-                if (near != pocket && S.b("pocket", true)) { pocket = near; refresh() }
+                if (near != pocket && S.b("pocket", false)) { pocket = near; refresh() }
             } else if (e.sensor.type == Sensor.TYPE_ACCELEROMETER && S.b("shake")) {
                 val g = sqrt(e.values[0] * e.values[0] + e.values[1] * e.values[1] + e.values[2] * e.values[2]) / 9.81f
                 val now = System.currentTimeMillis()
@@ -306,7 +308,7 @@ object WavyFx {
         }
     }
     private fun setupSensors(c: Context) {
-        val want = S.b("pocket", true) || S.b("shake")
+        val want = S.b("pocket", false) || S.b("shake")
         val sm = sensors ?: (c.getSystemService(Context.SENSOR_SERVICE) as SensorManager).also { sensors = it }
         if (want && !sensorsOn) {
             sm.getDefaultSensor(Sensor.TYPE_PROXIMITY)?.let { sm.registerListener(sl, it, SensorManager.SENSOR_DELAY_NORMAL) }
