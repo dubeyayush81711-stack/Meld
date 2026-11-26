@@ -1,6 +1,8 @@
 package com.metrolist.music.wavy
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.shadow
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.drawBehind
 import com.metrolist.music.extensions.toMediaItem
 import android.widget.Toast
 import androidx.compose.foundation.verticalScroll
@@ -149,7 +151,7 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
 fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean = true) {
     var showFx by remember { mutableStateOf(false) }
     val lyricsPref = boolPref("reel_lyrics", true); var showOpts by remember { mutableStateOf(false) }
-    val videoPref = boolPref("reel_video", false); val hookPref = boolPref("reel_hook", true)
+    val glowPref = boolPref("reel_glow", true); val videoPref = boolPref("reel_video", false); val hookPref = boolPref("reel_hook", true)
     val videoOn = videoPref.value
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -323,6 +325,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean 
                         else if (o.x > size.width * 0.67f) { p?.seekTo(p.currentPosition + 10000); flash = 3; flashN++ }
                         else { if (!liked) { liked = true; scope.launch { likeTrack(t.id) } }; burst++ }
                     }) }) {
+                if (glowPref.value && page == pager.settledPage && active && playing) ReelGlow(bg)
                 if (videoOn) {
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0xFF0B0A10), 1f to Color(0xFF000000))))
                     if (page == pager.settledPage && active) StreamVideo(t.id, pc, Modifier.fillMaxSize()) { diag = it }
@@ -427,6 +430,7 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                 Text("Music features", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = ts(18, FontWeight.SemiBold))
                 SToggle("Video player", "Play the music video behind the song. Off shows the cover.", videoPref)
                 SToggle("Lyrics", "Show synced lyrics on the cover when a song has them.", lyricsPref)
+                SToggle("Animated light", "Soft moving glow behind the song while it plays.", glowPref)
                 SToggle("Hook only", "Play about 25 seconds of each song, then move to the next.", hookPref)
                 SToggle("Reduce effects", "Turns off blur, the drifting background and the moving wave. Smoother on slower phones.", Reduce.state)
                 val cur = meta
@@ -490,3 +494,19 @@ private fun saveFeedCache(langs: String, l: List<Track>) { try {
     val a = org.json.JSONArray(); l.take(24).forEach { a.put(org.json.JSONObject().put("i", it.id).put("t", it.title).put("a", it.artist).put("c", it.cover ?: "").put("d", it.dur).put("x", it.artistId ?: "").put("l", it.album ?: "")) }
     S.put("feed_cache_" + langs, a.toString())
 } catch (_: Exception) { } }
+
+
+/** Two soft colour blobs drifting slowly. Plain gradients only, no blur, so it stays cheap on slow phones. */
+@Composable
+fun ReelGlow(tint: Color) {
+    val tr = androidx.compose.animation.core.rememberInfiniteTransition(label = "glow")
+    val a by tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(9000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "ga")
+    val b by tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(13000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "gb")
+    Box(Modifier.fillMaxSize().drawBehind {
+        val r = size.maxDimension * 0.55f
+        val c1 = androidx.compose.ui.geometry.Offset(size.width * (0.15f + 0.7f * a), size.height * (0.25f + 0.2f * b))
+        val c2 = androidx.compose.ui.geometry.Offset(size.width * (0.85f - 0.7f * b), size.height * (0.7f - 0.2f * a))
+        drawCircle(Brush.radialGradient(listOf(W.Pink.copy(alpha = 0.22f), Color.Transparent), c1, r), r, c1)
+        drawCircle(Brush.radialGradient(listOf(tint.copy(alpha = 0.55f), Color.Transparent), c2, r), r, c2)
+    })
+}
