@@ -1,5 +1,7 @@
 package com.metrolist.music.wavy
 
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.drawBehind
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.withStyle
@@ -73,7 +75,7 @@ fun PartyScreen(pc: PlayerConnection?, onBack: () -> Unit) {
     LaunchedEffect(Unit) { try { val a = call("party_mine") as? JSONArray; if (a != null && a.length() > 0 && a.getJSONObject(0).optString("status") == "active") pid = a.getJSONObject(0).optString("id") } catch (e: Exception) { } }
     if (pid != null) { PartyRoom(pc, pid!!, onLeft = { pid = null; step = 0 }, onBack = onBack); return }
     if (step == 1) {
-        Backdrop(tint = PARTY_THEMES.first { it.first == optTheme }.second) {
+        PartyBackdrop(tint = PARTY_THEMES.first { it.first == optTheme }.second) {
             Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 22.dp).verticalScroll(rememberScrollState())) {
                 BackBar("Room settings", { step = 0 })
                 Text("Set it up first. You can change all of this live once the room is running.", style = ts(14, color = Color(0xFFCFC8D9)))
@@ -104,7 +106,7 @@ fun PartyScreen(pc: PlayerConnection?, onBack: () -> Unit) {
         }
         return
     }
-    Backdrop(tint = Color(0xFF2B0B3A)) {
+    PartyBackdrop(tint = Color(0xFF2B0B3A)) {
         Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 22.dp)) {
             BackBar("Party", onBack)
             Text("Listen together", style = ts(30, FontWeight.Bold)); Spacer(Modifier.height(6.dp))
@@ -162,7 +164,7 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
     LaunchedEffect(can, qid) { while (can && qid != 0L) { delay(1500); if (pc?.player?.playbackState == androidx.media3.common.Player.STATE_ENDED) { try { call("party_next", "p_party" to pid, "p_ended_queue" to qid) } catch (e: Exception) { }; break } } }
     var themeTick by remember { mutableIntStateOf(0) }
     var confirmEnd by remember { mutableStateOf(false) }
-    Backdrop(tint = remember(themeTick) { partyTheme(pid) }) {
+    PartyBackdrop(tint = remember(themeTick) { partyTheme(pid) }) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.arrow_back), null, Modifier.size(26.dp).clickable(onClick = onBack), tint = Color.White)
@@ -262,4 +264,13 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                 } })
         }
     }
+}
+
+
+/** Party screens sit on pure black. The room colour is only a faint glow at the top. */
+@Composable
+fun PartyBackdrop(tint: Color, content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit) {
+    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Color.Black).drawBehind {
+        drawRect(Brush.verticalGradient(listOf(tint.copy(alpha = 0.16f), Color.Transparent), 0f, size.height * 0.4f))
+    }, content = content)
 }
