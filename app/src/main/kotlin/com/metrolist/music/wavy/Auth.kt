@@ -58,44 +58,19 @@ fun SplashScreen() {
 
 @Composable
 fun WelcomeScreen(onStart: () -> Unit) {
-    val tr = rememberInfiniteTransition(label = "w")
-    val float = tr.animateFloat(-8f, 8f, infiniteRepeatable(tween(2600, easing = EaseInOutSine), RepeatMode.Reverse), label = "f")
-    val tw = tr.animateFloat(0.3f, 1f, infiniteRepeatable(tween(1400), RepeatMode.Reverse), label = "t")
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
-    val rise by animateFloatAsState(if (shown) 0f else 40f, tween(700, easing = FastOutSlowInEasing), label = "r")
-    val fade by animateFloatAsState(if (shown) 1f else 0f, tween(700), label = "fa")
-    Backdrop(streaks = false, tint = Color(0xFF2A0B3A)) {
-        Canvas(Modifier.fillMaxSize()) {
-            val w = size.width; val h = size.height
-            fun swirl(y0: Float, y1: Float, y2: Float, c: Color, sw: Float) {
-                val pth = androidx.compose.ui.graphics.Path(); pth.moveTo(-w * 0.1f, h * y0); pth.cubicTo(w * 0.25f, h * y1, w * 0.6f, h * y2, w * 1.1f, h * (y0 + 0.05f))
-                drawPath(pth, c, style = androidx.compose.ui.graphics.drawscope.Stroke(sw, cap = androidx.compose.ui.graphics.StrokeCap.Round))
-            }
-            val ph = tw.value * 0.01f
-            for (k in 0..5) swirl(0.60f + k * 0.03f, 0.50f + k * 0.04f + ph, 0.80f - k * 0.03f, Color(0xFFB0206F).copy(alpha = 0.10f + 0.03f * k), w * (0.02f + 0.012f * k))
-            for (k in 0..3) swirl(0.05f + k * 0.04f, 0.20f - k * 0.03f, -0.05f + k * 0.05f + ph, Color(0xFF7B2CBF).copy(alpha = 0.12f), w * (0.015f + 0.01f * k))
-            drawCircle(Brush.radialGradient(listOf(Color(0x55E91E63), Color.Transparent), Offset(w * 0.9f, h * 0.78f), w * 0.7f), w * 0.7f, Offset(w * 0.9f, h * 0.78f))
-        }
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 26.dp)) {
-            Text("Wavy", Modifier.fillMaxWidth().padding(top = 18.dp), style = ts(34, FontWeight.SemiBold, W.Pink2).copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, letterSpacing = 3.sp), textAlign = TextAlign.Center)
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                HeadphoneHero(Modifier.fillMaxWidth(0.9f).aspectRatio(1f))
-                Text("\u2726", Modifier.align(Alignment.TopStart).padding(start = 10.dp, top = 20.dp).alpha(tw.value), style = ts(34, color = Color(0xFFEDE6FF)))
-                Text("\u2726", Modifier.align(Alignment.BottomEnd).padding(end = 30.dp, bottom = 30.dp).alpha(1.3f - tw.value), style = ts(22, color = Color(0xFFEDE6FF)))
-            }
-            Column(Modifier.offset(y = rise.dp).alpha(fade)) {
-                Text("Millions Of Songs\nWaiting For You.", style = ts(32, FontWeight.SemiBold).copy(lineHeight = 42.sp))
-                Spacer(Modifier.height(14.dp))
-                Text("Discover New Artists, Trending Tracks,\nAnd Playlists Made For You.", style = ts(16, color = Color(0xFFCFC8D9)).copy(lineHeight = 26.sp))
-                Spacer(Modifier.height(44.dp))
-                Box(Modifier.clip(RoundedCornerShape(50)).background(Brush.horizontalGradient(listOf(Color(0xFFE91E63), Color(0xFFC2185B)))).clickable(onClick = onStart)
-                    .padding(horizontal = 52.dp, vertical = 20.dp)) {
-                    Text("Get Started   \u00BB", style = ts(20, FontWeight.Medium))
-                }
-                Spacer(Modifier.height(28.dp))
-            }
-        }
+    val fade by animateFloatAsState(if (shown) 1f else 0f, tween(600), label = "fa")
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF07020D))) {
+        val iw = 1010f; val ih = 2060f
+        val wpx = with(androidx.compose.ui.platform.LocalDensity.current) { maxWidth.toPx() }
+        val hpx = with(androidx.compose.ui.platform.LocalDensity.current) { maxHeight.toPx() }
+        val sc = maxOf(wpx / iw, hpx / ih)
+        val ox = (wpx - iw * sc) / 2f; val oy = (hpx - ih * sc) / 2f
+        androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(com.metrolist.music.R.drawable.welcome_ref), null, Modifier.fillMaxSize().alpha(fade), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+        val d = androidx.compose.ui.platform.LocalDensity.current
+        val bx = ox + 104f * sc; val by = oy + 1784f * sc; val bw = 526f * sc; val bh = 112f * sc
+        Box(Modifier.offset(with(d) { bx.toDp() }, with(d) { by.toDp() }).size(with(d) { bw.toDp() }, with(d) { bh.toDp() }).clip(RoundedCornerShape(50)).clickable(onClick = onStart))
     }
 }
 
