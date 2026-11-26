@@ -25,5 +25,20 @@ suspend fun feedPage(titles: List<String>, offset: Int, seed: String): List<Trac
     val out = ArrayList<Track>()
     for (i in 0 until per) for (l in lists) l.getOrNull(i)?.let { out.add(it) }
     // light, seed-based shuffle inside groups of 6 so each refresh feels different but stays near the chart order
-    return out.chunked(6).flatMap { g -> g.sortedBy { Math.abs((seed + it.id).hashCode()) % 100 } }
+    val mixed = out.chunked(6).flatMap { g -> g.sortedBy { Math.abs((seed + it.id).hashCode()) % 100 } }
+    val fresh = Played.filter(mixed)
+    return if (fresh.size >= 6) fresh else mixed
+}
+
+private fun normKey(t: Track) = (t.title.lowercase().replace(Regex("\\(.*?\\)|\\[.*?\\]|official|video|audio|lyrical|lyrics|\\bhd\\b|[^a-z0-9\u0900-\u0DFF ]"), " ").replace(Regex("\\s+"), " ").trim() + "|" + t.artist.lowercase().split(Regex("[,&]| x | feat\\.?")).first().trim())
+
+/** Songs the user has already seen in the language feed; kept across refreshes so repeats do not come back. */
+object Played {
+    private fun load(): LinkedHashSet<String> = LinkedHashSet(S.s("played_hist").split("\n").filter { it.isNotBlank() })
+    fun mark(t: Track) { val h = load(); h.remove(t.id); h.add(t.id); h.remove("k:" + normKey(t)); h.add("k:" + normKey(t)); S.put("played_hist", h.toList().takeLast(600).joinToString("\n")) }
+    fun filter(list: List<Track>): List<Track> {
+        val h = load(); val seen = HashSet<String>(); val out = ArrayList<Track>()
+        for (t in list) { val k = "k:" + normKey(t); if (t.id in h || k in h) continue; if (!seen.add(k) || !seen.add(t.id)) continue; out.add(t) }
+        return out
+    }
 }

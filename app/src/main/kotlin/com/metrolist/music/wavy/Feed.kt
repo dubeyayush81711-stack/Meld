@@ -201,6 +201,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
     LaunchedEffect(pager.settledPage, pc != null) {
         if (pc == null) return@LaunchedEffect
         val cur = tracks[pager.settledPage]
+        Played.mark(cur)
         if (meta?.id == cur.id) { lastDriven = pager.settledPage; return@LaunchedEffect }
         if (lastDriven == pager.settledPage) return@LaunchedEffect
         // opening the tab never replaces what is already playing; only a swipe or a refresh does
