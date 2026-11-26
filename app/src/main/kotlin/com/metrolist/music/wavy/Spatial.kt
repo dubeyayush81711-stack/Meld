@@ -15,6 +15,7 @@ import kotlin.math.tanh
 object WavySpatial {
     @Volatile var mode = 0          // 0 off, 1 = 3D, 2 = 8D
     @Volatile var rotationHz = 0.12f // 8D: turns per second around the head
+    @Volatile var gain = 1f          // Volume boost: linear gain 1.0 to 2.0 (100% to 200%), soft limiter keeps peaks under full scale
     @Volatile var night = false      // Night mode: gentle compressor that evens out loud and quiet parts
 }
 
@@ -58,7 +59,8 @@ class WavySpatialProcessor : BaseAudioProcessor() {
         val mode = WavySpatial.mode
         if (mode != lastMode) { dl.fill(0f); dr.fill(0f); lpL = 0f; lpR = 0f; lastMode = mode }
         val night = WavySpatial.night
-        if (mode == 0 && !night) { out.put(inputBuffer); out.flip(); gainS = 1f; env = 0f; return }
+        val boostG = WavySpatial.gain.coerceIn(1f, 2f)
+        if (mode == 0 && !night && WavySpatial.gain <= 1.001f) { out.put(inputBuffer); out.flip(); gainS = 1f; env = 0f; return }
         val inc = 2.0 * PI * WavySpatial.rotationHz.coerceIn(0.03f, 0.6f) / rate
         val itdMax = 0.0006f * rate           // about 0.6 ms
         val cross = 0.00025f * rate
@@ -102,8 +104,8 @@ class WavySpatialProcessor : BaseAudioProcessor() {
                 gainS += (tgt - gainS) * 0.01f
                 ol *= gainS * 1.15f; or *= gainS * 1.15f
             }
-            out.putShort((limit(ol * (if (mode == 0) 1f else 0.84f)) * 32767f).toInt().coerceIn(-32768, 32767).toShort())
-            out.putShort((limit(or * (if (mode == 0) 1f else 0.84f)) * 32767f).toInt().coerceIn(-32768, 32767).toShort())
+            out.putShort((limit(ol * boostG * (if (mode == 0) 1f else 0.84f)) * 32767f).toInt().coerceIn(-32768, 32767).toShort())
+            out.putShort((limit(or * boostG * (if (mode == 0) 1f else 0.84f)) * 32767f).toInt().coerceIn(-32768, 32767).toShort())
             i++
         }
         out.flip()

@@ -201,6 +201,7 @@ object WavyFx {
         run {
             val hp = kind == "earbuds" || kind == "wired"
             WavySpatial.night = S.b("fx_night")
+            WavySpatial.gain = 1f + S.f("vol_boost", 0f).coerceIn(0f, 1f)
             WavySpatial.rotationHz = 0.05f + 0.35f * S.f("fx_8d_speed", 0.3f)
             WavySpatial.mode = if (hp && S.b("fx_8d")) 2 else if (hp && S.b("fx_spatial")) 1 else 0
         }
@@ -212,7 +213,7 @@ object WavyFx {
                 if (it.canVirtualize(android.media.AudioFormat.CHANNEL_OUT_STEREO, mode)) it.forceVirtualizationMode(mode)
             } catch (e: Exception) { } }
             it.enabled = spaceV > 0.01f } } catch (e: Exception) { }
-        try { loud?.let { it.setTargetGain(((loudV + (if (pocket && !S.b("fx_night")) 0.2f else 0f) + (if (S.b("gym_mode")) 0.5f else 0f)) * 1000).toInt() + (S.f("vol_boost", 0f) * 1500).toInt()); it.enabled = it.targetGain > 0 } } catch (e: Exception) { }
+        try { loud?.let { it.setTargetGain(((loudV + (if (pocket && !S.b("fx_night")) 0.2f else 0f) + (if (S.b("gym_mode")) 0.5f else 0f)) * 1000).toInt() ); it.enabled = it.targetGain > 0 } } catch (e: Exception) { }
         try {
             rev?.let { val on = S.b("fx_reverb"); it.preset = if (on) PresetReverb.PRESET_LARGEHALL else PresetReverb.PRESET_NONE; it.enabled = on }
         } catch (e: Exception) { }
