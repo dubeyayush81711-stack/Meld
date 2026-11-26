@@ -152,7 +152,7 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
 fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean = true) {
     var showFx by remember { mutableStateOf(false) }
     val lyricsPref = boolPref("reel_lyrics", true); var showOpts by remember { mutableStateOf(false) }
-    val glowPref = boolPref("reel_glow", true); val videoPref = boolPref("reel_video", false); val hookPref = boolPref("reel_hook", true)
+    val glowPref = boolPref("reel_glow", false); val videoPref = boolPref("reel_video", false); val hookPref = boolPref("reel_hook", true)
     val videoOn = videoPref.value
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()

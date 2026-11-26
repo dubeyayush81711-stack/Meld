@@ -910,7 +910,7 @@ fun BottomSheetPlayer(
                                         .background(Brush.verticalGradient(colorStops = gradientColorStops))
                                         .background(Color.Black.copy(alpha = 0.2f)),
                                 )
-                                if (isPlaying && com.metrolist.music.wavy.S.b("reel_glow", true)) com.metrolist.music.wavy.ReelGlow(colors[0])
+                                if (isPlaying && com.metrolist.music.wavy.S.b("reel_glow", false)) com.metrolist.music.wavy.ReelGlow(colors[0])
                             }
                         }
                     }
