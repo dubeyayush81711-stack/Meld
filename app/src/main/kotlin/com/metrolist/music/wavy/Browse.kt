@@ -336,16 +336,36 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                 (0 until r.length()).mapNotNull { r.getJSONObject(it).optJSONObject("artists") }.map { ArtistItem(it.optString("id"), it.optString("name"), if (it.isNull("thumbnail_url")) null else it.optString("thumbnail_url")) } } ?: emptyList()
         } catch (e: Exception) { }
     }
-    Backdrop(streaks = false) {
+    var query by remember { mutableStateOf("") }
+    var searching by remember { mutableStateOf(false) }
+    var az by remember { mutableStateOf(false) }
+    var asList by remember { mutableStateOf(false) }
+    val q = query.trim().lowercase()
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
         LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(bottom = 210.dp)) {
-            col { Row(Modifier.padding(16.dp, 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Avatar(44, onProfile)
-                Text("Your Library", Modifier.padding(start = 14.dp).weight(1f), style = ts(28, FontWeight.SemiBold))
+            col { Row(Modifier.padding(16.dp, 12.dp, 16.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Avatar(38, onProfile)
+                if (searching) {
+                    BasicTextField(query, { query = it }, Modifier.padding(start = 14.dp).weight(1f).clip(RoundedCornerShape(8.dp)).background(Color(0xFF2A2A2A)).padding(12.dp, 9.dp), singleLine = true,
+                        textStyle = ts(16), cursorBrush = SolidColor(Color.White))
+                    Icon(painterResource(R.drawable.close), null, Modifier.padding(start = 12.dp).size(28.dp).clickable { query = ""; searching = false }, tint = Color.White)
+                } else {
+                    Text("Your Library", Modifier.padding(start = 14.dp).weight(1f), style = ts(24, FontWeight.Bold))
+                    Icon(painterResource(R.drawable.search), null, Modifier.size(30.dp).clickable { searching = true }, tint = Color.White)
+                    Icon(painterResource(R.drawable.add), null, Modifier.padding(start = 22.dp).size(32.dp).clickable(onClick = onAddArtists), tint = Color.White)
+                }
             }
-            Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                listOf("Playlists", "Artists", "Downloads").forEach { c -> Text(c, Modifier.clip(RoundedCornerShape(50)).background(if (c == chip) W.Pink else Color(0x2EFFFFFF)).clickable { chip = c }.padding(horizontal = 20.dp, vertical = 10.dp), style = ts(15, FontWeight.Medium)) }
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Playlists", "Artists", "Downloads").forEach { c -> Text(c, Modifier.clip(RoundedCornerShape(50)).background(if (c == chip) W.Pink else Color(0xFF2A2A2A)).clickable { chip = c }.padding(horizontal = 16.dp, vertical = 8.dp), style = ts(14, FontWeight.Medium)) }
             }
-            Spacer(Modifier.height(14.dp)) }
+            if (chip != "Downloads") Row(Modifier.fillMaxWidth().padding(16.dp, 14.dp, 16.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f).clickable { az = !az }, verticalAlignment = Alignment.CenterVertically) {
+                    Icon(painterResource(R.drawable.wavy_sort), null, Modifier.size(22.dp), tint = Color.White)
+                    Text(if (az) "A-Z" else "Recents", Modifier.padding(start = 12.dp), style = ts(15, FontWeight.Bold))
+                }
+                if (chip == "Artists") Icon(painterResource(if (asList) R.drawable.grid_view else R.drawable.list), null, Modifier.size(24.dp).clickable { asList = !asList }, tint = Color.White)
+            }
+            Spacer(Modifier.height(6.dp)) }
             if (chip == "Downloads") col {
                 val dls by (WDl.util?.downloads ?: kotlinx.coroutines.flow.MutableStateFlow(emptyMap())).collectAsState()
                 val ids = WDl.doneIds(dls)
@@ -359,7 +379,7 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                     tl.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, tl, i, "Downloads") } }
                 }
             } else if (chip == "Playlists") {
-                lists.forEach { (id, name, cover) -> col {
+                (if (az) lists.sortedBy { it.second.lowercase() } else lists).filter { q.isEmpty() || it.second.lowercase().contains(q) }.forEach { (id, name, cover) -> col {
                     Row(Modifier.fillMaxWidth().combinedClickable(onClick = { onPlaylist(id, name) }, onLongClick = { menuFor = Triple(id, name, cover) }).padding(horizontal = 16.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (cover != null) Cover(cover, 64.dp, 8) else Box(Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)).background(W.Grad), contentAlignment = Alignment.Center) {
                             Icon(painterResource(R.drawable.favorite), null, Modifier.size(30.dp), tint = Color.White) }
@@ -368,16 +388,28 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                 if (lists.size > 1) col { Text("Hold a playlist to move or delete it", Modifier.padding(20.dp, 6.dp), style = ts(13, color = W.Dim)) }
                 if (lists.isEmpty()) col { Text("Songs you play land in Favourites. Playlists you add show here.", Modifier.padding(24.dp), style = ts(15, color = W.Dim)) }
             } else col {
-                artists.chunked(3).forEach { row ->
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        row.forEach { a -> Column(Modifier.weight(1f).clickable { ArtistNav.open?.invoke(a.id, a.name) }) { Cover(a.thumb, 110.dp, 55, Modifier.align(Alignment.CenterHorizontally))
-                            Text(a.name, Modifier.padding(top = 8.dp), style = ts(15, FontWeight.SemiBold), maxLines = 2); Text("Artist", style = ts(13, color = W.Dim)) } }
-                        repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                val shown = (if (az) artists.sortedBy { it.name.lowercase() } else artists).filter { q.isEmpty() || it.name.lowercase().contains(q) }
+                if (asList) {
+                    shown.forEach { a -> Row(Modifier.fillMaxWidth().clickable { ArtistNav.open?.invoke(a.id, a.name) }.padding(16.dp, 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Cover(a.thumb, 64.dp, 32)
+                        Column(Modifier.padding(start = 16.dp)) { Text(a.name, style = ts(17, FontWeight.SemiBold), maxLines = 1); Text("Artist", style = ts(14, color = W.Dim)) } } }
+                    Row(Modifier.fillMaxWidth().clickable(onClick = onAddArtists).padding(16.dp, 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(64.dp).clip(CircleShape).background(Color(0xFF2A2A2A)), contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.add), null, Modifier.size(28.dp), tint = Color(0xFFBDB8C4)) }
+                        Text("Add artists", Modifier.padding(start = 16.dp), style = ts(17, FontWeight.SemiBold)) }
+                } else {
+                    val cells = shown.map { it as ArtistItem? } + listOf<ArtistItem?>(null)
+                    cells.chunked(3).forEach { row ->
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            row.forEach { a ->
+                                if (a != null) Column(Modifier.weight(1f).clickable { ArtistNav.open?.invoke(a.id, a.name) }) { Cover(a.thumb, 108.dp, 54, Modifier.align(Alignment.CenterHorizontally))
+                                    Text(a.name, Modifier.padding(top = 8.dp), style = ts(16), maxLines = 2); Text("Artist", style = ts(14, color = W.Dim)) }
+                                else Column(Modifier.weight(1f).clickable(onClick = onAddArtists)) {
+                                    Box(Modifier.size(108.dp).align(Alignment.CenterHorizontally).clip(CircleShape).background(Color(0xFF2A2A2A)), contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.add), null, Modifier.size(36.dp), tint = Color(0xFFBDB8C4)) }
+                                    Text("Add artists", Modifier.padding(top = 8.dp), style = ts(16)) }
+                            }
+                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
                     }
-                }
-                Column(Modifier.padding(16.dp).width(110.dp).clickable(onClick = onAddArtists), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(Modifier.size(110.dp).clip(CircleShape).background(Color(0x2EFFFFFF)), contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.add), null, Modifier.size(36.dp), tint = Color(0xFFBDB8C4)) }
-                    Text("Add artists", Modifier.padding(top = 8.dp), style = ts(15, FontWeight.SemiBold))
                 }
             }
         }

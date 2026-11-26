@@ -65,7 +65,7 @@ val OB_LANGS = listOf(
 
 @Composable
 private fun ObFrame(title: String, back: (() -> Unit)?, header: String? = null, content: @Composable ColumnScope.() -> Unit) {
-    Backdrop(streaks = false, tint = Color(0xFF3A1060)) {
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             if (header != null) Box(Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 4.dp)) {
                 if (back != null) Icon(painterResource(R.drawable.arrow_back), null, Modifier.padding(start = 20.dp).size(26.dp).clickable(onClick = back), tint = Color.White)
