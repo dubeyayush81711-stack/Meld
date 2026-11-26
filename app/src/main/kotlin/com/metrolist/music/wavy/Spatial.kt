@@ -28,14 +28,17 @@ object WavySpatial {
 class WavySpatialProcessor : BaseAudioProcessor() {
     private var rate = 44100
     private var phase = 0.0
-    private val dl = FloatArray(128); private val dr = FloatArray(128); private var wp = 0
+    private var dl = FloatArray(128); private var dr = FloatArray(128); private var wp = 0; private var mask = 127
     private var lpL = 0f; private var lpR = 0f
     private var lastMode = 0
     private var env = 0f; private var gainS = 1f
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
-        if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT || inputAudioFormat.channelCount != 2) throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
+        // Anything but 16-bit stereo (mono, 24-bit, float, surround) passes through untouched: NOT_SET makes this stage inactive instead of failing playback.
+        if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT || inputAudioFormat.channelCount != 2) return AudioProcessor.AudioFormat.NOT_SET
         rate = inputAudioFormat.sampleRate
+        var n = 128; while (n < rate / 400 + 8) n *= 2   // delay line long enough for the largest delay at this sample rate
+        dl = FloatArray(n); dr = FloatArray(n); mask = n - 1; wp = 0
         return inputAudioFormat
     }
 
@@ -47,8 +50,8 @@ class WavySpatialProcessor : BaseAudioProcessor() {
     }
 
     private fun tap(buf: FloatArray, delay: Float): Float {
-        val d = delay.coerceIn(0f, 120f); val i = d.toInt(); val f = d - i
-        val a = buf[(wp - i) and 127]; val b = buf[(wp - i - 1) and 127]
+        val d = delay.coerceIn(0f, (mask - 2).toFloat()); val i = d.toInt(); val f = d - i
+        val a = buf[(wp - i) and mask]; val b = buf[(wp - i - 1) and mask]
         return a + (b - a) * f
     }
 
@@ -69,7 +72,7 @@ class WavySpatialProcessor : BaseAudioProcessor() {
         val frames = n / 4
         while (i < frames) {
             val l = inputBuffer.short * k; val r = inputBuffer.short * k
-            dl[wp and 127] = l; dr[wp and 127] = r
+            dl[wp and mask] = l; dr[wp and mask] = r
             var ol: Float; var or: Float
             if (mode == 0) { ol = l; or = r }
             else if (mode == 2) {
@@ -96,7 +99,7 @@ class WavySpatialProcessor : BaseAudioProcessor() {
                 ol = m * 0.9f + s * 1.6f - 0.22f * cr
                 or = m * 0.9f - s * 1.6f - 0.22f * cl
             }
-            wp = (wp + 1) and 127
+            wp = (wp + 1) and mask
             if (night) {
                 val pk = maxOf(abs(ol), abs(or))
                 env = if (pk > env) env + (pk - env) * 0.02f else env + (pk - env) * 0.0004f   // fast attack, slow release

@@ -284,10 +284,12 @@ object WavyFx {
         } catch (e: Exception) { }
     }
 
+    private var flashId: String? = null
     private fun torch(on: Boolean) {
         try {
             val cm = ctx?.getSystemService(Context.CAMERA_SERVICE) as? CameraManager ?: return
-            val id = cm.cameraIdList.firstOrNull { cm.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE) == true } ?: return
+            // The flash camera id is looked up once, not on every beat.
+            val id = flashId ?: cm.cameraIdList.firstOrNull { cm.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE) == true }?.also { flashId = it } ?: return
             cm.setTorchMode(id, on); torchOn = on
         } catch (e: Exception) { }
     }

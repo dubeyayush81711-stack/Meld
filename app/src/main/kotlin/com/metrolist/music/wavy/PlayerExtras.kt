@@ -41,17 +41,26 @@ object PX {
 data class LyricLine(val t: Long, val text: String)
 
 fun parseLyrics(raw: String): List<LyricLine> {
-    val re = Regex("^\\[(\\d+):(\\d+)(?:[.:](\\d+))?](.*)$")
+    val lead = Regex("^((?:\\[\\d+:\\d+(?:[.:]\\d+)?\\])+)(.*)$")
+    val one = Regex("\\[(\\d+):(\\d+)(?:[.:](\\d+))?]")
+    val word = Regex("<\\d+:\\d+(?:[.:]\\d+)?>")
+    var offset = 0L
+    Regex("\\[offset:\\s*([+-]?\\d+)\\s*]", RegexOption.IGNORE_CASE).find(raw)?.let { offset = it.groupValues[1].toLongOrNull() ?: 0L }
     val out = ArrayList<LyricLine>()
+    var synced = false
     for (l in raw.lines()) {
-        val m = re.find(l.trim())
+        val m = lead.find(l.trim())
         if (m != null) {
-            val ms = (m.groupValues[1].toLong() * 60 + m.groupValues[2].toLong()) * 1000 + (m.groupValues[3].padEnd(3, '0').take(3).toLongOrNull() ?: 0)
-            val tx = m.groupValues[4].trim()
-            if (tx.isNotEmpty()) out.add(LyricLine(ms, tx))
+            val tx = m.groupValues[2].replace(word, "").replace(Regex("\\s+"), " ").trim()
+            if (tx.isEmpty()) continue
+            // a chorus line can carry several timestamps: one entry for each
+            for (t in one.findAll(m.groupValues[1])) {
+                val ms = (t.groupValues[1].toLong() * 60 + t.groupValues[2].toLong()) * 1000 + (t.groupValues[3].padEnd(3, '0').take(3).toLongOrNull() ?: 0)
+                out.add(LyricLine((ms - offset).coerceAtLeast(0), tx)); synced = true
+            }
         } else if (l.isNotBlank() && !l.trim().startsWith("[")) out.add(LyricLine(-1, l.trim()))
     }
-    return out
+    return if (synced) out.filter { it.t >= 0 }.sortedBy { it.t } + out.filter { it.t < 0 } else out
 }
 
 fun SongItem.toTrack() = Track(id, title, artists.joinToString { it.name }, thumbnail, duration ?: 0, artists.firstOrNull()?.id, album?.name)

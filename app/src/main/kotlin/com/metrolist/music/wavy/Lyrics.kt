@@ -11,12 +11,14 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.padding
 
-private val lyricCache = HashMap<String, List<LyricLine>>()
+/** Small thread-safe cache of the last 60 songs. Failures (empty results) are never stored, so a network hiccup does not hide lyrics until the app restarts. */
+private val lyricCache: MutableMap<String, List<LyricLine>> = java.util.Collections.synchronizedMap(object : LinkedHashMap<String, List<LyricLine>>(64, 0.75f, true) { override fun removeEldestEntry(e: MutableMap.MutableEntry<String, List<LyricLine>>?) = size > 60 })
 
 /** Strips marketing words, feat. credits and brackets so providers match on the real song name. */
 fun cleanSongTitle(t: String): String {
     var s = LyricsUtils.cleanTitleForSearch(t)
-    s = s.replace(Regex("(?i)\\b(official|music video|video song|lyrical|lyric video|full video|full song|audio|hd|4k|video)\\b"), " ")
+    // Only marketing tags at the very end of the title are removed, so songs like "Video Killed the Radio Star" keep their words.
+    s = s.replace(Regex("(?i)[\\s\\-|:]*\\b(official music video|official video|official audio|music video|video song|lyrical video|lyric video|full video|full song|lyrical|audio|hd|4k)\\s*$"), "")
     s = s.replace(Regex("(?i)\\s*(feat\\.?|ft\\.?|featuring)\\s+.*$"), "")
     s = s.replace(Regex("\\s*[-|:]\\s*$"), "").replace(Regex("\\s+"), " ").trim()
     return if (s.length >= 2) s else t.trim()
@@ -30,17 +32,24 @@ fun cleanSongTitle(t: String): String {
 suspend fun fetchLyrics(ctx: Context, id: String, title: String, artist: String, durSec: Int, album: String?): List<LyricLine> = withContext(Dispatchers.IO) {
     lyricCache[id]?.let { return@withContext it }
     val names = listOf("LrcLib", "BetterLyrics", "KuGou", "Paxsenix", "LyricsPlus", "Zemer", "YouTubeSubtitle", "YouTube")
-    val ct = cleanSongTitle(title); val ca = artist.substringBefore(",").substringBefore("&").trim()
+    val ct = cleanSongTitle(title)
+    // Artist names like "Simon & Garfunkel" are tried whole first, then just the first artist.
+    val artistTries = listOf(artist.substringBefore(",").trim(), artist.substringBefore(",").substringBefore("&").trim()).filter { it.isNotEmpty() }.distinct().ifEmpty { listOf(artist.trim()) }
     var plain: List<LyricLine> = emptyList()
     for (n in names) {
         val p: LyricsProvider = LyricsProviderRegistry.getProviderByName(n) ?: continue
-        val raw = try { if (!p.isEnabled(ctx)) null else withTimeoutOrNull(6000) { p.getLyrics(ctx, id, ct, ca, durSec, album).getOrNull() } } catch (e: Exception) { null } ?: continue
+        var raw: String? = null
+        for (ca in artistTries) {
+            raw = try { if (!p.isEnabled(ctx)) null else withTimeoutOrNull(6000) { p.getLyrics(ctx, id, ct, ca, durSec, album).getOrNull() } } catch (e: Exception) { null }
+            if (!raw.isNullOrBlank()) break
+        }
+        if (raw.isNullOrBlank()) continue
         val lines = try { parseLyrics(LyricsUtils.filterLyricsCreditLines(raw)) } catch (e: Exception) { emptyList() }
         if (lines.isEmpty()) continue
         if (lines.any { it.t >= 0 }) { val s = lines.filter { it.t >= 0 }; lyricCache[id] = s; return@withContext s }
         if (plain.isEmpty()) plain = lines
     }
-    lyricCache[id] = plain
+    if (plain.isNotEmpty()) lyricCache[id] = plain
     plain
 }
 
