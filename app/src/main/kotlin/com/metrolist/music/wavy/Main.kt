@@ -186,8 +186,7 @@ fun NavBar(sel: Int, haze: dev.chrisbanes.haze.HazeState? = null, onDouble: (Int
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().then(if (haze != null) Modifier.hazeBlur(input = dev.chrisbanes.haze.HazeInput.Sources(haze), style = dev.chrisbanes.haze.blur.HazeBlurStyle { blurRadius(64.dp) }) else Modifier).then(if (haze != null) Modifier.background(androidx.compose.ui.graphics.Brush.verticalGradient(0f to Color(0x00141019), 0.3f to Color(0xE6141019), 1f to Color(0xF0141019))) else Modifier.background(Color(0xEB141019)))) {
         val tabW = maxWidth / tabs.size
         val ind by androidx.compose.animation.core.animateDpAsState(tabW * sel + (tabW - 36.dp) / 2, androidx.compose.animation.core.spring(dampingRatio = 0.65f, stiffness = 420f), label = "ind")
-        Box(Modifier.offset(x = ind, y = 4.dp).width(36.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(W.Pink))
-        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 12.dp, bottom = 8.dp)) {
+        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 6.dp, bottom = 8.dp)) {
             tabs.forEachIndexed { i, (name, icon) ->
                 val on = i == sel
                 val col by animateColorAsState(if (on) W.Pink else Color(0xFFBDB8C4), tween(200), label = "c")
@@ -227,7 +226,7 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
         } catch (_: Exception) {}
     }
     val tintA by androidx.compose.animation.animateColorAsState(tint, label = "tint")
-    val shape = RoundedCornerShape(32.dp)
+    val shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
     val spin by androidx.compose.animation.core.rememberInfiniteTransition(label = "spin").animateFloat(0f, 360f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(14000, easing = androidx.compose.animation.core.LinearEasing)), label = "sp")
     Box(Modifier.padding(horizontal = 11.dp).fillMaxWidth().height(62.dp).clip(shape)
         .background(Color(0xFF15111A)).background(Brush.linearGradient(listOf(tintA.copy(alpha = 0.92f), tintA.copy(alpha = 0.78f), tintA.copy(alpha = 0.92f)))).background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.10f), Color.Transparent)))
