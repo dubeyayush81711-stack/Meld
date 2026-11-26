@@ -122,7 +122,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
                     p.startsWith("pl:") -> { val parts = p.split(":", limit = 3); TrackListScreen(parts[2], pc, { page = null }) { loadPlaylistTracks(parts[1].toLong()) } }
                     p == "picker" -> ArtistPicker(null) { page = null }
                     p == "party" -> PartyScreen(pc) { page = null }
-                    p == "agent" -> AiChatScreen("agent", "Wavy Agent", "Hi! Tell me a mood, an artist or a language and I will help you pick songs. I can also explain how Wavy works.") { page = null }
+                    p == "agent" -> AiChatScreen("agent", "Wavy", "Hello, I am Wavy. Tell me a mood, an artist or a language and I will help you choose songs. I can also explain how the app works.") { page = null }
                     p == "support" -> AiChatScreen("support", "Support", "Hi! Ask me how anything in Wavy works. If something is broken, describe it and tap Send a bug report.") { page = "set:about" }
                     p == "profile" -> ProfileScreen(onBack = { page = null }, onSignOut = onSignOut, onSettings = { page = "set:hub" })
                     p == "editprofile" -> EditProfileRoute { page = null }
@@ -146,7 +146,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
             if (pc != null) LaunchedEffect(pc) { pc.error.collect { e -> if (e != null) ErrorLog.report("playback", "Playback error " + e.errorCodeName, e) } }
 if (!chat) NavBar(tab, haze, onDouble = { if (tabs[it].first == "Music") MusicRefresh.n++ }) { page = null; full = false; tab = it }
         }
-        if (meta != null && pc != null && tab != 2 && !full && (page == null || page == "agent" || page == "support")) IslandPill(pc) { page = null; full = false; tab = 2 }
+        if (meta != null && pc != null && tab != 2 && !full && (page == "agent" || page == "support")) IslandPill(pc) { page = null; full = false; tab = 2 }
         AnimatedVisibility(full && pc != null, enter = slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(200)),
             exit = slideOutVertically(tween(300)) { it } + fadeOut(tween(200))) {
             if (pc != null) PlayerScreen(pc) { full = false }

@@ -94,7 +94,7 @@ fun SettingsHub(onBack: () -> Unit, onSignOut: () -> Unit = {}, go: (String) -> 
         SNav("Advanced options", "Sleep timer, speed, pocket mode, smart controls") { go("set:adv") }
         SNav("Apps and devices", "Local files and car") { go("set:apps") }
         SNav("Notifications", "Choose what Wavy tells you") { go("set:notif") }
-        SNav("Wavy Agent", "Chat with the AI music assistant") { go("agent") }
+        SNav("Wavy", "Your AI music assistant") { go("agent") }
         SNav("About and support", "Version and licenses") { go("set:about") }
         SNav("Sign out", "Leave this account on this phone") { onSignOut() }
         Text("Wavy $WAVY_BUILD", Modifier.padding(start = 20.dp, top = 18.dp), style = ts(12, color = W.Dim))
