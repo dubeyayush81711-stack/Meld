@@ -307,16 +307,31 @@ suspend fun loadPlaylistTracks(id: Long): List<Track> {
     return ids.mapNotNull { by[it] }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Long, String) -> Unit, onAddArtists: () -> Unit) {
     var lists by remember { mutableStateOf<List<Triple<Long, String, String?>>>(emptyList()) }
     var artists by remember { mutableStateOf<List<ArtistItem>>(emptyList()) }
     var chip by remember { mutableStateOf("Playlists") }
+    val ctx = LocalContext.current
+    val orderPrefs = remember { ctx.getSharedPreferences("wavy_order", 0) }
+    var menuFor by remember { mutableStateOf<Triple<Long, String, String?>?>(null) }
+    val scope = rememberCoroutineScope()
+    fun applyOrder(l: List<Triple<Long, String, String?>>): List<Triple<Long, String, String?>> {
+        val ord = (orderPrefs.getString("pl", "") ?: "").split(",").mapNotNull { it.toLongOrNull() }
+        return l.sortedBy { val i = ord.indexOf(it.first); if (i < 0) Int.MAX_VALUE else i }
+    }
+    fun move(id: Long, d: Int) {
+        val cur = lists.toMutableList(); val i = cur.indexOfFirst { it.first == id }; val j = i + d
+        if (i < 0 || j < 0 || j >= cur.size) return
+        val x = cur.removeAt(i); cur.add(j, x); lists = cur
+        orderPrefs.edit().putString("pl", cur.joinToString(",") { it.first.toString() }).apply()
+    }
     LaunchedEffect(Unit) {
         try {
             val s = Api.rpc("profile_stats") as? JSONObject
             val a = s?.optJSONArray("playlists")
-            if (a != null) lists = (0 until a.length()).map { a.getJSONObject(it) }.map { Triple(it.getLong("id"), if (it.optBoolean("is_favourite")) "Favourites" else it.optString("name"), if (it.isNull("cover_url")) null else it.optString("cover_url")) }
+            if (a != null) lists = (0 until a.length()).map { a.getJSONObject(it) }.map { Triple(it.getLong("id"), if (it.optBoolean("is_favourite")) "Favourites" else it.optString("name"), if (it.isNull("cover_url")) null else it.optString("cover_url")) }.let { l -> applyOrder(l) }
             artists = (Api.get("user_artists?select=artists(id,name,thumbnail_url)&order=created_at.asc") as? JSONArray)?.let { r ->
                 (0 until r.length()).mapNotNull { r.getJSONObject(it).optJSONObject("artists") }.map { ArtistItem(it.optString("id"), it.optString("name"), if (it.isNull("thumbnail_url")) null else it.optString("thumbnail_url")) } } ?: emptyList()
         } catch (e: Exception) { }
@@ -345,11 +360,12 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                 }
             } else if (chip == "Playlists") {
                 lists.forEach { (id, name, cover) -> col {
-                    Row(Modifier.fillMaxWidth().clickable { onPlaylist(id, name) }.padding(horizontal = 16.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().combinedClickable(onClick = { onPlaylist(id, name) }, onLongClick = { menuFor = Triple(id, name, cover) }).padding(horizontal = 16.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (cover != null) Cover(cover, 64.dp, 8) else Box(Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)).background(W.Grad), contentAlignment = Alignment.Center) {
                             Icon(painterResource(R.drawable.favorite), null, Modifier.size(30.dp), tint = Color.White) }
                         Column(Modifier.padding(start = 16.dp)) { Text(name, style = ts(17, FontWeight.SemiBold)); Text("Playlist", style = ts(14, color = W.Dim)) }
                     } } }
+                if (lists.size > 1) col { Text("Hold a playlist to move or delete it", Modifier.padding(20.dp, 6.dp), style = ts(13, color = W.Dim)) }
                 if (lists.isEmpty()) col { Text("Songs you play land in Favourites. Playlists you add show here.", Modifier.padding(24.dp), style = ts(15, color = W.Dim)) }
             } else col {
                 artists.chunked(3).forEach { row ->
@@ -366,8 +382,21 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
             }
         }
     }
-}
 
+    menuFor?.let { m ->
+        androidx.compose.ui.window.Dialog(onDismissRequest = { menuFor = null }) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF1A1620)).border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp)).padding(vertical = 14.dp)) {
+                Text(m.second, Modifier.padding(20.dp, 6.dp, 20.dp, 10.dp), style = ts(18, FontWeight.SemiBold), maxLines = 1)
+                Text("Move up", Modifier.fillMaxWidth().clickable { move(m.first, -1); menuFor = null }.padding(20.dp, 14.dp), style = ts(16))
+                Text("Move down", Modifier.fillMaxWidth().clickable { move(m.first, 1); menuFor = null }.padding(20.dp, 14.dp), style = ts(16))
+                if (m.second != "Favourites") Text("Delete playlist", Modifier.fillMaxWidth().clickable {
+                    val id = m.first; menuFor = null
+                    scope.launch { try { Api.delete("playlists?id=eq.$id"); lists = lists.filter { it.first != id } } catch (e: Exception) { } }
+                }.padding(20.dp, 14.dp), style = ts(16, color = Color(0xFFFF6B6B)))
+            }
+        }
+    }
+}
 
 // Player strip shown on top of the Favourites page.
 @Composable
