@@ -95,7 +95,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(m?.title ?: "", style = ts(26, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.basicMarquee())
-                    Text(m?.artists?.joinToString { it.name } ?: "", style = ts(16, color = Color(0xFFD6CCD3)), maxLines = 1, modifier = Modifier.basicMarquee())
+                    Text(m?.artists?.joinToString { it.name } ?: "", style = ts(16, color = Color(0xFFD6CCD3)), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 var likedNow by remember(m?.id) { mutableStateOf(false) }
                 Box(Modifier.padding(start = 16.dp).size(38.dp).clip(CircleShape).background(if (likedNow) W.Pink else Color.Transparent).border(2.dp, if (likedNow) W.Pink else Color.White, CircleShape).clickable { m?.let { x -> likedNow = true; scope.launch { likeTrack(x.id) } } }, contentAlignment = Alignment.Center) {
