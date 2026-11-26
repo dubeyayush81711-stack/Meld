@@ -120,11 +120,24 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
             delay(500)
         }
     }
+    val tvRef = remember(ex) { mutableStateOf<android.view.TextureView?>(null) }
+    val lifeOwner = (ctx as androidx.lifecycle.LifecycleOwner)
+    DisposableEffect(ex, lifeOwner) {
+        val o = androidx.lifecycle.LifecycleEventObserver { _, e ->
+            if (e == androidx.lifecycle.Lifecycle.Event.ON_START || e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                // coming back from Recents: the video surface was torn down, attach it again and jump to the audio position
+                tvRef.value?.let { try { ex.clearVideoTextureView(it); ex.setVideoTextureView(it) } catch (_: Exception) {} }
+                pc?.player?.let { p -> ex.seekTo(p.currentPosition); ex.playWhenReady = p.isPlaying }
+            }
+        }
+        lifeOwner.lifecycle.addObserver(o)
+        onDispose { lifeOwner.lifecycle.removeObserver(o) }
+    }
     val ar = if (arOv > 0f) arOv else cand.w.toFloat() / cand.h.coerceAtLeast(1)
     androidx.compose.foundation.layout.BoxWithConstraints(modifier.clipToBounds()) {
         val h = maxHeight
         val fh = minOf(h * 0.9f, (maxWidth / ar) * 2f); val fw = fh * ar
-        AndroidView(modifier = Modifier.align(Alignment.Center).offset(y = -(h * 0.04f)).requiredSize(fw, fh), factory = { c -> android.view.TextureView(c).also { ex.setVideoTextureView(it) } })
+        AndroidView(modifier = Modifier.align(Alignment.Center).offset(y = -(h * 0.04f)).requiredSize(fw, fh), factory = { c -> android.view.TextureView(c).also { tvRef.value = it; ex.setVideoTextureView(it) } })
     }
 }
 
