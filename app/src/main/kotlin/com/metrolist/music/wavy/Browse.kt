@@ -124,7 +124,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val playing by (pc?.isPlaying ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }).collectAsState()
     if (showMic) MicScreen(onClose = { showMic = false }, onResult = { said -> showMic = false; q = said; submitted = said; filter = "All"; saveHistory(ctxS, said); hist = loadHistory(ctxS) })
-    Backdrop(tint = Color(0xFF2B0B3A)) {
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
         LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 210.dp)) {
             col {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -280,7 +280,7 @@ fun TrackListScreen(title: String, pc: PlayerConnection?, onBack: () -> Unit, lo
     var list by remember { mutableStateOf<List<Track>?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { try { list = load() } catch (e: ApiError) { err = humanErr(e) } }
-    Backdrop(tint = Color(0xFF2B0B3A)) {
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
         Column(Modifier.fillMaxSize()) {
             BackBar(title, onBack)
             val l = list
@@ -507,7 +507,7 @@ fun LangListScreen(title: String, code: String, pc: PlayerConnection?, onBack: (
     LaunchedEffect(tab) { snapshotFlow { state.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }.collect { last ->
         if (!loading && !pager.exhausted && l.isNotEmpty() && last >= l.size - 6) { loading = true; l.addAll(pager.more()); loading = false } } }
     val name = if (tab == 0) "Most viewed in $title" else "Latest $title hits"
-    Backdrop(tint = Color(0xFF2B0B3A)) {
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
         Column(Modifier.fillMaxSize()) {
             BackBar(title, onBack)
             Row(Modifier.padding(horizontal = 20.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
