@@ -31,6 +31,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -212,6 +214,297 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
         } catch (_: Exception) {}
     }
     val tintA by androidx.compose.animation.animateColorAsState(tint, label = "tint")
+    val shape = RoundedCornerShape(32.dp)
+    val spin by androidx.compose.animation.core.rememberInfiniteTransition(label = "spin").animateFloat(0f, 360f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(14000, easing = androidx.compose.animation.core.LinearEasing)), label = "sp")
+    Box(Modifier.padding(horizontal = 11.dp).fillMaxWidth().height(62.dp).clip(shape)
+        .background(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.18f), tintA.copy(alpha = 0.50f), Color.White.copy(alpha = 0.07f))))
+        .border(0.8.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.34f), Color.White.copy(alpha = 0.10f))), shape).clickable(onClick = onOpen)) {
+        Row(Modifier.fillMaxSize().padding(start = 9.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            AsyncImage(hiRes(m.thumbnailUrl), null, Modifier.size(45.dp).graphicsLayer { rotationZ = if (playing) spin else 0f }.clip(CircleShape).background(W.Card), contentScale = ContentScale.Crop)
+            Column(Modifier.weight(1f).padding(horizontal = 11.dp)) {
+                Text(m.title, style = ts(14, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(m.artists.joinToString { it.name }, style = ts(11, color = Color(0xB0FFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(38.dp).clip(CircleShape).clickable { pc.togglePlayPause() }.padding(7.dp), tint = Color.White)
+            Icon(painterResource(R.drawable.skip_next), null, Modifier.size(38.dp).clip(CircleShape).clickable { pc.seekToNext() }.padding(7.dp), tint = Color.White)
+        }
+        Box(Modifier.align(Alignment.BottomStart).padding(horizontal = 18.dp).padding(bottom = 5.dp).fillMaxWidth().height(2.dp).clip(RoundedCornerShape(1.dp)).background(Color(0x2EFFFFFF))) {
+            Box(Modifier.fillMaxWidth((pos.toFloat() / dur.coerceAtLeast(1)).coerceIn(0f, 1f)).fillMaxHeight().background(Brush.horizontalGradient(listOf(Color(0xFFFF7FAE), Color(0xFFFF2D78)))))
+        }
+    }
+}
+
+@Composable
+fun Cover(url: String?, size: androidx.compose.ui.unit.Dp, radius: Int = 10, modifier: Modifier = Modifier) {
+    AsyncImage(url, null, modifier.size(size).clip(RoundedCornerShape(radius.dp)).background(Brush.linearGradient(listOf(Color(0xFF3A2A44), Color(0xFF15121A)))), contentScale = ContentScale.Crop)
+}
+
+@Composable
+fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Unit, onProfile: () -> Unit, onParty: () -> Unit = {}, onSettings: () -> Unit = {}, onPlaylist: (Long, String) -> Unit = { _, _ -> }) {
+    var feed by remember { mutableStateOf<Feed?>(null) }
+    var name by remember { mutableStateOf("") }
+    var err by remember { mutableStateOf<String?>(null) }
+    var reload by remember { mutableIntStateOf(0) }
+    LaunchedEffect(reload) {
+        err = null
+        try {
+            feed = parseFeed(Api.rpc("home_feed") as JSONObject)
+            val p = Api.get("profiles?id=eq.${Api.uid}&select=name") as? JSONArray
+            name = p?.optJSONObject(0)?.optString("name").orEmpty().ifBlank { Api.email.substringBefore("@") }
+        } catch (e: ApiError) { err = humanErr(e) } catch (e: Exception) { err = "Something went wrong." }
+    }
+    var cat by remember { mutableStateOf("All") }
+    var tiles by remember { mutableStateOf<List<Triple<Long, String, String?>>>(emptyList()) }
+    var chill by remember { mutableStateOf<List<Track>>(emptyList()) }
+    LaunchedEffect(reload) {
+        try {
+            val a = (Api.rpc("profile_stats") as? JSONObject)?.optJSONArray("playlists")
+            tiles = (0 until (a?.length() ?: 0)).map { a!!.getJSONObject(it) }.filter { !it.optBoolean("is_favourite") }
+                .map { Triple(it.getLong("id"), it.optString("name"), if (it.isNull("cover_url")) null else it.optString("cover_url")) }
+        } catch (e: Exception) { }
+    }
+    LaunchedEffect(cat) {
+        if (cat == "Chill" && chill.isEmpty()) try { chill = (Api.rpc("search_all", JSONObject().put("p_q", "chill").put("p_limit", 30)) as? JSONObject)?.optJSONArray("songs").tracks() } catch (e: Exception) { }
+    }
+    val st = rememberLazyListState()
+    val shift = if (st.firstVisibleItemIndex == 0) st.firstVisibleItemScrollOffset else 4000
+    Box(Modifier.fillMaxSize().background(W.Bg)) {
+        Backdrop(Modifier.fillMaxWidth().height(1400.dp).offset { IntOffset(0, -shift) }, tint = Color(0xFF2B0B3A)) {}
+        val f = feed
+        LazyColumn(state = st, contentPadding = PaddingValues(bottom = 210.dp), modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+            col {
+                Row(Modifier.padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val hr = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                    Column(Modifier.weight(1f)) {
+                        Text(if (hr < 5) "Late night vibes" else if (hr < 12) "Good morning" else if (hr < 17) "Good afternoon" else "Good evening", style = ts(13, color = Color(0x99FFFFFF)))
+                        Text("Home", style = ts(34, FontWeight.Bold))
+                    }
+                    listOf(Triple(R.drawable.search, onSearch, 0), Triple(R.drawable.group_outlined, onParty, 1), Triple(R.drawable.settings, onSettings, 2)).forEach { (ic, f, _) ->
+                        Box(Modifier.padding(start = 6.dp).size(40.dp).glass(CircleShape).clickable(onClick = f), contentAlignment = Alignment.Center) {
+                            Icon(painterResource(ic), null, Modifier.size(20.dp), tint = Color.White) }
+                    }
+                    Box(Modifier.padding(start = 6.dp).size(40.dp).clip(CircleShape).background(W.Grad).clickable(onClick = onProfile), contentAlignment = Alignment.Center) {
+                        val hav = rememberAvatar(androidx.compose.ui.platform.LocalContext.current)
+                        if (hav != null) androidx.compose.foundation.Image(hav.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                        else Text(name.take(1).uppercase().ifEmpty { "W" }, style = ts(20, FontWeight.Bold)) }
+                }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    listOf("All", "Music", "Chill", "Podcasts").forEach { c ->
+                        Box(Modifier.height(34.dp).then(if (c == cat) Modifier.clip(RoundedCornerShape(50)).background(W.Pink) else Modifier.glass(RoundedCornerShape(50))).clickable { cat = c }.padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+                            Text(c, style = ts(13, if (c == cat) FontWeight.SemiBold else FontWeight.Medium), maxLines = 1, softWrap = false)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+            }
+            if (cat == "Podcasts") item {
+                Text("Podcasts are not available yet. Music is what Wavy plays for now.", Modifier.padding(horizontal = 28.dp, vertical = 40.dp), style = ts(15, color = W.Dim))
+            } else if (cat == "Chill") item {
+                Column {
+                    Text("Chill", Modifier.padding(start = 20.dp, bottom = 12.dp), style = ts(24, FontWeight.SemiBold))
+                    if (chill.isEmpty()) Text("Loading...", Modifier.padding(24.dp), style = ts(14, color = W.Dim))
+                    chill.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, chill, i, "Chill") } }
+                }
+            } else {
+                if (cat == "All" && f != null) item { QuickTiles(f.favouritesId, tiles, onPlaylist, onParty, f.sections.firstOrNull { it.type == "made_for_you" && it.tracks.isNotEmpty() }?.let { m -> { playTracks(pc, m.tracks, 0, m.title) } }) }
+                if (f != null) item { Hero(f, pc) }
+                if (f == null) item {
+                    Box(Modifier.fillMaxWidth().padding(60.dp), contentAlignment = Alignment.Center) {
+                        if (err != null) Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(err!!, style = ts(14, color = W.Dim)); Spacer(Modifier.height(12.dp))
+                            Text("Try again", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { reload++ }.padding(20.dp, 10.dp), style = ts(14, FontWeight.SemiBold))
+                        } else Text("Loading...", style = ts(14, color = W.Dim))
+                    }
+                } else feedItems(f, pc)
+            }
+        }
+    }
+}
+
+@Composable
+fun QuickTiles(favId: Long?, tiles: List<Triple<Long, String, String?>>, onPlaylist: (Long, String) -> Unit, onParty: () -> Unit, onDaily: (() -> Unit)?) {
+    data class Q(val n: String, val sub: String?, val cover: String?, val icon: Int, val go: () -> Unit)
+    val all = buildList {
+        if (favId != null) add(Q("Liked Songs", null, null, R.drawable.favorite) { onPlaylist(favId, "Favourites") })
+        if (onDaily != null) add(Q("Daily Mix", "Made for you", null, R.drawable.library_music, onDaily))
+        add(Q("Listen Together", "With friends", null, R.drawable.group_outlined, onParty))
+        tiles.forEach { (id, n, c) -> add(Q(n, null, c, R.drawable.library_music) { onPlaylist(id, n) }) }
+    }.take(6)
+    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        all.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                pair.forEach { q ->
+                    Row(Modifier.weight(1f).height(47.dp).glass(RoundedCornerShape(14.dp)).clickable(onClick = q.go), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(47.dp).background(W.Grad), contentAlignment = Alignment.Center) {
+                            if (q.cover != null) Cover(q.cover, 47.dp, 0)
+                            else Icon(painterResource(q.icon), null, Modifier.size(22.dp), tint = Color.White)
+                        }
+                        Column(Modifier.padding(horizontal = 10.dp)) {
+                            Text(q.n, style = ts(13, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            if (q.sub != null) Text(q.sub, style = ts(10, color = Color(0x99FFFFFF)), maxLines = 1)
+                        }
+                    }
+                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+    Spacer(Modifier.height(10.dp))
+}
+
+@Composable
+fun Hero(f: Feed, pc: PlayerConnection?) {
+    val s = f.sections.firstOrNull { it.type == "made_for_you" && it.tracks.isNotEmpty() } ?: f.sections.firstOrNull { it.type == "trending" && it.tracks.isNotEmpty() } ?: return
+    Column(Modifier.padding(horizontal = 16.dp)) {
+        Text("Picked for you", Modifier.padding(bottom = 12.dp), style = ts(20, FontWeight.SemiBold))
+        Row(Modifier.fillMaxWidth().glass(RoundedCornerShape(26.dp)).clickable { playTracks(pc, s.tracks, 0, s.title) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Cover(s.tracks.first().cover ?: s.cover, 108.dp, 18)
+            Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                Text("Playlist", Modifier.glass(RoundedCornerShape(50)).padding(horizontal = 9.dp, vertical = 2.dp), style = ts(10, FontWeight.SemiBold, Color(0xFFFFD6E4)))
+                Text(s.title, Modifier.padding(top = 6.dp), style = ts(16, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(s.tracks.take(3).joinToString(", ") { it.artist }, style = ts(12, color = Color(0xFFB9B2C4)), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            Box(Modifier.size(50.dp).clip(CircleShape).background(Brush.verticalGradient(listOf(Color(0xFFFF4F97), Color(0xFFFF2D78)))), contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.play), null, Modifier.size(24.dp), tint = Color.White) }
+        }
+    }
+    Spacer(Modifier.height(26.dp))
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc: PlayerConnection?) {
+    val first = f.sections.firstOrNull { it.type == "made_for_you" } ?: f.sections.firstOrNull { it.type == "trending" }
+    if (first != null && first.tracks.isNotEmpty()) col {
+        Column {
+            Text("Jump into a session based on your tastes", Modifier.padding(horizontal = 20.dp), style = ts(12, color = Color(0x94FFFFFF)))
+            Text("Start listening", Modifier.padding(horizontal = 20.dp, vertical = 2.dp), style = ts(20, FontWeight.SemiBold))
+            Spacer(Modifier.height(6.dp))
+            first.tracks.take(3).forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, first.tracks, i, first.title) } }
+            Spacer(Modifier.height(28.dp))
+        }
+    }
+    col { MoodRow("Chill", "chill", pc) }
+    col { MoodRow("Party and dance", "party", pc) }
+    col { MoodRow("Top hits for you", "top", pc) }
+    val mixes = f.sections.filter { it.type == "artist_mix" }
+    if (mixes.isNotEmpty()) col {
+        SectionHeader("To get you started")
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            itemsIndexed(mixes) { _, s -> BigCard(s.tracks.firstOrNull()?.cover ?: s.cover, s.title, s.subtitle) { playTracks(pc, s.tracks, 0, s.title) } }
+        }
+        Spacer(Modifier.height(28.dp))
+    }
+    for (s in f.sections) {
+        if (s.type == "artist_mix" || (s === first)) continue
+        when {
+            s.albums.isNotEmpty() -> col(s.id) {
+                SectionHeader(s.title)
+                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    itemsIndexed(s.albums) { _, a -> MiniCard(a.cover, a.title, a.artist) { playTracks(pc, a.tracks, 0, a.title) } }
+                }
+                Spacer(Modifier.height(28.dp))
+            }
+            s.artists.isNotEmpty() -> col(s.id) {
+                SectionHeader(s.title)
+                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    itemsIndexed(s.artists) { _, a ->
+                        Column(Modifier.width(122.dp).clickable { ArtistNav.open?.invoke(a.id, a.name) }, horizontalAlignment = Alignment.CenterHorizontally) {
+                            Cover(a.thumb, 122.dp, 61, Modifier.border(1.8.dp, Color(0x24FFFFFF), CircleShape))
+                            Text(a.name, Modifier.padding(top = 8.dp), style = ts(13, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            if (s.title.contains("might like", true)) {
+                                var on by remember(a.id) { mutableStateOf(S.b("follow_" + a.id)) }
+                                Text(if (on) "Following" else "Follow", Modifier.padding(top = 6.dp).clip(RoundedCornerShape(14.dp)).background(if (on) W.Pink else Color(0x12FFFFFF)).border(0.7.dp, if (on) W.Pink else Color(0x4DFFFFFF), RoundedCornerShape(14.dp))
+                                    .clickable { on = !on; S.put("follow_" + a.id, on) }.padding(horizontal = 14.dp, vertical = 4.dp), style = ts(11, FontWeight.Medium))
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(28.dp))
+            }
+            s.type == "trending" -> col(s.id) {
+                SectionHeader(s.title)
+                s.tracks.take(5).forEachIndexed { i, t ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("${i + 1}", Modifier.padding(start = 16.dp).width(26.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            style = ts(22, FontWeight.Bold, Color.Transparent).copy(drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.2f), color = if (i < 3) Color(0xFFFF7FAE) else Color(0x80FFFFFF)))
+                        Box(Modifier.weight(1f)) { TrackRow(t, pc) { playTracks(pc, s.tracks, i, s.title) } }
+                    }
+                }
+                Spacer(Modifier.height(28.dp))
+            }
+            s.tracks.isNotEmpty() -> col(s.id) {
+                if (s.type == "more_like") Row(Modifier.padding(start = 20.dp, bottom = 12.dp).clickable { ArtistNav.open?.invoke(null, s.title.removePrefix("More like ")) }, verticalAlignment = Alignment.CenterVertically) {
+                    Cover(s.cover, 46.dp, 23)
+                    Column(Modifier.padding(start = 12.dp)) {
+                        Text("More like", style = ts(13, color = Color(0xFFB9B2C4)))
+                        Text(s.title.removePrefix("More like "), style = ts(22, FontWeight.SemiBold))
+                    }
+                } else SectionHeader(s.title)
+                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    itemsIndexed(s.tracks) { i, t -> MiniCard(t.cover, t.title, t.artist) { playTracks(pc, s.tracks, i, s.title) } }
+                }
+                Spacer(Modifier.height(28.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun SectionHeader(t: String) {
+    val sub = when {
+        t.startsWith("Chill") -> "Slow it down"; t.startsWith("Party") -> "Turn it up"; t.startsWith("Top hits") -> "Made from what you replay"
+        t.startsWith("Albums") -> "From artists you play"; t.contains("favourite artists", true) -> "Most played"; t.contains("might like", true) -> "Fresh voices"
+        t.startsWith("Recently") -> "Pick up where you left off"; t.startsWith("Trending") -> "Updated daily"; else -> null }
+    Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp)) {
+        if (sub != null) Text(sub, style = ts(12, color = Color(0x94FFFFFF)))
+        Text(t, style = ts(20, FontWeight.SemiBold))
+    }
+}
+
+@Composable
+fun BigCard(cover: String?, label: String, sub: String?, onClick: () -> Unit) {
+    Column(Modifier.width(216.dp).clickable(onClick = onClick)) {
+        Box {
+            Cover(cover, 216.dp, 18, Modifier.height(122.dp).width(216.dp))
+            Text(label, Modifier.align(Alignment.BottomStart).padding(9.dp).clip(RoundedCornerShape(11.dp)).background(Color(0x73140A1E)).border(0.7.dp, Color(0x40FFFFFF), RoundedCornerShape(11.dp)).padding(horizontal = 11.dp, vertical = 4.dp),
+                style = ts(11, FontWeight.Medium, Color.White), maxLines = 1)
+        }
+        if (sub != null) Text(sub, Modifier.padding(top = 7.dp), style = ts(11, color = Color(0x8CFFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+fun MiniCard(cover: String?, title: String, sub: String, onClick: () -> Unit) {
+    Column(Modifier.width(148.dp).clickable(onClick = onClick)) {
+        Cover(cover, 148.dp, 18, Modifier.shadow(8.dp, RoundedCornerShape(18.dp)))
+        Text(title, Modifier.padding(top = 8.dp), style = ts(13, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(sub, style = ts(11, color = Color(0x8CFFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
+    val meta by pc.mediaMetadata.collectAsState()
+    val playing by pc.isPlaying.collectAsState()
+    val m = meta ?: return
+    var pos by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(m.id) { while (true) { pos = pc.player.currentPosition; delay(500) } }
+    val dur = pc.player.duration.takeIf { it > 0 } ?: (m.duration * 1000L)
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var tint by remember { mutableStateOf(Color(0xFF3A1428)) }
+    LaunchedEffect(m.thumbnailUrl) {
+        val u = m.thumbnailUrl ?: return@LaunchedEffect
+        try {
+            val r = coil3.SingletonImageLoader.get(ctx).execute(coil3.request.ImageRequest.Builder(ctx).data(u).allowHardware(false).build())
+            val b = (r as? coil3.request.SuccessResult)?.image?.toBitmap()
+            if (b != null) {
+                val p = androidx.palette.graphics.Palette.from(b).generate()
+                val c = p.getDarkMutedColor(p.getMutedColor(p.getDominantColor(0xFF3A1428.toInt())))
+                val hsv = FloatArray(3); android.graphics.Color.colorToHSV(c, hsv)
+                hsv[2] = hsv[2].coerceAtMost(0.32f); hsv[1] = hsv[1].coerceAtMost(0.75f)
+                tint = Color(android.graphics.Color.HSVToColor(hsv))
+            }
+        } catch (_: Exception) {}
+    }
+    val tintA by androidx.compose.animation.animateColorAsState(tint, label = "tint")
     Column(Modifier.padding(horizontal = 12.dp).clip(RoundedCornerShape(22.dp)).background(tintA).clickable(onClick = onOpen)) {
         Row(Modifier.padding(start = 10.dp, end = 6.dp, top = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(hiRes(m.thumbnailUrl), null, Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(W.Card), contentScale = ContentScale.Crop)
@@ -267,8 +560,12 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
         val f = feed
         LazyColumn(state = st, contentPadding = PaddingValues(bottom = 210.dp), modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             col {
-                Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Home", Modifier.weight(1f), style = ts(26, FontWeight.Bold))
+                Row(Modifier.padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val hr = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                    Column(Modifier.weight(1f)) {
+                        Text(if (hr < 5) "Late night vibes" else if (hr < 12) "Good morning" else if (hr < 17) "Good afternoon" else "Good evening", style = ts(13, color = Color(0x99FFFFFF)))
+                        Text("Home", style = ts(34, FontWeight.Bold))
+                    }
                     listOf(Triple(R.drawable.search, onSearch, 0), Triple(R.drawable.group_outlined, onParty, 1), Triple(R.drawable.settings, onSettings, 2)).forEach { (ic, f, _) ->
                         Box(Modifier.padding(start = 6.dp).size(40.dp).glass(CircleShape).clickable(onClick = f), contentAlignment = Alignment.Center) {
                             Icon(painterResource(ic), null, Modifier.size(20.dp), tint = Color.White) }
@@ -296,7 +593,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                     chill.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, chill, i, "Chill") } }
                 }
             } else {
-                if (cat == "All" && f != null) item { QuickTiles(f.favouritesId, tiles, onPlaylist) }
+                if (cat == "All" && f != null) item { QuickTiles(f.favouritesId, tiles, onPlaylist, onParty, f.sections.firstOrNull { it.type == "made_for_you" && it.tracks.isNotEmpty() }?.let { m -> { playTracks(pc, m.tracks, 0, m.title) } }) }
                 if (f != null) item { Hero(f, pc) }
                 if (f == null) item {
                     Box(Modifier.fillMaxWidth().padding(60.dp), contentAlignment = Alignment.Center) {
@@ -312,41 +609,49 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
 }
 
 @Composable
-fun QuickTiles(favId: Long?, tiles: List<Triple<Long, String, String?>>, onPlaylist: (Long, String) -> Unit) {
-    val all = buildList { if (favId != null) add(Triple(favId, "Liked Songs", null as String?)); addAll(tiles) }.take(6)
-    if (all.isEmpty()) return
+fun QuickTiles(favId: Long?, tiles: List<Triple<Long, String, String?>>, onPlaylist: (Long, String) -> Unit, onParty: () -> Unit, onDaily: (() -> Unit)?) {
+    data class Q(val n: String, val sub: String?, val cover: String?, val icon: Int, val go: () -> Unit)
+    val all = buildList {
+        if (favId != null) add(Q("Liked Songs", null, null, R.drawable.favorite) { onPlaylist(favId, "Favourites") })
+        if (onDaily != null) add(Q("Daily Mix", "Made for you", null, R.drawable.library_music, onDaily))
+        add(Q("Listen Together", "With friends", null, R.drawable.group_outlined, onParty))
+        tiles.forEach { (id, n, c) -> add(Q(n, null, c, R.drawable.library_music) { onPlaylist(id, n) }) }
+    }.take(6)
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         all.chunked(2).forEach { pair ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                pair.forEach { (id, n, cover) ->
-                    Row(Modifier.weight(1f).height(64.dp).glass(RoundedCornerShape(20.dp)).clickable { onPlaylist(id, if (n == "Liked Songs") "Favourites" else n) }, verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(64.dp).background(W.Grad), contentAlignment = Alignment.Center) {
-                            if (cover != null) Cover(cover, 64.dp, 0)
-                            else Icon(painterResource(if (n == "Liked Songs") R.drawable.favorite else R.drawable.library_music), null, Modifier.size(26.dp), tint = Color.White)
+                pair.forEach { q ->
+                    Row(Modifier.weight(1f).height(47.dp).glass(RoundedCornerShape(14.dp)).clickable(onClick = q.go), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(47.dp).background(W.Grad), contentAlignment = Alignment.Center) {
+                            if (q.cover != null) Cover(q.cover, 47.dp, 0)
+                            else Icon(painterResource(q.icon), null, Modifier.size(22.dp), tint = Color.White)
                         }
-                        Text(n, Modifier.padding(horizontal = 12.dp), style = ts(14, FontWeight.SemiBold), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Column(Modifier.padding(horizontal = 10.dp)) {
+                            Text(q.n, style = ts(13, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            if (q.sub != null) Text(q.sub, style = ts(10, color = Color(0x99FFFFFF)), maxLines = 1)
+                        }
                     }
                 }
                 if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
-    Spacer(Modifier.height(24.dp))
+    Spacer(Modifier.height(10.dp))
 }
 
 @Composable
 fun Hero(f: Feed, pc: PlayerConnection?) {
     val s = f.sections.firstOrNull { it.type == "made_for_you" && it.tracks.isNotEmpty() } ?: f.sections.firstOrNull { it.type == "trending" && it.tracks.isNotEmpty() } ?: return
     Column(Modifier.padding(horizontal = 16.dp)) {
-        Text("Picked For You", Modifier.padding(bottom = 10.dp), style = ts(20, FontWeight.Bold))
+        Text("Picked for you", Modifier.padding(bottom = 12.dp), style = ts(20, FontWeight.SemiBold))
         Row(Modifier.fillMaxWidth().glass(RoundedCornerShape(26.dp)).clickable { playTracks(pc, s.tracks, 0, s.title) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Cover(s.tracks.first().cover ?: s.cover, 96.dp, 18)
+            Cover(s.tracks.first().cover ?: s.cover, 108.dp, 18)
             Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                 Text("Playlist", Modifier.glass(RoundedCornerShape(50)).padding(horizontal = 9.dp, vertical = 2.dp), style = ts(10, FontWeight.SemiBold, Color(0xFFFFD6E4)))
                 Text(s.title, Modifier.padding(top = 6.dp), style = ts(16, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(s.tracks.take(3).joinToString(", ") { it.artist }, style = ts(12, color = Color(0xFFB9B2C4)), maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            Box(Modifier.size(44.dp).glass(CircleShape, 2.2f), contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.play), null, Modifier.size(24.dp), tint = Color.White) }
+            Box(Modifier.size(50.dp).clip(CircleShape).background(Brush.verticalGradient(listOf(Color(0xFFFF4F97), Color(0xFFFF2D78)))), contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.play), null, Modifier.size(24.dp), tint = Color.White) }
         }
     }
     Spacer(Modifier.height(26.dp))
@@ -356,9 +661,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc
     val first = f.sections.firstOrNull { it.type == "made_for_you" } ?: f.sections.firstOrNull { it.type == "trending" }
     if (first != null && first.tracks.isNotEmpty()) col {
         Column {
-            Text("Jump into a session based on your tastes", Modifier.padding(horizontal = 20.dp), style = ts(15, color = Color(0xFFB9B2C4)))
-            Text("Start listening", Modifier.padding(horizontal = 20.dp, vertical = 2.dp), style = ts(24, FontWeight.SemiBold))
-            Spacer(Modifier.height(10.dp))
+            Text("Jump into a session based on your tastes", Modifier.padding(horizontal = 20.dp), style = ts(12, color = Color(0x94FFFFFF)))
+            Text("Start listening", Modifier.padding(horizontal = 20.dp, vertical = 2.dp), style = ts(20, FontWeight.SemiBold))
+            Spacer(Modifier.height(6.dp))
             first.tracks.take(3).forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, first.tracks, i, first.title) } }
             Spacer(Modifier.height(28.dp))
         }
@@ -419,17 +724,26 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc
 }
 
 @Composable
-fun SectionHeader(t: String) = Text(t, Modifier.padding(start = 20.dp, bottom = 14.dp), style = ts(24, FontWeight.SemiBold))
+fun SectionHeader(t: String) {
+    val sub = when {
+        t.startsWith("Chill") -> "Slow it down"; t.startsWith("Party") -> "Turn it up"; t.startsWith("Top hits") -> "Made from what you replay"
+        t.startsWith("Albums") -> "From artists you play"; t.contains("favourite artists", true) -> "Most played"; t.contains("might like", true) -> "Fresh voices"
+        t.startsWith("Recently") -> "Pick up where you left off"; t.startsWith("Trending") -> "Updated daily"; else -> null }
+    Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp)) {
+        if (sub != null) Text(sub, style = ts(12, color = Color(0x94FFFFFF)))
+        Text(t, style = ts(20, FontWeight.SemiBold))
+    }
+}
 
 @Composable
 fun BigCard(cover: String?, label: String, sub: String?, onClick: () -> Unit) {
-    Column(Modifier.width(160.dp).clickable(onClick = onClick)) {
+    Column(Modifier.width(216.dp).clickable(onClick = onClick)) {
         Box {
-            Cover(cover, 160.dp, 12)
-            Text(label, Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFFF2D7B0)).padding(horizontal = 8.dp, vertical = 3.dp),
-                style = ts(13, FontWeight.SemiBold, Color(0xFF1A1018)), maxLines = 1)
+            Cover(cover, 216.dp, 18, Modifier.height(122.dp).width(216.dp))
+            Text(label, Modifier.align(Alignment.BottomStart).padding(9.dp).clip(RoundedCornerShape(11.dp)).background(Color(0x73140A1E)).border(0.7.dp, Color(0x40FFFFFF), RoundedCornerShape(11.dp)).padding(horizontal = 11.dp, vertical = 4.dp),
+                style = ts(11, FontWeight.Medium, Color.White), maxLines = 1)
         }
-        if (sub != null) Text(sub, Modifier.padding(top = 8.dp), style = ts(12, color = Color(0xFFB9B2C4)), maxLines = 2, overflow = TextOverflow.Ellipsis)
+        if (sub != null) Text(sub, Modifier.padding(top = 7.dp), style = ts(11, color = Color(0x8CFFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
