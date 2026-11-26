@@ -90,63 +90,38 @@ fun PillField(value: String, onChange: (String) -> Unit, hint: String, password:
 @Composable
 fun LoginScreen(onDone: (needsPicker: Boolean) -> Unit) {
     val ctx = LocalContext.current; val scope = rememberCoroutineScope()
-    var email by remember { mutableStateOf("") }; var pw by remember { mutableStateOf("") }
-    var signup by remember { mutableStateOf(false) }; var busy by remember { mutableStateOf(false) }
-    var err by remember { mutableStateOf<String?>(null) }; var rem by remember { mutableStateOf(Api.remember()) }
-    Backdrop(tint = Color(0xFF2A0B30)) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().padding(horizontal = 26.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(46.dp))
-            Image(painterResource(R.mipmap.ic_launcher_static), null, Modifier.size(82.dp).clip(RoundedCornerShape(22.dp)))
-            Spacer(Modifier.height(10.dp))
-            Text("wavy", style = ts(64, FontWeight.SemiBold).copy(letterSpacing = (-2).sp))
-            Spacer(Modifier.weight(1f))
-            PillField(email, { email = it; err = null }, "Email", keyboard = KeyboardType.Email)
-            Spacer(Modifier.height(16.dp))
-            PillField(pw, { pw = it; err = null }, "Password", password = true)
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(22.dp).border(1.dp, Color(0x99FFFFFF), RoundedCornerShape(5.dp)).clip(RoundedCornerShape(5.dp))
-                    .background(if (rem) W.Pink else Color.Transparent).clickable { rem = !rem; Api.setRemember(rem) }, contentAlignment = Alignment.Center) {
-                    if (rem) Icon(painterResource(R.drawable.check), null, Modifier.size(16.dp), tint = Color.White)
-                }
-                Spacer(Modifier.width(10.dp)); Text("Remember me", style = ts(13, color = Color(0xCCFFFFFF)))
-                Spacer(Modifier.weight(1f))
-                Text("Forgot password?", Modifier.clickable {
-                    if (email.isBlank()) { err = "Enter your email first." } else scope.launch {
-                        try { Api.recover(email); Toast.makeText(ctx, "If this email has an account, a reset link was sent.", Toast.LENGTH_LONG).show() } catch (e: ApiError) { err = humanErr(e) }
-                    }
-                }, style = ts(13, color = Color(0xCCFFFFFF)))
-            }
-            if (err != null) { Spacer(Modifier.height(10.dp)); Text(err!!, style = ts(13, color = Color(0xFFFF6B8A)), textAlign = TextAlign.Center) }
-            Spacer(Modifier.height(28.dp))
-            Box(Modifier.fillMaxWidth().height(58.dp).clip(RoundedCornerShape(50)).background(W.Pink).clickable(enabled = !busy) {
-                if (email.isBlank() || pw.length < 6) { err = "Enter your email and a password of at least 6 characters."; return@clickable }
-                busy = true; err = null
-                scope.launch {
-                    try {
-                        if (signup) Api.signUp(email, pw) else Api.signIn(email, pw)
-                        onDone(!onboardingDone())
-                    } catch (e: ApiError) { err = humanErr(e); busy = false }
-                }
-            }, contentAlignment = Alignment.Center) { Text(if (busy) "Please wait..." else if (signup) "Create account" else "Sign in", style = ts(17, FontWeight.Medium)) }
-            Spacer(Modifier.height(30.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f).height(1.dp).background(Color(0x55FFFFFF)))
-                Text("  or continue with  ", style = ts(16, FontWeight.Medium, Color(0xE6FFFFFF)))
-                Box(Modifier.weight(1f).height(1.dp).background(Color(0x55FFFFFF)))
-            }
-            Spacer(Modifier.height(18.dp))
-            Box(Modifier.size(56.dp).border(1.dp, Color(0x55FFFFFF), CircleShape).clip(CircleShape).clickable {
-                Toast.makeText(ctx, "Google sign-in is not switched on yet. Use email for now.", Toast.LENGTH_LONG).show()
-            }, contentAlignment = Alignment.Center) { Text("G", style = ts(24, FontWeight.Bold)) }
-            Spacer(Modifier.weight(1f))
-            Row {
-                Text(if (signup) "Already have an account? " else "New to Wavy? ", style = ts(14, FontWeight.Medium))
-                Text(if (signup) "LOG IN" else "SIGN UP", Modifier.clickable { signup = !signup; err = null }, style = ts(14, FontWeight.SemiBold, W.Pink))
-            }
-            Spacer(Modifier.height(24.dp))
+    val done by rememberUpdatedState(onDone)
+    var web by remember { mutableStateOf<android.webkit.WebView?>(null) }
+    fun js(code: String) { web?.post { web?.evaluateJavascript(code, null) } }
+    fun msg(m: String) = "wavyDone(" + JSONObject.quote(m) + ")"
+    fun auth(email: String, pw: String, rem: Boolean, signup: Boolean) {
+        Api.setRemember(rem)
+        scope.launch {
+            try {
+                if (signup) Api.signUp(email, pw) else Api.signIn(email, pw)
+                done(!onboardingDone())
+            } catch (e: ApiError) { js(msg(humanErr(e))) } catch (e: Exception) { js(msg("Something went wrong. Check your connection.")) }
         }
     }
+    androidx.compose.ui.viewinterop.AndroidView(modifier = Modifier.fillMaxSize().background(Color.Black).imePadding(), factory = { c ->
+        android.webkit.WebView(c).apply {
+            setBackgroundColor(android.graphics.Color.BLACK)
+            overScrollMode = android.view.View.OVER_SCROLL_NEVER
+            settings.javaScriptEnabled = true
+            settings.allowFileAccess = true
+            addJavascriptInterface(object {
+                @android.webkit.JavascriptInterface fun login(e: String, p: String, r: Boolean) { post { auth(e, p, r, false) } }
+                @android.webkit.JavascriptInterface fun signup(e: String, p: String, r: Boolean) { post { auth(e, p, r, true) } }
+                @android.webkit.JavascriptInterface fun forgot(e: String) { post {
+                    if (e.isBlank()) js("toast('Enter your email first')") else scope.launch {
+                        try { Api.recover(e); js("toast('If this email has an account, a reset link was sent.')") } catch (x: ApiError) { js("toast(" + JSONObject.quote(humanErr(x)) + ")") }
+                    } } }
+                @android.webkit.JavascriptInterface fun google() { post { Toast.makeText(ctx, "Google sign-in is not switched on yet. Use email for now.", Toast.LENGTH_LONG).show() } }
+            }, "WavyApp")
+            loadUrl("file:///android_asset/welcome/login.html")
+            web = this
+        }
+    })
 }
 
 @Composable
