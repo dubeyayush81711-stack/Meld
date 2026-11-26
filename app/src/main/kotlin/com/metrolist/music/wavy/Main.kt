@@ -97,6 +97,7 @@ private val tabs = listOf("Home" to R.drawable.home_outlined, "Search" to R.draw
 fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
     var tab by remember { mutableIntStateOf(0) }
     var full by remember { mutableStateOf(false) }
+    var musicSeen by remember { mutableStateOf(false) }
     var page by remember { mutableStateOf<String?>(null) }
     val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val ctx = LocalContext.current
@@ -116,11 +117,17 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
     val haze = dev.chrisbanes.haze.rememberHazeState()
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().then(if (!Reduce.on) Modifier.hazeSource(haze) else Modifier)) {
+            // the Music feed stays alive once opened, so coming back resumes the same song and page
+            if (tab == 2) musicSeen = true
+            if (musicSeen) Box(Modifier.fillMaxSize()) {
+                MusicFeed(pc, onSearch = { tab = 1 }, active = tab == 2)
+                if (tab != 2) Box(Modifier.fillMaxSize().pointerInput(Unit) {})
+            }
             AnimatedContent(tab, transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(160)) }, label = "tab") { t ->
                 when (t) {
                     0 -> HomeScreen(pc, onSearch = { tab = 1 }, onSignOut = onSignOut, onProfile = { page = "editprofile" }, onParty = { page = "party" }, onSettings = { page = "set:hub" }, onPlaylist = { id, n -> page = "pl:$id:$n" })
                     1 -> SearchScreen(pc, onLang = { l -> page = "lang:" + l.lang + ":" + l.title }, onProfile = { page = "editprofile" }, initial = "")
-                    2 -> MusicFeed(pc, onSearch = { tab = 1 })
+                    2 -> Box(Modifier.fillMaxSize())
                     3 -> LibraryScreen(pc, onProfile = { page = "editprofile" }, onPlaylist = { id, n -> page = "pl:$id:$n" }, onAddArtists = { page = "picker" })
                     else -> Backdrop { Box(Modifier.fillMaxSize().statusBarsPadding(), contentAlignment = Alignment.Center) {
                         Text(tabs[t].first + " is coming in the next build.", style = ts(16, color = W.Dim)) } }

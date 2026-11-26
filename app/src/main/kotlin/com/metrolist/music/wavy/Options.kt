@@ -37,14 +37,9 @@ object WEq {
     fun bind(pc: PlayerConnection): String? {
         val id = pc.player.audioSessionId
         if (id <= 0) return "Play a song first."
-        if (sid != id || eq == null) {
-            try { eq?.release(); bb?.release(); vz?.release() } catch (_: Exception) {}
-            eq = null; bb = null; vz = null; sid = id
-            try { eq = Equalizer(0, id).also { it.enabled = true } } catch (_: Exception) {}
-            try { bb = BassBoost(0, id).also { it.enabled = true } } catch (_: Exception) {}
-            try { vz = Virtualizer(0, id).also { it.enabled = true } } catch (_: Exception) {}
-            bands = FloatArray(eq?.numberOfBands?.toInt() ?: 0) { i -> try { eq!!.getBandLevel(i.toShort()).toFloat() } catch (_: Exception) { 0f } }
-        }
+        WavyFx.ensure()
+        eq = WavyFx.eqE; bb = WavyFx.bassE; vz = WavyFx.virtE; sid = id
+        bands = FloatArray(eq?.numberOfBands?.toInt() ?: 0) { i -> try { eq!!.getBandLevel(i.toShort()).toFloat() } catch (_: Exception) { 0f } }
         return if (eq == null) "This phone does not allow the in-app equalizer." else null
     }
 }

@@ -122,6 +122,14 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             }
             Spacer(Modifier.height(26.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                val dev by produceState(WavyFx.currentDevice()) { while (true) { value = WavyFx.currentDevice(); kotlinx.coroutines.delay(2000) } }
+                Row(Modifier.weight(1f).clip(RoundedCornerShape(50)).clickable {
+                    val ok = try { ctx.startActivity(Intent("com.android.settings.panel.action.MEDIA_OUTPUT").putExtra("com.android.settings.panel.extra.PACKAGE_NAME", ctx.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true } catch (e: Exception) { false }
+                    if (!ok) try { ctx.startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { }
+                }.padding(end = 12.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(painterResource(if (dev.first == "earbuds") R.drawable.bluetooth else R.drawable.cast), null, Modifier.size(24.dp), tint = if (dev.first == "earbuds") W.Pink else Color.White)
+                    Text(dev.second, Modifier.padding(start = 8.dp), style = ts(14, FontWeight.Medium, if (dev.first == "earbuds") W.Pink else Color(0xFFE9E4EE)), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
                 Icon(painterResource(R.drawable.share), null, Modifier.size(30.dp).clickable {
                     val t = "${m?.title} - ${m?.artists?.joinToString { it.name }}\nhttps://music.youtube.com/watch?v=${m?.id}"
                     ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, t), "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

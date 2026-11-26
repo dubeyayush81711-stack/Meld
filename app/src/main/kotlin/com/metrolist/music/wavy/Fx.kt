@@ -113,9 +113,18 @@ object WavyFx {
         val outs = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
         outs.firstOrNull { it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES || it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET }?.let { return "wired" to "Wired headphones" }
         outs.firstOrNull { it.type == AudioDeviceInfo.TYPE_USB_HEADSET || it.type == AudioDeviceInfo.TYPE_LINE_ANALOG }?.let { return "wired" to "Wired / AUX" }
-        outs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP }?.let { return "earbuds" to (it.productName?.toString() ?: "Bluetooth") + " (Bluetooth)" }
+        outs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || it.type == AudioDeviceInfo.TYPE_HEARING_AID ||
+            (android.os.Build.VERSION.SDK_INT >= 31 && (it.type == AudioDeviceInfo.TYPE_BLE_HEADSET || it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER || it.type == AudioDeviceInfo.TYPE_BLE_BROADCAST)) }
+            ?.let { val n = it.productName?.toString().orEmpty(); return "earbuds" to (if (n.isBlank() || n.equals("Bluetooth", true)) "Bluetooth device" else n) }
         return "phone" to "Phone speaker"
     }
+
+    val eqE get() = eq
+    val bassE get() = bass
+    val virtE get() = virt
+    val loudE get() = loud
+    /** Other screens reuse these instances: a second instance of the same effect on one session takes control away from the first. */
+    fun ensure() { if (eq == null && pc != null) rebuild() }
 
     private fun rebuild() {
         val p = pc ?: return
@@ -153,8 +162,14 @@ object WavyFx {
         if (S.b("gym_mode")) bassV = 1f
         if (pocket) { bassV = 1f }
         try { bass?.let { it.setStrength((bassV * 1000).toInt().toShort()); it.enabled = bassV > 0.01f } } catch (e: Exception) { }
-        try { virt?.let { if (it.strengthSupported) it.setStrength((spaceV * 1000).toInt().toShort()); it.enabled = spaceV > 0.01f } } catch (e: Exception) { }
-        try { loud?.let { it.setTargetGain(((loudV + (if (S.b("fx_night")) 0.4f else 0f) + (if (pocket || S.b("gym_mode")) 0.5f else 0f)) * 1000).toInt()); it.enabled = true } } catch (e: Exception) { }
+        try { virt?.let {
+            if (it.strengthSupported) it.setStrength((spaceV * 1000).toInt().toShort())
+            if (android.os.Build.VERSION.SDK_INT >= 28 && spaceV > 0.01f) { try {
+                val mode = if (kind == "phone") Virtualizer.VIRTUALIZATION_MODE_TRANSAURAL else Virtualizer.VIRTUALIZATION_MODE_BINAURAL
+                if (it.canVirtualize(android.media.AudioFormat.CHANNEL_OUT_STEREO, mode)) it.forceVirtualizationMode(mode)
+            } catch (e: Exception) { } }
+            it.enabled = spaceV > 0.01f } } catch (e: Exception) { }
+        try { loud?.let { it.setTargetGain(((loudV + (if (S.b("fx_night")) 0.4f else 0f) + (if (pocket || S.b("gym_mode")) 0.5f else 0f)) * 1000).toInt() + (S.f("vol_boost", 0f) * 1500).toInt()); it.enabled = true } } catch (e: Exception) { }
         try {
             rev?.let { val on = S.b("fx_reverb"); it.preset = if (on) PresetReverb.PRESET_LARGEHALL else PresetReverb.PRESET_NONE; it.enabled = on }
         } catch (e: Exception) { }

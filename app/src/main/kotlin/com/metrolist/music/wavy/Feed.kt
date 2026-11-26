@@ -146,7 +146,7 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
+fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean = true) {
     var showFx by remember { mutableStateOf(false) }
     val lyricsPref = boolPref("reel_lyrics", true); var showOpts by remember { mutableStateOf(false) }
     val videoPref = boolPref("reel_video", false); val hookPref = boolPref("reel_hook", true)
@@ -242,8 +242,8 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
     LaunchedEffect(pager.interactionSource) { pager.interactionSource.interactions.collect { if (it is androidx.compose.foundation.interaction.DragInteraction.Start) userMoved = true } }
     LaunchedEffect(meta?.id) { meta?.let { m -> Played.mark(Track(m.id, m.title.toString(), m.artists.joinToString { it.name }, null, 0, null, null)) } }
     var genSeen by remember { mutableIntStateOf(0) }
-    LaunchedEffect(pager.settledPage, pc != null, feedGen) {
-        if (pc == null) return@LaunchedEffect
+    LaunchedEffect(pager.settledPage, pc != null, feedGen, active) {
+        if (pc == null || !active) return@LaunchedEffect
         if (feedGen != genSeen) { genSeen = feedGen; lastDriven = -1; queueOwned = false; if (pager.settledPage != 0) { pager.scrollToPage(0); return@LaunchedEffect } }
         val cur = tracks[pager.settledPage.coerceAtMost(tracks.size - 1)]
         Played.mark(cur)
@@ -268,8 +268,8 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
         if (!p.isPlaying && p.playWhenReady && p.hasNextMediaItem()) { try { p.seekToNext(); p.play() } catch (_: Exception) { } }
     }
     val hooked = remember { HashSet<String>() }
-    LaunchedEffect(pager.settledPage, meta?.id, hookPref.value) {
-        if (!hookPref.value) return@LaunchedEffect
+    LaunchedEffect(pager.settledPage, meta?.id, hookPref.value, active) {
+        if (!hookPref.value || !active) return@LaunchedEffect
         val cur = tracks.getOrNull(pager.settledPage) ?: return@LaunchedEffect
         val p = pc?.player ?: return@LaunchedEffect
         if (meta?.id != cur.id) return@LaunchedEffect
@@ -325,7 +325,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                     }) }) {
                 if (videoOn) {
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0xFF0B0A10), 1f to Color(0xFF000000))))
-                    if (page == pager.settledPage) StreamVideo(t.id, pc, Modifier.fillMaxSize()) { diag = it }
+                    if (page == pager.settledPage && active) StreamVideo(t.id, pc, Modifier.fillMaxSize()) { diag = it }
                     run {
                         val synced = if (lyricsPref.value) lyrics.filter { it.t >= 0 } else emptyList()
                         val ci = synced.indexOfLast { it.t <= pos + 250 }

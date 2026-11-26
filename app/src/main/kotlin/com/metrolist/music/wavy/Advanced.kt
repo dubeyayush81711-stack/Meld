@@ -36,7 +36,7 @@ object Booster {
         try {
             val id = pc.player.audioSessionId
             if (id <= 0) return
-            if (le == null || sid != id) { try { le?.release() } catch (e: Exception) { }; le = android.media.audiofx.LoudnessEnhancer(id); sid = id }
+            WavyFx.ensure(); le = WavyFx.loudE; sid = id
             le?.setTargetGain((v * 1500).toInt()); le?.enabled = v > 0.01f
         } catch (e: Exception) { }
     }
