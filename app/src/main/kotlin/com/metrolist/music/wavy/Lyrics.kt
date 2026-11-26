@@ -7,6 +7,8 @@ import com.metrolist.music.lyrics.LyricsUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.unit.dp
 
 private val lyricCache = HashMap<String, List<LyricLine>>()
 
@@ -39,4 +41,33 @@ suspend fun fetchLyrics(ctx: Context, id: String, title: String, artist: String,
     }
     lyricCache[id] = plain
     plain
+}
+
+/** Caption styles for the reel lyrics, like story captions. Tap the lyrics to switch. */
+val LYRIC_STYLES = listOf("Bold", "Karaoke", "Neon", "Minimal", "Big word")
+
+@androidx.compose.runtime.Composable
+fun LyricsView(synced: List<LyricLine>, ci: Int, pos: Long, style: Int, modifier: androidx.compose.ui.Modifier = androidx.compose.ui.Modifier) {
+    val line = synced.getOrNull(ci) ?: return
+    val next = synced.getOrNull(ci + 1)
+    val frac = if (next != null && next.t > line.t) ((pos - line.t).toFloat() / (next.t - line.t)).coerceIn(0f, 1f) else 0f
+    val white = androidx.compose.ui.graphics.Color.White
+    val dim = androidx.compose.ui.graphics.Color(0x66FFFFFF)
+    androidx.compose.animation.AnimatedContent(ci, modifier, transitionSpec = {
+        (androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(280)) { it / 2 } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(280))) togetherWith
+            (androidx.compose.animation.slideOutVertically(androidx.compose.animation.core.tween(220)) { -it / 3 } + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180)))
+    }, label = "lyr") { i ->
+        val l = synced.getOrNull(i) ?: line
+        val n = synced.getOrNull(i + 1)
+        androidx.compose.foundation.layout.Column {
+            when (style) {
+                1 -> androidx.compose.material3.Text(l.text, style = ts(26, androidx.compose.ui.text.font.FontWeight.Bold).copy(brush = if (i == ci) androidx.compose.ui.graphics.Brush.horizontalGradient(0f to white, frac to white, (frac + 0.001f).coerceAtMost(1f) to dim, 1f to dim) else androidx.compose.ui.graphics.SolidColor(white)), maxLines = 3)
+                2 -> androidx.compose.material3.Text(l.text, style = ts(26, androidx.compose.ui.text.font.FontWeight.Bold, androidx.compose.ui.graphics.Color(0xFFFFE6F2)).copy(shadow = androidx.compose.ui.graphics.Shadow(androidx.compose.ui.graphics.Color(0xFFFF2E8A), androidx.compose.ui.geometry.Offset.Zero, 22f)), maxLines = 3)
+                3 -> androidx.compose.material3.Text(l.text, style = ts(20, androidx.compose.ui.text.font.FontWeight.Medium, androidx.compose.ui.graphics.Color(0xEEFFFFFF)), maxLines = 3)
+                4 -> androidx.compose.material3.Text(l.text.split(" ").let { w -> w.getOrNull(((frac * w.size).toInt()).coerceIn(0, w.size - 1)) ?: l.text }, style = ts(44, androidx.compose.ui.text.font.FontWeight.ExtraBold), maxLines = 1)
+                else -> androidx.compose.material3.Text(l.text, style = ts(26, androidx.compose.ui.text.font.FontWeight.Bold), maxLines = 3)
+            }
+            if (style != 4 && n != null) androidx.compose.material3.Text(n.text, androidx.compose.ui.Modifier.padding(top = 8.dp), style = ts(if (style == 3) 16 else 20, androidx.compose.ui.text.font.FontWeight.Bold, androidx.compose.ui.graphics.Color(0x77FFFFFF)), maxLines = 2)
+        }
+    }
 }

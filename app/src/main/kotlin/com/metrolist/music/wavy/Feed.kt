@@ -242,6 +242,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
             var diag by remember(t.id) { mutableStateOf("") }
             var pos by remember(t.id) { mutableLongStateOf(0L) }
             LaunchedEffect(page, meta?.id) { while (true) { pos = if (meta?.id == t.id) (pc?.player?.currentPosition ?: 0L) else 0L; delay(250) } }
+            var lyricStyle by remember { mutableIntStateOf(S.f("lyric_style", 0f).toInt()) }
             var showPlain by remember(t.id) { mutableStateOf(false) }
             var lyrics by remember(t.id) { mutableStateOf<List<LyricLine>>(emptyList()) }
             LaunchedEffect(t.id) { lyrics = fetchLyrics(ctx, t.id, t.title, t.artist, t.dur, t.album) }
@@ -276,10 +277,8 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}) {
                             }
                             val synced = if (lyricsPref.value) lyrics.filter { it.t >= 0 } else emptyList()
                             val ci = synced.indexOfLast { it.t <= pos + 250 }
-                            if (synced.isNotEmpty() && ci >= 0) Column(Modifier.align(Alignment.BottomStart).padding(start = 24.dp, end = 24.dp, bottom = 26.dp)) {
-                                Text(synced[ci].text, style = ts(26, FontWeight.Bold), maxLines = 3, overflow = TextOverflow.Ellipsis)
-                                synced.getOrNull(ci + 1)?.let { Text(it.text, Modifier.padding(top = 8.dp), style = ts(20, FontWeight.Bold, Color(0x88FFFFFF)), maxLines = 2, overflow = TextOverflow.Ellipsis) }
-                            } else if (lyricsPref.value && lyrics.none { it.t >= 0 } && lyrics.isNotEmpty()) Text("Lyrics", Modifier.align(Alignment.BottomStart).padding(start = 24.dp, bottom = 26.dp).clip(RoundedCornerShape(50)).background(Color(0x55000000)).border(1.dp, Color(0x66FFFFFF), RoundedCornerShape(50)).clickable { showPlain = true }.padding(horizontal = 20.dp, vertical = 9.dp), style = ts(15, FontWeight.SemiBold))
+                            if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modifier.align(Alignment.BottomStart).padding(start = 24.dp, end = 24.dp, bottom = 26.dp).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { lyricStyle = (lyricStyle + 1) % LYRIC_STYLES.size; S.put("lyric_style", lyricStyle.toFloat()) })
+                            else if (lyricsPref.value && lyrics.none { it.t >= 0 } && lyrics.isNotEmpty()) Text("Lyrics", Modifier.align(Alignment.BottomStart).padding(start = 24.dp, bottom = 26.dp).clip(RoundedCornerShape(50)).background(Color(0x55000000)).border(1.dp, Color(0x66FFFFFF), RoundedCornerShape(50)).clickable { showPlain = true }.padding(horizontal = 20.dp, vertical = 9.dp), style = ts(15, FontWeight.SemiBold))
                         }
                     }
                 }
