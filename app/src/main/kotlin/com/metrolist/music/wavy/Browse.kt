@@ -95,6 +95,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     LaunchedEffect(summary, typed) {
         val ids = ((summary?.flatMap { it.items } ?: emptyList()) + (typed ?: emptyList())).filterIsInstance<com.metrolist.innertube.models.SongItem>().map { it.id }.distinct().take(15)
         if (ids.size < 2) { vscores = emptyMap(); return@LaunchedEffect }
+        try { Fame.warm(((summary?.flatMap { it.items } ?: emptyList()) + (typed ?: emptyList())).filterIsInstance<com.metrolist.innertube.models.SongItem>().flatMap { s -> s.artists.map { it.id } }) } catch (e: Exception) { }
         vscores = try { viewScores(ids) } catch (e: Exception) { emptyMap() }
     }
     val speech = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { r ->
@@ -497,7 +498,7 @@ class LangPager(val code: String, val title: String, val latest: Boolean) {
             }
             got.forEach { if (seen.add(it.id)) out.add(it) }
         }
-        return out
+        return Fame.lift(out)
     }
 }
 

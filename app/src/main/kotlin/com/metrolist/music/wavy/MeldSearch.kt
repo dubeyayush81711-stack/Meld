@@ -156,8 +156,56 @@ fun byViews(items: List<YTItem>, sc: Map<String, Float>): List<YTItem> {
     if (slots.size < 2) return items
     // Final score = views score (log10 views + recency bonus) + 2.5 * match likelihood (1.0 for the top relevance result, down to 0.0 for the last one).
     val n = slots.size
-    val sorted = slots.mapIndexed { r, pos -> items[pos] to ((sc[(items[pos] as SongItem).id] ?: 0f) + 2.5f * (1f - r.toFloat() / (n - 1))) }.sortedByDescending { it.second }.map { it.first }
+    val sorted = slots.mapIndexed { r, pos -> items[pos] to ((sc[(items[pos] as SongItem).id] ?: 0f) + 2.5f * (1f - r.toFloat() / (n - 1)) + 1.5f * Fame.score((items[pos] as SongItem).artists.map { a -> a.id })) }.sortedByDescending { it.second }.map { it.first }
     val out = items.toMutableList()
     slots.forEachIndexed { i, pos -> out[pos] = sorted[i] }
     return out
+}
+
+
+/**
+ * Artist fame from real public data: the subscriber count on the artist's YouTube Music page (one lookup per artist, cached 30 days on the phone).
+ * fame 0.0 to 1.0 = (log10(subscribers) - 4) / 4, so 10K is 0.0 and 100M is 1.0. If the count is not available the artist gets 0.0 (no guess, no hand-picked names).
+ */
+object Fame {
+    private val subs = java.util.concurrent.ConcurrentHashMap<String, Float>()   // artist id -> fame 0..1, -1 = looked up, no count
+    private var loaded = false
+    private fun load() {
+        if (loaded) return; loaded = true
+        try {
+            val raw = S.s("fame_cache", ""); val now = System.currentTimeMillis()
+            raw.split(";").forEach { e -> val p = e.split("|"); if (p.size == 3 && now - (p[2].toLongOrNull() ?: 0L) < 30L * 86_400_000L) subs[p[0]] = p[1].toFloatOrNull() ?: -1f }
+        } catch (e: Exception) { }
+    }
+    private fun save() {
+        try { val now = System.currentTimeMillis(); S.put("fame_cache", subs.entries.take(400).joinToString(";") { it.key + "|" + it.value + "|" + now }) } catch (e: Exception) { }
+    }
+    fun parseCount(t: String?): Double? {
+        if (t.isNullOrBlank()) return null
+        val m = Regex("([0-9]+(?:[.,][0-9]+)?)\\s*([KMBkmb]?)").find(t) ?: return null
+        val n = m.groupValues[1].replace(",", ".").toDoubleOrNull() ?: return null
+        return n * when (m.groupValues[2].uppercase()) { "K" -> 1e3; "M" -> 1e6; "B" -> 1e9; else -> 1.0 }
+    }
+    fun score(artistIds: List<String?>): Float { load(); return artistIds.filterNotNull().maxOfOrNull { (subs[it] ?: 0f).coerceAtLeast(0f) } ?: 0f }
+    /** Looks up up to 8 artists not yet known, in parallel. Safe to call repeatedly, known artists cost nothing. */
+    suspend fun warm(artistIds: List<String?>) = withContext(Dispatchers.IO) {
+        load()
+        val need = artistIds.filterNotNull().filter { it.isNotBlank() && !subs.containsKey(it) }.distinct().take(8)
+        if (need.isEmpty()) return@withContext
+        kotlinx.coroutines.coroutineScope {
+            need.map { id -> async {
+                try {
+                    val pg = YouTube.artist(id).getOrNull()
+                    val n = parseCount(pg?.monthlyListenerCount) ?: parseCount(pg?.subscriberCountText)
+                    subs[id] = if (n != null && n > 0) ((kotlin.math.log10(n) - 4.0) / 4.0).toFloat().coerceIn(0f, 1f) else -1f
+                } catch (e: Exception) { }
+            } }.forEach { it.await() }
+        }
+        save()
+    }
+    /** Stable reorder of one batch: a song moves up by up to 8 places for a top-fame artist. Songs with equal fame keep their order. */
+    suspend fun lift(tracks: List<Track>): List<Track> {
+        warm(tracks.map { it.artistId })
+        return tracks.withIndex().sortedBy { (i, t) -> i - 8f * score(listOf(t.artistId)) }.map { it.value }
+    }
 }
