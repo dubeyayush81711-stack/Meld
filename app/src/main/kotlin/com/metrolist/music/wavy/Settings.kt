@@ -218,10 +218,11 @@ fun AboutSettings(onBack: () -> Unit, go: (String) -> Unit = {}) {
         Row(Modifier.padding(20.dp, 28.dp)) { Text("Version", Modifier.weight(1f), style = ts(18, FontWeight.Medium)); Text("${ver ?: ""} ($WAVY_BUILD)", style = ts(15, color = Color(0xFFB9B2C4))) }
         SDivider()
         SToggle("Send error reports", "Sends crashes and errors (app version, screen, error text, phone model). No personal data.", boolPref("send_errors", true))
-        SNav("Developer", "Ayush Dubey", "Instagram: theayush.ad") { try { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://instagram.com/theayush.ad"))) } catch (_: Exception) {} }
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp).clip(RoundedCornerShape(20.dp)).background(Color(0x14FFFFFF)).border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(20.dp))) {
         SNav("Alternate website", "bangersongs.vercel.app") { try { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://bangersongs.vercel.app"))) } catch (_: Exception) {} }
         SNav("Third-party licenses", "Wavy is built on open-source software (GPL-3.0).") { }
         SNav("Talk with agent", "Ask how Wavy works or report a bug.") { go("support") }
+        }
     }
 }
 
