@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.animation.togetherWith
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.padding
 
 private val lyricCache = HashMap<String, List<LyricLine>>()
 
