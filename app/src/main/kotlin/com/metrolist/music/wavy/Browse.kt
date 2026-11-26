@@ -108,13 +108,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     }
     val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val playing by (pc?.isPlaying ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }).collectAsState()
-    if (showMic) androidx.compose.ui.window.Dialog(onDismissRequest = { showMic = false }) {
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xF2171419)).padding(vertical = 14.dp)) {
-            Text("Search with your voice", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), style = ts(18, FontWeight.SemiBold))
-            Text("Speak to search", Modifier.fillMaxWidth().clickable { listen("Say a song, artist or album") }.padding(horizontal = 22.dp, vertical = 14.dp), style = ts(16, FontWeight.Medium))
-            Text("Say or sing some lyrics", Modifier.fillMaxWidth().clickable { listen("Say or sing a line from the song") }.padding(horizontal = 22.dp, vertical = 14.dp), style = ts(16, FontWeight.Medium))
-        }
-    }
+    if (showMic) MicScreen(onClose = { showMic = false }, onResult = { said -> showMic = false; q = said; submitted = said; filter = "All"; saveHistory(ctxS, said); hist = loadHistory(ctxS) })
     Backdrop(tint = Color(0xFF2B0B3A)) {
         LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 210.dp)) {
             col {
