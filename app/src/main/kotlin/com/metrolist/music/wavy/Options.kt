@@ -72,6 +72,8 @@ fun PlayerOptions(pc: PlayerConnection, onBoost: () -> Unit, onClose: () -> Unit
     val dls by (WDl.util?.downloads ?: kotlinx.coroutines.flow.MutableStateFlow(emptyMap())).collectAsState()
     val dst = dls[t.id]?.state
     var sub by remember { mutableStateOf("") }
+    var cutOpen by remember { mutableStateOf(false) }
+    if (cutOpen) RingtoneCutter(t, pc) { cutOpen = false }
     Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(onClick = onClose)) {
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.78f).clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(GlassSheet).clickable(enabled = false) {}.padding(top = 10.dp)) {
             Box(Modifier.align(Alignment.CenterHorizontally).size(width = 44.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x55FFFFFF)))
@@ -113,6 +115,7 @@ fun PlayerOptions(pc: PlayerConnection, onBoost: () -> Unit, onClose: () -> Unit
                         ctx.startActivity(Intent(android.media.audiofx.AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).putExtra(android.media.audiofx.AudioEffect.EXTRA_AUDIO_SESSION, pc.player.audioSessionId).putExtra(android.media.audiofx.AudioEffect.EXTRA_CONTENT_TYPE, android.media.audiofx.AudioEffect.CONTENT_TYPE_MUSIC))
                     } catch (_: Exception) { Toast.makeText(ctx, "No system equalizer on this phone", Toast.LENGTH_SHORT).show() }
                 }
+                OptRow(R.drawable.music_note, "Ringtone cutter", "Trim this song and save it as a ringtone") { cutOpen = true }
                 OptRow(R.drawable.speed, "Tempo and pitch", "Speed and key of the song") { sub = "tempo" }
                 OptRow(R.drawable.tune, "Volume booster and effects", "Booster, flashlight, vibrate, strobe") { onBoost() }
             }

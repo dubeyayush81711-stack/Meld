@@ -446,9 +446,11 @@ fun MiniCard(cover: String?, title: String, sub: String, onClick: () -> Unit) {
 fun TrackRow(t: Track, pc: PlayerConnection?, onPlay: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     var pick by remember { mutableStateOf(false) }
+    var cutOpen by remember { mutableStateOf(false) }
     var pls by remember { mutableStateOf<List<Pair<Long, String>>>(emptyList()) }
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    if (cutOpen) RingtoneCutter(t, pc) { cutOpen = false }
     Row(Modifier.fillMaxWidth().clickable(onClick = onPlay).padding(horizontal = 20.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
         Cover(t.cover, 62.dp, 8)
         Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
@@ -497,6 +499,7 @@ fun TrackRow(t: Track, pc: PlayerConnection?, onPlay: () -> Unit) {
                             } else {
                                 R2(R.drawable.skip_next, "Play next", "Plays right after this song") { menu = false; pc?.playNext(t.toMeta().toMediaItem()) }
                                 R2(R.drawable.queue_music, "Add to queue", "Adds to the end of the queue") { menu = false; pc?.addToQueue(t.toMeta().toMediaItem()) }
+                                R2(R.drawable.music_note, "Ringtone cutter", "Trim the song and save it as a ringtone") { menu = false; cutOpen = true }
                                 R2(R.drawable.playlist_add, "Add to playlist", "Pick one of your playlists") {
                                     menu = false; pick = true
                                     scope.launch {

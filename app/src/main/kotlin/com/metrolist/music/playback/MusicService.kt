@@ -4472,7 +4472,14 @@ class MusicService :
         )
     }
 
+    @Volatile var wavyDsf: DataSource.Factory? = null
+
     private fun createDataSourceFactory(
+        normalizationProcessor: VolumeNormalizationAudioProcessor,
+        playerProvider: () -> ExoPlayer?,
+    ): DataSource.Factory = createDataSourceFactory0(normalizationProcessor, playerProvider).also { wavyDsf = it }
+
+    private fun createDataSourceFactory0(
         normalizationProcessor: VolumeNormalizationAudioProcessor,
         playerProvider: () -> ExoPlayer?,
     ): DataSource.Factory {

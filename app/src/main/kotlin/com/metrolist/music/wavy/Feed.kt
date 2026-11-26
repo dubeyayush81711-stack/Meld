@@ -386,6 +386,8 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                 }
             }
         }
+        var cutOpen by remember { mutableStateOf(false) }
+        if (cutOpen) { val ct0 = tracks.getOrNull(pager.currentPage); if (ct0 != null) RingtoneCutter(ct0, pc) { cutOpen = false } }
         run {
             val bufState by (pc?.playbackState ?: remember { MutableStateFlow(0) }).collectAsState()
             if (bufState == androidx.media3.common.Player.STATE_BUFFERING && meta != null && !playing)
@@ -428,6 +430,7 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                         Text("This song", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = ts(14, FontWeight.SemiBold, W.Pink))
                         Row2("Add to favourites", "Save it to your liked songs.") { scope.launch { Toast.makeText(ctx, if (likeTrack(ct.id)) "Added to Favourites" else "Could not add. Try again.", Toast.LENGTH_SHORT).show() } }
                         Row2("Play next", "Plays right after this song.") { pc?.playNext(ct.toMeta().toMediaItem()); Toast.makeText(ctx, "Playing next", Toast.LENGTH_SHORT).show() }
+                        Row2("Ringtone cutter", "Trim the song and save it as a ringtone.") { cutOpen = true; showFx = false }
                         Row2("Add to queue", "Adds it to the end of the queue.") { pc?.addToQueue(ct.toMeta().toMediaItem()); Toast.makeText(ctx, "Added to queue", Toast.LENGTH_SHORT).show() }
                         var plOpen by remember { mutableStateOf(false) }
                         var pls by remember { mutableStateOf<List<Pair<Long, String>>>(emptyList()) }
