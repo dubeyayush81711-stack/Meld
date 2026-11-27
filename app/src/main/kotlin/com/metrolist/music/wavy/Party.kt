@@ -223,12 +223,37 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                     }
                 }
                 1 -> Column(Modifier.weight(1f)) {
+                    var reqMode by remember { mutableStateOf(false) }
                     LazyColumn(Modifier.weight(1f), reverseLayout = true, contentPadding = PaddingValues(16.dp)) {
-                        items((0 until msgs.length()).reversed().map { msgs.getJSONObject(it) }) { m -> Text(buildAnnotatedString { withStyle(SpanStyle(color = W.Pink, fontWeight = FontWeight.SemiBold)) { append(m.optString("name") + "  ") }; append(m.optString("body")) }, Modifier.padding(vertical = 5.dp), style = ts(15)) }
+                        items((0 until msgs.length()).reversed().map { msgs.getJSONObject(it) }) { m ->
+                            val body = m.optString("body")
+                            if (body.startsWith("\u266AREQ|")) {
+                                val f = body.split("|"); val vid = f.getOrNull(1) ?: ""; val ti = f.getOrNull(2) ?: ""; val ar = f.getOrNull(3) ?: ""; val du = f.getOrNull(4)?.toIntOrNull() ?: 0
+                                val cv = "https://i.ytimg.com/vi/$vid/mqdefault.jpg"
+                                Column(Modifier.padding(vertical = 6.dp)) {
+                                    Text(m.optString("name") + " suggests a song", style = ts(12, FontWeight.SemiBold, W.Pink))
+                                    Row(Modifier.padding(top = 4.dp).fillMaxWidth().glass(RoundedCornerShape(14.dp)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Cover(cv, 52.dp, 8)
+                                        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) { Text(ti, style = ts(15, FontWeight.SemiBold), maxLines = 1); Text(ar, style = ts(12, color = Color(0xFFCFC8D9)), maxLines = 1) }
+                                        Text("Add", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { scope.launch { try { call("party_add_external_song", "p_party" to pid, "p_video_id" to vid, "p_title" to ti, "p_artist" to ar, "p_cover" to cv, "p_dur" to du); tick++; Toast.makeText(ctx, "Added to the queue", Toast.LENGTH_SHORT).show() } catch (e: Exception) { Toast.makeText(ctx, humanErr(e), Toast.LENGTH_SHORT).show() } } }.padding(16.dp, 8.dp), style = ts(13, FontWeight.SemiBold))
+                                    }
+                                }
+                            } else Text(buildAnnotatedString { withStyle(SpanStyle(color = W.Pink, fontWeight = FontWeight.SemiBold)) { append(m.optString("name") + "  ") }; append(body) }, Modifier.padding(vertical = 5.dp), style = ts(15))
+                        }
+                    }
+                    if (reqMode) {
+                        Box(Modifier.padding(horizontal = 12.dp)) { PillField(q, { q = it }, "Search a song to suggest") }
+                        LazyColumn(Modifier.heightIn(max = 240.dp)) {
+                            items(if (q.length >= 2) found else emptyList()) { t -> TrackRow(t, null) {
+                                val body = "\u266AREQ|${t.id}|${t.title.take(70).replace("|", " ")}|${t.artist.take(50).replace("|", " ")}|${t.dur}"
+                                reqMode = false; q = ""
+                                scope.launch { try { call("party_send_message", "p_party" to pid, "p_body" to body); tick++ } catch (e: Exception) { Toast.makeText(ctx, humanErr(e), Toast.LENGTH_SHORT).show() } } } }
+                        }
                     }
                     if (!muted) Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painterResource(R.drawable.music_note), null, Modifier.padding(end = 10.dp).size(28.dp).clickable { reqMode = !reqMode; q = "" }, tint = if (reqMode) W.Pink else Color.White)
                         Box(Modifier.weight(1f)) { PillField(msg, { msg = it }, "Message") }
-                        Icon(painterResource(R.drawable.arrow_upward), null, Modifier.padding(start = 10.dp).size(30.dp).clickable { if (msg.isNotBlank()) { val b = msg; msg = ""; scope.launch { try { call("party_send_message", "p_party" to pid, "p_body" to b); tick++ } catch (e: Exception) { } } } }, tint = W.Pink)
+                        Icon(painterResource(R.drawable.arrow_upward), null, Modifier.padding(start = 10.dp).size(30.dp).clickable { if (msg.isNotBlank()) { val b = msg; msg = ""; scope.launch { try { call("party_send_message", "p_party" to pid, "p_body" to b); tick++ } catch (e: Exception) { Toast.makeText(ctx, humanErr(e), Toast.LENGTH_SHORT).show() } } } }, tint = W.Pink)
                     } else Text("You are muted by the host.", Modifier.padding(16.dp), style = ts(13, color = W.Dim))
                 }
                 else -> LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 24.dp)) {

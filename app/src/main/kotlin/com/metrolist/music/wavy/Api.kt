@@ -183,6 +183,9 @@ fun humanErr(e: Exception): String {
     val m = (e.message ?: "").lowercase()
     return when {
         "row-level security" in m || "not allowed" in m -> "This account is not allowed yet. Ask Ayush to add your email."
+        "locked by host" in m -> "The host has locked this."
+        "listen-only" in m -> "You are listen-only in this room."
+        "muted" in m -> "The host muted you."
         "at least 3" in m -> "Pick at least 3 artists."
         "network" in m || "unable to resolve" in m || "timeout" in m || "failed to connect" in m -> "No connection. Check your internet and try again."
         "invalid login" in m || "invalid_credentials" in m -> "Wrong email or password."
