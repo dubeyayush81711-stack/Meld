@@ -303,7 +303,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean 
         }
     }
     Box(Modifier.fillMaxSize()) {
-        VerticalPager(pager, Modifier.fillMaxSize().then(if ((showFx || showOpts) && !Reduce.on) Modifier.blur(20.dp) else Modifier).nestedScroll(nsc), userScrollEnabled = true) { page ->
+        VerticalPager(pager, Modifier.fillMaxSize().then(if ((showFx || showOpts)) Modifier.blur(20.dp) else Modifier).nestedScroll(nsc), userScrollEnabled = true) { page ->
             val t = tracks[page]
             var tint by remember(t.id) { mutableStateOf(Color(0xFF7A1B3A)) }
             var liked by remember(t.id) { mutableStateOf(false) }
@@ -469,18 +469,7 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                 Box(Modifier.fillMaxWidth().height(30.dp).pointerInput(Unit) { detectVerticalDragGestures(onDragEnd = { fxScope.launch { if (fxDrag.value > 200f) { fxDrag.animateTo(2400f, androidx.compose.animation.core.tween(160)); showFx = false } else fxDrag.animateTo(0f) } }) { _, d -> fxScope.launch { fxDrag.snapTo((fxDrag.value + d).coerceAtLeast(0f)) } } }, contentAlignment = Alignment.Center) { Box(Modifier.size(width = 40.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x55FFFFFF))) }
                 Text("Music features", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = ts(18, FontWeight.SemiBold))
                 SToggle("Video player", "Play the music video behind the song. Off shows the cover.", videoPref)
-                run {
-                    var vq by remember { mutableStateOf(S.s("reel_vq", "auto")) }
-                    Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
-                        Text("Video quality", style = ts(17, FontWeight.Medium))
-                        Text("Lower is smoother on slow phones. Auto picks the best the song has.", style = ts(13, color = Color(0xFFB9B2C4)))
-                        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("auto" to "Auto", "360" to "360p", "720" to "720p", "1080" to "1080p").forEach { (k, l) ->
-                                Text(l, Modifier.clip(RoundedCornerShape(50)).background(if (vq == k) W.Pink else Color(0x22FFFFFF)).clickable { vq = k; S.put("reel_vq", k) }.padding(horizontal = 16.dp, vertical = 8.dp), style = ts(14, FontWeight.Medium))
-                            }
-                        }
-                    }
-                }
+                VideoQualityRow()
                 SToggle("Lyrics", "Show synced lyrics on the cover when a song has them.", lyricsPref)
                 SToggle("Ambient light", "Soft moving colour glow that follows the song. Works with the video and with the cover.", glowPref)
                 SToggle("Hook only", "Play about 25 seconds of each song, then move to the next.", hookPref)

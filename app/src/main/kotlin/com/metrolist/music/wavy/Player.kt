@@ -87,7 +87,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
     val bg by androidx.compose.animation.animateColorAsState(tint, tween(600), label = "bg")
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, bg.copy(alpha = 0.55f).compositeOver(Color(0xFF0B0B0D)), Color(0xFF0B0B0D))))
         .pointerInput(showQueue || showOpts || showAdv || fullLy != null) { if (!(showQueue || showOpts || showAdv || fullLy != null)) detectVerticalDragGestures { _, d -> if (d > 40f) onClose() } }) {
-        Column(Modifier.fillMaxSize().then(if ((showQueue || showOpts || showAdv || fullLy != null) && !Reduce.on) Modifier.blur(20.dp) else Modifier).statusBarsPadding().navigationBarsPadding().verticalScroll(scroll).padding(horizontal = 22.dp)) {
+        Column(Modifier.fillMaxSize().then(if ((showQueue || showOpts || showAdv || fullLy != null)) Modifier.blur(20.dp) else Modifier).statusBarsPadding().navigationBarsPadding().verticalScroll(scroll).padding(horizontal = 22.dp)) {
             Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.expand_more), null, Modifier.size(34.dp).clickable(onClick = onClose), tint = Color.White)
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {

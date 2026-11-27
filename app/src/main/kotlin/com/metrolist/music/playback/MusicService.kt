@@ -2123,13 +2123,13 @@ class MusicService :
                                     automixItems.value =
                                         secondResult.items.map { song ->
                                             song.toMediaItem()
-                                        }
+                                        }.let { com.metrolist.music.wavy.QueueGate.filter(it) }
                                 }.onFailure {
                                     if (firstResult.items.isNotEmpty()) {
                                         automixItems.value =
                                             firstResult.items.map { song ->
                                                 song.toMediaItem()
-                                            }
+                                            }.let { com.metrolist.music.wavy.QueueGate.filter(it) }
                                     }
                                 }
                         }.onFailure {
@@ -2146,6 +2146,7 @@ class MusicService :
                                             radioResult.items
                                                 .filter { it.id != currentSong.id }
                                                 .map { it.toMediaItem() }
+                                                .let { com.metrolist.music.wavy.QueueGate.filter(it) }
                                         if (filteredItems.isNotEmpty()) {
                                             automixItems.value = filteredItems
                                         }
@@ -2160,6 +2161,7 @@ class MusicService :
                                                         relatedPage.songs
                                                             .filter { it.id != currentSong.id }
                                                             .map { it.toMediaItem() }
+                                                            .let { com.metrolist.music.wavy.QueueGate.filter(it) }
                                                     if (relatedItems.isNotEmpty()) {
                                                         automixItems.value = relatedItems
                                                     }
@@ -2834,12 +2836,14 @@ class MusicService :
             !(cachedDisableLoadMoreWhenRepeatAll && player.repeatMode == REPEAT_MODE_ALL)
         ) {
             scope.launch(SilentHandler) {
+                val heardIds = (0 until player.mediaItemCount).map { i -> player.getMediaItemAt(i).mediaId }.toSet()
                 val mediaItems =
                     withContext(Dispatchers.IO) {
                         currentQueue
                             .nextPage()
                             .filterExplicit(cachedHideExplicit)
                             .filterVideoSongs(cachedHideVideoSongs)
+                            .let { com.metrolist.music.wavy.QueueGate.filter(it, heardIds) }
                     }
                 if (player.playbackState != STATE_IDLE && mediaItems.isNotEmpty()) {
                     player.addMediaItems(mediaItems)
