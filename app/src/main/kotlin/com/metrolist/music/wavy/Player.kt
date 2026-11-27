@@ -176,12 +176,16 @@ fun QueueSheet(pc: PlayerConnection, onClose: () -> Unit) {
     var items by remember { mutableStateOf((0 until p.mediaItemCount).map { p.getMediaItemAt(it) }) }
     fun durOf(m: androidx.media3.common.MediaItem): Int = (m.localConfiguration?.tag as? com.metrolist.music.models.MediaMetadata)?.duration?.takeIf { it > 0 } ?: 0
     val total = items.sumOf { durOf(it) }
+    var locked by remember { mutableStateOf(S.b("queue_locked")) }
     var dragIdx by remember { mutableIntStateOf(-1) }
     var dragDy by remember { mutableFloatStateOf(0f) }
     val rowPx = with(androidx.compose.ui.platform.LocalDensity.current) { 64.dp.toPx() }
     Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(onClick = onClose)) {
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.78f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(GlassSheet).clickable(enabled = false) {}.padding(top = 16.dp)) {
-            Text("Queue", Modifier.padding(start = 22.dp), style = ts(22, FontWeight.Bold))
+            Row(Modifier.fillMaxWidth().padding(end = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Queue", Modifier.padding(start = 22.dp).weight(1f), style = ts(22, FontWeight.Bold))
+                Text(if (locked) "Locked. Tap to unlock" else "Lock order", Modifier.clip(RoundedCornerShape(50)).background(if (locked) W.Pink else Color(0x22FFFFFF)).clickable { locked = !locked; S.put("queue_locked", locked) }.padding(14.dp, 7.dp), style = ts(12, FontWeight.Medium))
+            }
             Text("${items.size} songs" + if (total > 0) " \u00B7 ${if (total >= 3600) "${total / 3600} hr " else ""}${(total % 3600) / 60} min" else "", Modifier.padding(start = 22.dp, bottom = 10.dp), style = ts(13, color = W.Dim))
             LazyColumn(Modifier.navigationBarsPadding()) {
                 itemsIndexed(items, key = { i, it -> it.mediaId + "#" + i }) { i, it ->
@@ -192,12 +196,12 @@ fun QueueSheet(pc: PlayerConnection, onClose: () -> Unit) {
                             Text(it.mediaMetadata.title?.toString() ?: "", style = ts(15, FontWeight.SemiBold, if (now) W.Pink else Color.White), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(it.mediaMetadata.artist?.toString() ?: "", style = ts(12, color = W.Dim), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        Text("\u2261", Modifier.pointerInput(i, items.size) { detectDragGestures(
+                        if (!locked) Text("\u2261", Modifier.pointerInput(i, items.size) { detectDragGestures(
                             onDragStart = { dragIdx = i; dragDy = 0f },
                             onDrag = { c, d -> c.consume(); dragDy += d.y },
                             onDragEnd = { val to = (i + Math.round(dragDy / rowPx)).coerceIn(0, items.size - 1); if (to != i) { p.moveMediaItem(i, to); items = (0 until p.mediaItemCount).map { k -> p.getMediaItemAt(k) } }; dragIdx = -1; dragDy = 0f },
                             onDragCancel = { dragIdx = -1; dragDy = 0f }) }.padding(horizontal = 12.dp, vertical = 10.dp), style = ts(24, color = W.Dim))
-                        if (!now) Text("\u2715", Modifier.clickable { p.removeMediaItem(i); items = (0 until p.mediaItemCount).map { k -> p.getMediaItemAt(k) } }.padding(10.dp), style = ts(14, color = W.Dim))
+                        if (!now && !locked) Text("\u2715", Modifier.clickable { p.removeMediaItem(i); items = (0 until p.mediaItemCount).map { k -> p.getMediaItemAt(k) } }.padding(10.dp), style = ts(14, color = W.Dim))
                     }
                 }
             }
