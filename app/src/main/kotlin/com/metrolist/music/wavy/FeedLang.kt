@@ -1,5 +1,7 @@
 package com.metrolist.music.wavy
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.async
 import org.json.JSONArray
 import org.json.JSONObject
