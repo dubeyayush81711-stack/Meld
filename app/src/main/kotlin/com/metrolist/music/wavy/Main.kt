@@ -310,7 +310,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                         else Text(name.take(1).uppercase().ifEmpty { "W" }, style = ts(20, FontWeight.Bold)) }
                 }
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    listOf("All", "Music", "Chill", "Podcasts").forEach { c ->
+                    listOf("All", "Music", "Chill", "Mood", "Podcasts").forEach { c ->
                         Box(Modifier.height(34.dp).then(if (c == cat) Modifier.clip(RoundedCornerShape(50)).background(W.Pink) else Modifier.glass(RoundedCornerShape(50))).clickable { cat = c }.padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
                             Text(c, style = ts(13, if (c == cat) FontWeight.SemiBold else FontWeight.Medium), maxLines = 1, softWrap = false)
                         }
@@ -318,7 +318,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                 }
                 Spacer(Modifier.height(10.dp))
             }
-            if (cat == "Podcasts") item { PodcastsTab(pc) } else if (cat == "Chill") item {
+            if (cat == "Mood") item { MoodAgentTab(pc) } else if (cat == "Podcasts") item { PodcastsTab(pc) } else if (cat == "Chill") item {
                 Column {
                     Text("Chill", Modifier.padding(start = 20.dp, bottom = 12.dp), style = ts(24, FontWeight.SemiBold))
                     if (chill.isEmpty()) Text("Loading...", Modifier.padding(24.dp), style = ts(14, color = W.Dim))
