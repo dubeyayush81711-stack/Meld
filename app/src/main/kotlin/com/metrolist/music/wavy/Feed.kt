@@ -303,7 +303,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean 
         }
     }
     Box(Modifier.fillMaxSize()) {
-        VerticalPager(pager, Modifier.fillMaxSize().nestedScroll(nsc), userScrollEnabled = true) { page ->
+        VerticalPager(pager, Modifier.fillMaxSize().then(if ((showFx || showOpts) && !Reduce.on) Modifier.blur(20.dp) else Modifier).nestedScroll(nsc), userScrollEnabled = true) { page ->
             val t = tracks[page]
             var tint by remember(t.id) { mutableStateOf(Color(0xFF7A1B3A)) }
             var liked by remember(t.id) { mutableStateOf(false) }
@@ -462,7 +462,7 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                 override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity = available
             } }
             Column(Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.80f).offset { androidx.compose.ui.unit.IntOffset(0, fxDrag.value.toInt()) }.clip(RoundedCornerShape(26.dp))
-                .background(Brush.verticalGradient(listOf(Color(0xB31E1626), Color(0xA6100B16))))
+                .background(Brush.verticalGradient(listOf(Color(0xEE1E1626), Color(0xEB100B16))))
                 .border(1.dp, Brush.verticalGradient(listOf(Color(0x55FFFFFF), Color(0x14FFFFFF))), RoundedCornerShape(26.dp))
                 .nestedScroll(eat)
                 .verticalScroll(fxScroll).padding(top = 14.dp, bottom = 20.dp)) {

@@ -138,7 +138,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
         LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 210.dp)) {
             col {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (page) { Icon(painterResource(R.drawable.arrow_back), null, Modifier.padding(end = 12.dp).size(28.dp).clickable { page = false; q = ""; submitted = null }, tint = Color.White) }
+                    if (page && q.isEmpty()) { Icon(painterResource(R.drawable.arrow_back), null, Modifier.padding(end = 12.dp).size(28.dp).clickable { page = false; q = ""; submitted = null }, tint = Color.White) }
                     Row(Modifier.weight(1f).height(56.dp).glass(RoundedCornerShape(50)).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(painterResource(R.drawable.search), null, Modifier.size(24.dp), tint = Color.White)
                         Spacer(Modifier.width(12.dp))

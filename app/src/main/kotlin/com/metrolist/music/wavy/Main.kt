@@ -147,6 +147,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         try { while (true) { delay(1500); pos = try { pc?.player?.currentPosition ?: pos } catch (e: Exception) { pos } } }
         finally { val p = pos; val d = m.duration * 1000L; Thread { try { TasteProfile.played(tr, p, d) } catch (e: Exception) { } }.start() }
     }
+    LaunchedEffect(Unit) { RecentNav.open = { page = "recent" } }
     LaunchedEffect(Unit) { ArtistNav.open = { id, n -> page = "artist:" + (id ?: "") + ":" + n } }
     BackHandler(full) { full = false }
     BackHandler(!full && page != null) { page = when { page == "set:hub" -> null; page!!.startsWith("set:") -> "set:hub"; else -> null } }
@@ -178,6 +179,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
                     p.startsWith("artist:") -> { val parts = p.split(":", limit = 3); key(p) { ArtistScreen(parts[1].ifBlank { null }, parts[2], pc) { page = null } } }
                     p.startsWith("lang:") -> { val parts = p.split(":"); LangListScreen(parts[2], parts[1], pc) { page = null } }
                     p.startsWith("pl:") -> { val parts = p.split(":", limit = 3); TrackListScreen(parts[2], pc, { page = null }) { loadPlaylistTracks(parts[1].toLong()) } }
+                    p == "recent" -> TrackListScreen("Recently played", pc, { page = null }) { Recent.list }
                     p == "picker" -> ArtistPicker(null) { page = null }
                     p == "party" -> PartyScreen(pc) { page = null }
                     p == "agent" -> AiChatScreen("agent", "Ultron", "I am Ultron. Name a mood, an artist or a language and I will choose your songs. Ask me how this app works, if you must.") { page = null }
@@ -660,16 +662,16 @@ fun RecentShelf(pc: PlayerConnection?) {
     LaunchedEffect(Unit) { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Recent.load() } }
     val l = Recent.list
     if (l.isEmpty()) return
-    var all by remember { mutableStateOf(false) }
     Column {
-        Row(Modifier.fillMaxWidth().clickable { all = !all }.padding(start = 20.dp, end = 20.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().clickable { RecentNav.open?.invoke() }.padding(start = 20.dp, end = 20.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Recently played", Modifier.weight(1f), style = ts(20, FontWeight.SemiBold))
-            Text(if (all) "Show less" else "Show all", style = ts(12, color = W.Pink))
+            Text("Show all", style = ts(12, color = W.Pink))
         }
-        if (all) l.take(50).forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, l, i, "Recently played") } }
-        else LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             itemsIndexed(l.take(15)) { i, t -> MiniCard(t.cover, t.title, t.artist) { playTracks(pc, l, i, "Recently played") } }
         }
         Spacer(Modifier.height(26.dp))
     }
 }
+
+object RecentNav { var open: (() -> Unit)? = null }

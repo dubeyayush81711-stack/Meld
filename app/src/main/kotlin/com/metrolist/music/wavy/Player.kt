@@ -28,6 +28,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
@@ -85,8 +86,8 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
     }
     val bg by androidx.compose.animation.animateColorAsState(tint, tween(600), label = "bg")
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, bg.copy(alpha = 0.55f).compositeOver(Color(0xFF0B0B0D)), Color(0xFF0B0B0D))))
-        .pointerInput(Unit) { detectVerticalDragGestures { _, d -> if (d > 40f) onClose() } }) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().verticalScroll(scroll).padding(horizontal = 22.dp)) {
+        .pointerInput(showQueue || showOpts || showAdv || fullLy != null) { if (!(showQueue || showOpts || showAdv || fullLy != null)) detectVerticalDragGestures { _, d -> if (d > 40f) onClose() } }) {
+        Column(Modifier.fillMaxSize().then(if ((showQueue || showOpts || showAdv || fullLy != null) && !Reduce.on) Modifier.blur(20.dp) else Modifier).statusBarsPadding().navigationBarsPadding().verticalScroll(scroll).padding(horizontal = 22.dp)) {
             Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.expand_more), null, Modifier.size(34.dp).clickable(onClick = onClose), tint = Color.White)
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -180,8 +181,9 @@ fun QueueSheet(pc: PlayerConnection, onClose: () -> Unit) {
     var dragIdx by remember { mutableIntStateOf(-1) }
     var dragDy by remember { mutableFloatStateOf(0f) }
     val rowPx = with(androidx.compose.ui.platform.LocalDensity.current) { 64.dp.toPx() }
+    val sd = rememberSheetDrag(onClose)
     Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(onClick = onClose)) {
-        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.78f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(GlassSheet).clickable(enabled = false) {}.padding(top = 16.dp)) {
+        Column(Modifier.align(Alignment.BottomCenter).then(sd.mod).fillMaxWidth().fillMaxHeight(0.78f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(GlassSheet).clickable(enabled = false) {}.padding(top = 16.dp)) {
             Row(Modifier.fillMaxWidth().padding(end = 18.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Queue", Modifier.padding(start = 22.dp).weight(1f), style = ts(22, FontWeight.Bold))
                 Text(if (locked) "Locked. Tap to unlock" else "Lock order", Modifier.clip(RoundedCornerShape(50)).background(if (locked) W.Pink else Color(0x22FFFFFF)).clickable { locked = !locked; S.put("queue_locked", locked) }.padding(14.dp, 7.dp), style = ts(12, FontWeight.Medium))

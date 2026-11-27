@@ -69,8 +69,9 @@ fun PlayerOptions(pc: PlayerConnection, onBoost: () -> Unit, onClose: () -> Unit
     var sub by remember { mutableStateOf("") }
     var cutOpen by remember { mutableStateOf(false) }
     if (cutOpen) RingtoneCutter(t, pc) { cutOpen = false }
+    val sd = rememberSheetDrag(onClose)
     Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(onClick = onClose)) {
-        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.78f).clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(GlassSheet).clickable(enabled = false) {}.padding(top = 10.dp)) {
+        Column(Modifier.align(Alignment.BottomCenter).then(sd.mod).fillMaxWidth().fillMaxHeight(0.78f).clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(GlassSheet).clickable(enabled = false) {}.padding(top = 10.dp)) {
             Box(Modifier.align(Alignment.CenterHorizontally).size(width = 44.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x55FFFFFF)))
             Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Cover(t.cover, 56.dp, 10)
@@ -162,8 +163,9 @@ private fun EqSheet(pc: PlayerConnection, onClose: () -> Unit) {
         try { WEq.bb?.setStrength((bass * 1000).toInt().toShort()) } catch (_: Exception) {}
         try { WEq.vz?.setStrength((surround * 1000).toInt().toShort()) } catch (_: Exception) {}
     }
+    val sd = rememberSheetDrag(onClose)
     Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(onClick = onClose)) {
-        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.85f).clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(GlassSheet).clickable(enabled = false) {}.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(22.dp)) {
+        Column(Modifier.align(Alignment.BottomCenter).then(sd.mod).fillMaxWidth().fillMaxHeight(0.85f).clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(GlassSheet).clickable(enabled = false) {}.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(22.dp)) {
             Text("Equalizer", style = ts(24, FontWeight.SemiBold))
             if (err != null) Text(err, Modifier.padding(top = 10.dp), style = ts(14, color = Color(0xFFFFB3D1)))
             Text("Effects", Modifier.padding(top = 16.dp, bottom = 8.dp), style = ts(15, color = Color(0xFFC9C1D3)))
