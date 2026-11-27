@@ -112,6 +112,20 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         delay(15000)
         try { Api.post("plays", JSONObject().put("user_id", Api.uid).put("track_id", id)) } catch (e: Exception) { }
     }
+    // queue verifier (rule based): shortly after a song starts, upcoming auto-queued songs in another language or junk uploads are removed.
+    // Skipped when the queue is locked, in a party, or when the song now playing is itself not in his languages (he chose it on purpose).
+    LaunchedEffect(meta?.id) {
+        val pl = pc?.player ?: return@LaunchedEffect
+        if (meta == null || S.b("queue_locked") || PartyState.active || S.b("verify_queue_off")) return@LaunchedEffect
+        delay(2500)
+        try {
+            fun tr(i: Int): Track { val it = pl.getMediaItemAt(i); val md = it.mediaMetadata; return Track(it.mediaId, md.title?.toString().orEmpty(), md.artist?.toString().orEmpty(), null, 0, null, null) }
+            val cur = pl.currentMediaItemIndex
+            if (cur < 0 || cur >= pl.mediaItemCount || !LangGuard.ok(tr(cur))) return@LaunchedEffect
+            var i = minOf(cur + 12, pl.mediaItemCount - 1)
+            while (i > cur) { if (!LangGuard.ok(tr(i))) pl.removeMediaItem(i); i-- }
+        } catch (e: Exception) { }
+    }
     // taste profile: how long each song was really heard (finished, partly, skipped)
     LaunchedEffect(meta?.id) {
         val m = meta ?: return@LaunchedEffect
@@ -195,7 +209,7 @@ fun NavBar(sel: Int, haze: dev.chrisbanes.haze.HazeState? = null, onDouble: (Int
     var lastTap by remember { mutableStateOf(-1 to 0L) }
     val hap = androidx.compose.ui.platform.LocalHapticFeedback.current
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().then(if (haze != null) Modifier.hazeBlur(input = dev.chrisbanes.haze.HazeInput.Sources(haze), style = dev.chrisbanes.haze.blur.HazeBlurStyle { blurRadius(64.dp) }) else Modifier).then(if (haze != null) Modifier.background(androidx.compose.ui.graphics.Brush.verticalGradient(0f to Color(0x00141019), 0.3f to Color(0xE6141019), 1f to Color(0xF0141019))) else Modifier.background(Color(0xEB141019)))) {
-        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(MiniTint.c.copy(alpha = if (MiniTint.c == Color.Transparent) 0f else 0.55f), MiniTint.c.copy(alpha = if (MiniTint.c == Color.Transparent) 0f else 0.30f)))))
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(MiniTint.c.copy(alpha = if (MiniTint.c == Color.Transparent) 0f else 0.9f), MiniTint.c.copy(alpha = if (MiniTint.c == Color.Transparent) 0f else 0.78f)))))
         val tabW = maxWidth / tabs.size
         val ind by androidx.compose.animation.core.animateDpAsState(tabW * sel + (tabW - 36.dp) / 2, androidx.compose.animation.core.spring(dampingRatio = 0.65f, stiffness = 420f), label = "ind")
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 6.dp, bottom = 8.dp)) {
@@ -240,11 +254,11 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
     val tintA by androidx.compose.animation.animateColorAsState(tint, label = "tint")
     SideEffect { MiniTint.c = tintA }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { MiniTint.c = Color.Transparent } }
-    val shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
+    val shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
     val spin by androidx.compose.animation.core.rememberInfiniteTransition(label = "spin").animateFloat(0f, 360f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(14000, easing = androidx.compose.animation.core.LinearEasing)), label = "sp")
     Box(Modifier.padding(horizontal = 11.dp).fillMaxWidth().height(62.dp).clip(shape)
         .background(Color(0xFF15111A)).background(Brush.linearGradient(listOf(tintA.copy(alpha = 0.92f), tintA.copy(alpha = 0.78f), tintA.copy(alpha = 0.92f)))).background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.10f), Color.Transparent)))
-        .border(0.8.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.34f), Color.White.copy(alpha = 0.10f))), shape).clickable(onClick = onOpen)) {
+        .border(0.8.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.34f), Color.Transparent)), shape).clickable(onClick = onOpen)) {
         Row(Modifier.fillMaxSize().padding(start = 9.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(m.thumbnailUrl?.let { u -> if ((u.contains("googleusercontent.com") || u.contains("ggpht.com")) && u.contains("=")) u.substringBeforeLast("=") + "=w192-h192-l90-rj" else u }, null, Modifier.size(45.dp).graphicsLayer { rotationZ = if (playing) spin else 0f }.clip(CircleShape).background(W.Card), contentScale = ContentScale.Crop)
             Column(Modifier.weight(1f).padding(horizontal = 11.dp)) {
