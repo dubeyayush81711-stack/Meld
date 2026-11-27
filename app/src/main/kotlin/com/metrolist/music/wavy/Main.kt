@@ -273,15 +273,18 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
     var name by remember { mutableStateOf("") }
     var err by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
+    var refreshing by remember { mutableStateOf(false) }
     LaunchedEffect(reload) {
         err = null
         try {
+            runCatching { userLanguages() }; LangGuard.reset()
             val raw = Api.rpc("home_feed") as JSONObject
             feed = parseFeed(raw)
             try { val s = raw.toString(); if (s.length < 400_000) S.put("home_feed_cache_" + Api.uid, s) } catch (_: Exception) { }
             val p = Api.get("profiles?id=eq.${Api.uid}&select=name") as? JSONArray
             name = p?.optJSONObject(0)?.optString("name").orEmpty().ifBlank { Api.email.substringBefore("@") }
         } catch (e: ApiError) { err = humanErr(e) } catch (e: Exception) { err = "Something went wrong." }
+        refreshing = false
     }
     var cat by remember { mutableStateOf("All") }
     var tiles by remember { mutableStateOf<List<Triple<Long, String, String?>>>(emptyList()) }
@@ -305,7 +308,11 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
         else Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0xFF242424), 0.28f to Color(0xFF161616), 0.7f to Color(0xFF121212), 1f to Color(0xFF0D0D0D))))
         WallpaperLayer()
         val f = feed
-        LazyColumn(state = st, contentPadding = PaddingValues(bottom = 210.dp), modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+        @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+        androidx.compose.material3.pulltorefresh.PullToRefreshBox(isRefreshing = refreshing, onRefresh = {
+            refreshing = true; clearMoodCache(); TasteProfile.invalidate(); HomeRefresh.n++; reload++
+        }, modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+        LazyColumn(state = st, contentPadding = PaddingValues(bottom = 210.dp), modifier = Modifier.fillMaxSize()) {
             col {
                 Row(Modifier.padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     val hr = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
@@ -350,6 +357,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                     }
                 } else feedItems(f, pc)
             }
+        }
         }
     }
 }

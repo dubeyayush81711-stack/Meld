@@ -119,6 +119,7 @@ object TasteProfile {
     fun topArtists(n: Int): List<String> { load(); val now = System.currentTimeMillis(); return artists.values.filter { eff(it, now) > 1.0 }.sortedByDescending { eff(it, now) }.take(n).map { it.n } }
     fun recentSearches(n: Int): List<String> { load(); return terms.take(n).map { it.first } }
 
+    fun invalidate() { cache = null }
     fun cached(): List<Track> = cache?.takeIf { System.currentTimeMillis() - it.first < 20 * 60_000L }?.second ?: emptyList()
 
     /** Picks for this user. Seeds = recently finished or liked songs from different artists; candidates = YouTube Music radio of each seed. */
@@ -126,7 +127,7 @@ object TasteProfile {
         load()
         val hit = cached(); if (hit.isNotEmpty()) return@withContext hit
         val seeds = ArrayList<Track>(); val sk = HashSet<String>()
-        for (t in good) if (sk.add(key(t.artist))) { seeds.add(t); if (seeds.size >= 5) break }
+        for (t in good) if (LangGuard.ok(t) && sk.add(key(t.artist))) { seeds.add(t); if (seeds.size >= 5) break }
         if (seeds.isEmpty()) return@withContext emptyList()
         val lists = coroutineScope { seeds.map { s -> async { try { withTimeoutOrNull(8000) { YouTube.next(WatchEndpoint(videoId = s.id, playlistId = "RDAMVM${s.id}")).getOrNull()?.items?.map { it.toTrack() } } ?: emptyList() } catch (e: Exception) { emptyList<Track>() } } }.map { it.await() } }
         val score = HashMap<String, Double>(); val by = HashMap<String, Track>()
@@ -142,7 +143,7 @@ object TasteProfile {
                 if (sc > (score[k] ?: -9.0)) { score[k] = sc; by[k] = t }
             }
         }
-        val fresh = Played.filter(score.entries.sortedByDescending { it.value }.mapNotNull { by[it.key] })
+        val fresh = Played.filter(LangGuard.filter(score.entries.sortedByDescending { it.value }.mapNotNull { by[it.key] }))
         // variety: no artist twice in a row within 3 picks, at most 3 songs per artist
         val out = ArrayList<Track>(); val cnt = HashMap<String, Int>(); val pool = ArrayList(fresh)
         while (out.size < n && pool.isNotEmpty()) {
@@ -159,10 +160,10 @@ object TasteProfile {
     /** Base feed with songs by artists the user keeps skipping removed, mild re-ranking inside blocks of 8, and one personal pick after every two feed songs. */
     fun blend(base: List<Track>, pers: List<Track>, used: Set<String> = emptySet()): List<Track> {
         load()
-        val kept = base.filter { affinity(it.artist) >= -2.5 }.ifEmpty { base }
+        val kept = LangGuard.filter(base).filter { affinity(it.artist) >= -2.5 }
         val ranked = kept.chunked(8).flatMap { c -> c.sortedByDescending { affinity(it.artist).coerceIn(0.0, 6.0) } }
         val have = ranked.map { it.id }.toHashSet(); have.addAll(used)
-        val it2 = pers.filter { it.id !in have }.iterator()
+        val it2 = LangGuard.filter(pers).filter { it.id !in have }.iterator()
         if (!it2.hasNext()) return ranked
         val out = ArrayList<Track>()
         ranked.forEachIndexed { i, t -> out.add(t); if (i % 2 == 1 && it2.hasNext()) out.add(it2.next()) }
@@ -181,8 +182,8 @@ object TasteProfile {
 
 @Composable
 fun ForYouShelf(pc: PlayerConnection?) {
-    var list by remember { mutableStateOf<List<Track>>(TasteProfile.cached()) }
-    LaunchedEffect(Unit) { try { list = TasteProfile.recommend(20) } catch (e: Exception) { } }
+    var list by remember { mutableStateOf<List<Track>>(LangGuard.filter(TasteProfile.cached())) }
+    LaunchedEffect(HomeRefresh.n) { try { list = TasteProfile.recommend(20) } catch (e: Exception) { } }
     if (list.isEmpty()) return
     Column {
         Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp)) {

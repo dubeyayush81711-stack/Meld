@@ -191,7 +191,7 @@ fun parseFeed(j: JSONObject): Feed {
         val albs = s.optJSONArray("albums")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }.map { o ->
             AlbumItem(o.optString("album"), o.optString("artist"), o.str("cover_url"), o.optJSONArray("tracks").tracks()) } } ?: emptyList()
         Section(s.optString("id"), s.optString("type"), s.optString("title"), s.str("subtitle"), s.str("cover_url"),
-            s.optJSONArray("tracks").tracks(), albs, s.optJSONArray("artists").artistItems())
+            LangGuard.filter(s.optJSONArray("tracks").tracks()), albs.map { al -> al.copy(tracks = LangGuard.filter(al.tracks)) }.filter { it.tracks.isNotEmpty() }, s.optJSONArray("artists").artistItems())
     }
     return Feed(secs, if (j.isNull("favourites_playlist_id")) null else j.optLong("favourites_playlist_id"))
 }

@@ -164,4 +164,5 @@ suspend fun Taste.save() {
     gender.takeWhile { it.isLowerCase() || it == '_' }.takeIf { it.isNotEmpty() }?.let { b.put("gender", it) }
     val l = JSONArray(); langs.forEach { l.put(it.lowercase()) }; b.put("languages", l)
     Api.post("user_prefs", b, upsert = true)
+    S.put("my_langs_" + (Api.uid ?: ""), langs.joinToString(",") { it.lowercase() }); LangGuard.reset()
 }
