@@ -2,6 +2,10 @@ package com.metrolist.music.wavy
 
 import android.content.Intent
 import kotlinx.coroutines.launch
+import org.json.JSONObject
+import org.json.JSONArray
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.animation.core.animateFloatAsState
@@ -97,9 +101,14 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                     Text(m?.title ?: "", style = ts(26, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.basicMarquee())
                     Text(m?.artists?.joinToString { it.name } ?: "", style = ts(16, color = Color(0xFFD6CCD3)), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                var likedNow by remember(m?.id) { mutableStateOf(false) }
-                Box(Modifier.padding(start = 16.dp).size(38.dp).clip(CircleShape).background(if (likedNow) W.Pink else Color.Transparent).border(2.dp, if (likedNow) W.Pink else Color.White, CircleShape).clickable { m?.let { x -> likedNow = true; scope.launch { likeTrack(x.id) } } }, contentAlignment = Alignment.Center) {
-                    Icon(painterResource(if (likedNow) R.drawable.check else R.drawable.add), null, Modifier.size(22.dp), tint = Color.White) }
+                var likedNow by remember(m?.id) { mutableStateOf(m?.id?.let { S.b("liked_$it") } ?: false) }
+                var plDlg by remember { mutableStateOf(false) }
+                LaunchedEffect(m?.id) { m?.id?.let { id -> val r = isLiked(id); if (r != null) { likedNow = r; S.put("liked_$id", r) } } }
+                Icon(painterResource(R.drawable.add), null, Modifier.padding(start = 12.dp).size(34.dp).clip(CircleShape).clickable { plDlg = true }.padding(4.dp), tint = Color.White)
+                Icon(painterResource(if (likedNow) R.drawable.favorite else R.drawable.favorite_border), null, Modifier.padding(start = 8.dp).size(38.dp).clip(CircleShape).clickable { m?.let { x ->
+                    val want = !likedNow; likedNow = want; S.put("liked_${x.id}", want)
+                    scope.launch { val ok = if (want) likeTrack(x.id) else unlikeTrack(x.id); if (!ok) { likedNow = !want; S.put("liked_${x.id}", !want) } } } }.padding(4.dp), tint = if (likedNow) W.Pink else Color.White)
+                if (plDlg && m != null) AddToPlaylistDialog(m.id) { plDlg = false }
             }
             Spacer(Modifier.height(18.dp))
             // seek bar
@@ -145,7 +154,8 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                 Text(m.title, style = ts(16, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(m.artists.joinToString { it.name }, style = ts(13, color = Color(0xFFD6CCD3)), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Icon(painterResource(R.drawable.add_circle), null, Modifier.size(30.dp).clickable { scope.launch { likeTrack(m.id) } }, tint = Color.White)
+            var miniLiked by remember(m.id) { mutableStateOf(S.b("liked_${m.id}")) }
+            Icon(painterResource(if (miniLiked) R.drawable.favorite else R.drawable.favorite_border), null, Modifier.size(30.dp).clickable { val want = !miniLiked; miniLiked = want; S.put("liked_${m.id}", want); scope.launch { if (want) likeTrack(m.id) else unlikeTrack(m.id) } }, tint = if (miniLiked) W.Pink else Color.White)
             Spacer(Modifier.width(16.dp))
             Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(30.dp).clickable { if (pc.player.isPlaying) pc.player.pause() else pc.player.play() }, tint = Color.White)
         }
@@ -182,6 +192,44 @@ fun QueueSheet(pc: PlayerConnection, onClose: () -> Unit) {
                     }
                 }
             }
+        }
+    }
+}
+
+
+private suspend fun favId(): Long? = try {
+    val pls = (Api.rpc("profile_stats") as? JSONObject)?.optJSONArray("playlists")
+    (0 until (pls?.length() ?: 0)).map { pls!!.getJSONObject(it) }.firstOrNull { it.optBoolean("is_favourite") }?.optLong("id")
+} catch (e: Exception) { null }
+
+/** null when the server could not be asked. */
+suspend fun isLiked(id: String): Boolean? = try {
+    val f = favId()
+    if (f == null) null else ((Api.get("playlist_tracks?playlist_id=eq.$f&track_id=eq." + java.net.URLEncoder.encode(id, "UTF-8") + "&select=track_id") as? JSONArray)?.length() ?: 0) > 0
+} catch (e: Exception) { null }
+
+suspend fun unlikeTrack(id: String): Boolean = try {
+    val f = favId()
+    if (f == null) false else { Api.delete("playlist_tracks?playlist_id=eq.$f&track_id=eq." + java.net.URLEncoder.encode(id, "UTF-8")); true }
+} catch (e: Exception) { false }
+
+@Composable
+fun AddToPlaylistDialog(trackId: String, onClose: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    var pls by remember { mutableStateOf<List<Pair<Long, String>>?>(null) }
+    LaunchedEffect(Unit) { pls = try { val arr = (Api.rpc("profile_stats") as? JSONObject)?.optJSONArray("playlists"); (0 until (arr?.length() ?: 0)).map { arr!!.getJSONObject(it) }.filter { !it.optBoolean("is_favourite") }.map { it.optLong("id") to it.optString("name") } } catch (e: Exception) { emptyList() } }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onClose) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF1A1620)).padding(vertical = 14.dp)) {
+            Text("Add to playlist", Modifier.padding(20.dp, 6.dp, 20.dp, 10.dp), style = ts(18, FontWeight.SemiBold))
+            val l = pls
+            if (l == null) Text("Loading...", Modifier.padding(20.dp), style = ts(14, color = W.Dim))
+            else if (l.isEmpty()) Text("You have no playlists yet. Create one from Library.", Modifier.padding(20.dp), style = ts(14, color = W.Dim))
+            else l.forEach { (id, nm) -> Text(nm, Modifier.fillMaxWidth().clickable {
+                onClose()
+                scope.launch { val ok = try { Api.post("playlist_tracks", JSONObject().put("playlist_id", id).put("track_id", trackId).put("position", (System.currentTimeMillis() / 1000).toInt()).put("added_by", Api.uid)); true } catch (e: Exception) { false }
+                    android.widget.Toast.makeText(ctx, if (ok) "Added to $nm" else "Could not add. Try again.", android.widget.Toast.LENGTH_SHORT).show() }
+            }.padding(20.dp, 13.dp), style = ts(16), maxLines = 1) }
         }
     }
 }
