@@ -401,8 +401,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc
         }
     }
     col { MoodRow("Chill", "chill", pc) }
-    col { MoodRow("Party and dance", "party", pc) }
-    col { MoodRow("Top hits for you", "top", pc) }
+    if (!S.b("hide_mood_party")) col { MoodRow("Party and dance", "party", pc) }
+    if (!S.b("hide_mood_top")) col { MoodRow("Top hits for you", "top", pc) }
     val mixes = f.sections.filter { it.type == "artist_mix" }
     if (mixes.isNotEmpty()) col {
         SectionHeader("To get you started")
@@ -412,7 +412,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc
         Spacer(Modifier.height(28.dp))
     }
     for (s in f.sections) {
-        if (s.type == "artist_mix" || (s === first)) continue
+        if (s.type == "artist_mix" || (s === first) || S.b("hide_" + s.id)) continue
         when {
             s.albums.isNotEmpty() -> col(s.id) {
                 SectionHeader(s.title)
@@ -463,6 +463,26 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc
                 Spacer(Modifier.height(28.dp))
             }
         }
+    }
+    col { HomeEditor(f.sections.filter { it.type != "artist_mix" && it !== first }.map { it.id to it.title }) }
+}
+
+@Composable
+fun HomeEditor(secs: List<Pair<String, String>>) {
+    var open by remember { mutableStateOf(false) }
+    Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+        Text(if (open) "Done" else "Edit Home", Modifier.clip(RoundedCornerShape(50)).background(Color(0x22FFFFFF)).clickable { open = !open }.padding(18.dp, 9.dp), style = ts(14, FontWeight.Medium))
+        if (open) {
+            Text("Switch sections off. Changes show the next time you open Home.", Modifier.padding(top = 10.dp, bottom = 4.dp), style = ts(12, color = W.Dim))
+            (listOf("mood_party" to "Party and dance", "mood_top" to "Top hits for you") + secs).forEach { (k, t) ->
+                var on by remember(k) { mutableStateOf(!S.b("hide_$k")) }
+                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(t, Modifier.weight(1f), style = ts(15), maxLines = 1)
+                    androidx.compose.material3.Switch(on, { v -> on = v; S.put("hide_$k", !v) })
+                }
+            }
+        }
+        Spacer(Modifier.height(30.dp))
     }
 }
 
