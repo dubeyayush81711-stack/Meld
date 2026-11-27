@@ -127,10 +127,12 @@ object TasteProfile {
         load()
         val hit = cached(); if (hit.isNotEmpty()) return@withContext hit
         val seeds = ArrayList<Track>(); val sk = HashSet<String>()
+        // Meld quick-picks idea: seeds are the latest plays plus older favourites ("forgotten favourites"), so one binge does not take over
         for (t in good) if (LangGuard.ok(t) && sk.add(key(t.artist))) { seeds.add(t); if (seeds.size >= 5) break }
+        for (t in good.drop(12).reversed()) if (LangGuard.ok(t) && sk.add(key(t.artist))) { seeds.add(t); if (seeds.size >= 8) break }
         if (seeds.isEmpty()) return@withContext emptyList()
         val lists = coroutineScope { seeds.map { s -> async { try { withTimeoutOrNull(8000) { YouTube.next(WatchEndpoint(videoId = s.id, playlistId = "RDAMVM${s.id}")).getOrNull()?.items?.map { it.toTrack() } } ?: emptyList() } catch (e: Exception) { emptyList<Track>() } } }.map { it.await() } }
-        val score = HashMap<String, Double>(); val by = HashMap<String, Track>()
+        val score = HashMap<String, Double>(); val by = HashMap<String, Track>(); val referred = HashMap<String, Int>()
         val seedIds = seeds.map { it.id }.toSet(); val seedKeys = seeds.map { normKey(it) }.toSet()
         lists.forEachIndexed { si, l ->
             val sw = 1.0 - si * 0.12
@@ -140,7 +142,10 @@ object TasteProfile {
                 if (aff < -2.5) return@forEachIndexed
                 val sc = sw * (1.0 - 0.5 * pos / Math.max(1, l.size)) + aff.coerceIn(-4.0, 8.0) * 0.1
                 val k = normKey(t)
-                if (sc > (score[k] ?: -9.0)) { score[k] = sc; by[k] = t }
+                // Meld ranks related songs by how many seeds point at them (referredCount); same here
+                val rc = (referred[k] ?: 0) + 1; referred[k] = rc
+                val total = sc + 0.6 * (rc - 1)
+                if (total > (score[k] ?: -9.0) || rc > 1) { score[k] = Math.max(total, score[k] ?: -9.0); if (by[k] == null) by[k] = t }
             }
         }
         val fresh = Played.filter(LangGuard.filter(score.entries.sortedByDescending { it.value }.mapNotNull { by[it.key] }))

@@ -16,7 +16,7 @@ object LangGuard {
         "tamil" to rx("tamil|kadhal|kaadhal|vaathi|thalaiva|thalapathy|anirudh(?: ravichander)?|yuvan shankar raja|harris jayaraj|g\\.? ?v\\.? prakash|dhee|sean roldan|santhosh narayanan"),
         "kannada" to rx("kannada|sanjith hegde|vijay prakash"),
         "malayalam" to rx("malayalam|vineeth sreenivasan|sushin shyam"),
-        "punjabi" to rx("punjabi|jatt|jatti|bhangra|karan aujla|ap dhillon|diljit dosanjh|sidhu moose ?wala|shubh|avvy sra|jasmine sandlas|gurnam bhullar|ammy virk|sharry mann|babbu maan|jazzy b|gippy grewal|b praak|harrdy sandhu|navaan sandhu|sunanda sharma|ninja|tegi pannu"),
+        "punjabi" to rx("punjabi|jatt|jatti|bhangra|karan aujla|ap dhillon|diljit dosanjh|sidhu moose ?wala|shubh|avvy sra|jasmine sandlas|gurnam bhullar|ammy virk|sharry mann|babbu maan|jazzy b|gippy grewal|b praak|harrdy sandhu|navaan sandhu|sunanda sharma|ninja|tegi pannu|satinder sartaaj|sartaaj|goldie sohel|mxrci"),
         "haryanvi" to rx("haryanvi|raj mawar|aman jaji|manisha sharma|renuka panwar|masoom sharma|sapna choudhary|ajay hooda|diler kharkiya|ruchika jangid|pranjal dahiya"),
         "bhojpuri" to rx("bhojpuri|pawan singh|khesari lal|neelkamal singh|dinesh lal yadav"),
         "marathi" to rx("marathi|ajay-atul|ajay atul"))
@@ -39,6 +39,9 @@ object LangGuard {
         scripts.firstOrNull { it.second.containsMatchIn(txt) }?.let { return it.first }
         return words.firstOrNull { it.second.containsMatchIn(txt) }?.first
     }
-    fun ok(t: Track): Boolean { val a = allow() ?: return true; val l = lang(t) ?: return true; return l in a }
-    fun filter(l: List<Track>): List<Track> = if (allow() == null) l else l.filter { ok(it) }
+    private val junk = Regex("(?i)\\b(mashup|teaser|trailer|audio launch|jukebox|full album|status video|whatsapp status|reaction|making of|behind the scenes|promo|nightcore|bass boosted|8d audio|slowed|reverb|sped up|karaoke|cover version|lyrical video mashup|dialogue|ringtone|bgm|shorts?)\\b")
+    fun quality(t: Track): Boolean = !junk.containsMatchIn(t.title) && (t.dur <= 0 || (t.dur in 75..600))
+    fun ok(t: Track): Boolean { if (!quality(t)) return false; return lang_ok(t) }
+    private fun lang_ok(t: Track): Boolean { val a = allow() ?: return true; val l = lang(t) ?: return true; return l in a }
+    fun filter(l: List<Track>): List<Track> = l.filter { ok(it) }
 }

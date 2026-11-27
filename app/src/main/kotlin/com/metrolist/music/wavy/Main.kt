@@ -116,7 +116,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
     LaunchedEffect(meta?.id) {
         val m = meta ?: return@LaunchedEffect
         val tr = Track(m.id, m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, m.duration, m.artists.firstOrNull()?.id, m.album?.title)
-        TasteProfile.see(tr)
+        TasteProfile.see(tr); Recent.add(tr)
         var pos = 0L
         try { while (true) { delay(1500); pos = try { pc?.player?.currentPosition ?: pos } catch (e: Exception) { pos } } }
         finally { val p = pos; val d = m.duration * 1000L; Thread { try { TasteProfile.played(tr, p, d) } catch (e: Exception) { } }.start() }
@@ -346,6 +346,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                 }
             } else {
                 if (cat == "All" && f != null) item { QuickTiles(f.favouritesId, tiles, onPlaylist, onParty, f.sections.firstOrNull { it.type == "made_for_you" && it.tracks.isNotEmpty() }?.let { m -> { playTracks(pc, m.tracks, 0, m.title) } }) }
+                if (cat == "All") item { RecentShelf(pc) }
                 if (f != null) item { Hero(f, pc) }
                 if (f != null && cat == "All") item { ForYouShelf(pc) }
                 if (f == null) item {
@@ -627,3 +628,22 @@ fun TrackRow(t: Track, pc: PlayerConnection?, onPlay: () -> Unit) {
 fun LazyListScope.col(key: Any? = null, content: @Composable ColumnScope.() -> Unit) { item(key = key) { Column(content = content) } }
 
 object MiniTint { var c by androidx.compose.runtime.mutableStateOf(Color.Transparent) }
+
+@Composable
+fun RecentShelf(pc: PlayerConnection?) {
+    LaunchedEffect(Unit) { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Recent.load() } }
+    val l = Recent.list
+    if (l.isEmpty()) return
+    var all by remember { mutableStateOf(false) }
+    Column {
+        Row(Modifier.fillMaxWidth().clickable { all = !all }.padding(start = 20.dp, end = 20.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Recently played", Modifier.weight(1f), style = ts(20, FontWeight.SemiBold))
+            Text(if (all) "Show less" else "Show all", style = ts(12, color = W.Pink))
+        }
+        if (all) l.take(50).forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, l, i, "Recently played") } }
+        else LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            itemsIndexed(l.take(15)) { i, t -> MiniCard(t.cover, t.title, t.artist) { playTracks(pc, l, i, "Recently played") } }
+        }
+        Spacer(Modifier.height(26.dp))
+    }
+}

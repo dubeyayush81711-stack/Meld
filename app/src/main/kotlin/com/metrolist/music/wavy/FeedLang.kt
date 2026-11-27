@@ -39,7 +39,7 @@ private suspend fun rawPage(titles: List<String>, offset: Int, seed: String): Li
         codes.map { c -> async { try { kotlinx.coroutines.withTimeoutOrNull(8000) { (Api.rpc("language_top", JSONObject().put("p_lang", c).put("p_limit", per).put("p_offset", offset / codes.size)) as? JSONArray).tracks() } ?: emptyList() } catch (e: Exception) { emptyList() } } }.map { it.await() }
     }
     val out = ArrayList<Track>()
-    for (i in 0 until per) for (l in lists) l.getOrNull(i)?.let { out.add(it) }
+    for (i in 0 until per) for (l in lists) l.getOrNull(i)?.let { if (LangGuard.quality(it)) out.add(it) }
     return out.chunked(6).flatMap { g -> g.sortedBy { Math.abs((seed + it.id).hashCode()) % 100 } }
 }
 
@@ -57,5 +57,21 @@ object Played {
         val h = load(); val seen = HashSet<String>(); val out = ArrayList<Track>()
         for (t in list) { val k = "k:" + normKey(t); if (t.id in h || k in h) continue; if (!seen.add(k) || !seen.add(t.id)) continue; out.add(t) }
         return out
+    }
+}
+
+/** Every song that was opened, even if it stopped a moment later. Newest first, one entry per song, last 100. */
+object Recent {
+    var list by androidx.compose.runtime.mutableStateOf<List<Track>>(emptyList())
+    private var loaded = false
+    private fun key() = "recent_tracks_" + (Api.uid ?: "")
+    @Synchronized fun load() {
+        if (loaded) return; loaded = true
+        list = try { val a = org.json.JSONArray(S.s(key(), "[]")); (0 until a.length()).map { val o = a.getJSONObject(it); Track(o.getString("i"), o.getString("t"), o.getString("a"), o.optString("c").ifBlank { null }, o.optInt("d"), o.optString("x").ifBlank { null }, o.optString("l").ifBlank { null }) } } catch (e: Exception) { emptyList() }
+    }
+    @Synchronized fun add(t: Track) {
+        load(); val n = (listOf(t) + list.filter { it.id != t.id }).take(100); list = n
+        val snap = org.json.JSONArray().also { a -> n.forEach { a.put(org.json.JSONObject().put("i", it.id).put("t", it.title).put("a", it.artist).put("c", it.cover ?: "").put("d", it.dur).put("x", it.artistId ?: "").put("l", it.album ?: "")) } }.toString()
+        Thread { S.put(key(), snap) }.start()
     }
 }
