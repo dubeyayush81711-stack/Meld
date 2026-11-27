@@ -89,6 +89,7 @@ fun SSlider(title: String, v: Float, onChange: (Float) -> Unit) {
 fun SettingsHub(onBack: () -> Unit, onSignOut: () -> Unit = {}, go: (String) -> Unit) {
     SPage("Settings", onBack) {
         Spacer(Modifier.height(10.dp))
+        UpdateSettingsRows()
         SNav("Content and display", "Videos, languages, explicit content and display") { go("set:content") }
         SNav("Display", "Theme, font and look of Wavy") { go("set:display") }
         SNav("Playback", "Audio quality, gapless playback, autoplay") { go("set:playback") }

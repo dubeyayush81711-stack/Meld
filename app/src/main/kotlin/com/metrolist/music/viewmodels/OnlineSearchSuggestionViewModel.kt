@@ -78,6 +78,7 @@ class OnlineSearchSuggestionViewModel
                                 val result = YouTube.searchSuggestions(query).getOrNull()
                                 val hideExplicit = context.dataStore.get(HideExplicitKey, false)
                                 val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+                                val extraSongs = try { YouTube.search(query, YouTube.SearchFilter.FILTER_SONG).getOrNull()?.items.orEmpty() } catch (e: Exception) { emptyList() }
 
                                 database
                                     .searchHistory(query)
@@ -92,12 +93,13 @@ class OnlineSearchSuggestionViewModel
                                                         history.none { it.query == suggestionQuery }
                                                     }.orEmpty(),
                                             items =
-                                                result
-                                                    ?.recommendedItems
-                                                    ?.distinctBy { it.id }
-                                                    ?.filterExplicit(hideExplicit)
-                                                    ?.filterVideoSongs(hideVideoSongs)
-                                                    .orEmpty(),
+                                                com.metrolist.music.wavy.rankTyped(
+                                                    query,
+                                                    ((result?.recommendedItems.orEmpty()) + extraSongs)
+                                                        .distinctBy { it.id }
+                                                        .filterExplicit(hideExplicit)
+                                                        .filterVideoSongs(hideVideoSongs),
+                                                ).take(10),
                                         )
                                     }
                             }

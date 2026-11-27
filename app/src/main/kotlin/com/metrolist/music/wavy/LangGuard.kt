@@ -24,15 +24,21 @@ object LangGuard {
     @Volatile private var allowed: Set<String>? = null
     @Volatile private var forUid: String? = null
 
+    @Volatile private var keyed: String? = null
     private fun allow(): Set<String>? {
         val u = Api.uid ?: return null
-        if (forUid == u) return allowed
-        val l = S.s("my_langs_$u").split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() }.toSet()
-        forUid = u; allowed = if (l.isEmpty()) null else if ("south" in l) l + south else l
+        val feedSel = S.s("feed_langs", "")
+        val saved = S.s("my_langs_$u")
+        val key = u + "|" + feedSel + "|" + saved
+        if (keyed == key) return allowed
+        // The language chip on the Music tab is the live choice; the onboarding list is the fallback.
+        val raw = if (feedSel.isNotBlank()) feedSel else saved
+        val l = raw.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() }.toSet()
+        keyed = key; allowed = if (l.isEmpty()) null else if ("south" in l) l + south else l
         return allowed
     }
     /** Call after the saved language list changes. */
-    fun reset() { forUid = null }
+    fun reset() { keyed = null }
 
     fun lang(t: Track): String? {
         val txt = t.title + " " + t.artist

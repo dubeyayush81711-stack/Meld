@@ -83,7 +83,7 @@ fun WavyApp(pc: PlayerConnection?) {
                 "ob2" -> GenderScreen(taste, { stage = "ob1" }) { stage = "ob3" }
                 "ob3" -> LanguagesScreen(taste) { stage = "picker" }
                 "picker" -> ArtistPicker(taste) { stage = "main" }
-                else -> Shell(pc) { try { pc?.player?.let { it.pause(); it.stop(); it.clearMediaItems() } } catch (_: Exception) {}; Api.signOut(); stage = "welcome" }
+                else -> Box(Modifier.fillMaxSize()) { Shell(pc) { try { pc?.player?.let { it.pause(); it.stop(); it.clearMediaItems() } } catch (_: Exception) {}; Api.signOut(); stage = "welcome" }; UpdateGate() }
             }
         }
         }

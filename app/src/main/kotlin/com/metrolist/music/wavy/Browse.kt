@@ -143,11 +143,11 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                         Icon(painterResource(R.drawable.search), null, Modifier.size(24.dp), tint = Color.White)
                         Spacer(Modifier.width(12.dp))
                         Box(Modifier.weight(1f)) {
-                            if (q.isEmpty()) Text(if (page) "What do you want to listen to?" else "Search", style = ts(18, color = Color(0xCCFFFFFF)))
+                            if (q.isEmpty()) Text(if (page) "Songs, artists, albums" else "Search", style = ts(17, color = Color(0x99FFFFFF)), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                             BasicTextField(q, { q = it; submitted = null }, singleLine = true, textStyle = ts(18), cursorBrush = SolidColor(W.Pink), modifier = Modifier.fillMaxWidth().focusRequester(focusReq).onFocusChanged { searchFocused = it.isFocused }, keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search), keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { go(q) }))
                         }
                         if (q.isNotEmpty()) Icon(painterResource(R.drawable.close), null, Modifier.size(22.dp).clickable { q = ""; submitted = null }, tint = Color.White)
-                        Icon(painterResource(R.drawable.mic), null, Modifier.padding(start = 10.dp).size(24.dp).clickable { showMic = true }, tint = Color.White)
+                        if (q.isEmpty()) Icon(painterResource(R.drawable.mic), null, Modifier.padding(start = 10.dp).size(24.dp).clickable { showMic = true }, tint = Color.White)
                     }
                     if (!page) { Spacer(Modifier.width(12.dp)); Avatar(40, onProfile) }
                 }
