@@ -291,6 +291,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
     Box(Modifier.fillMaxSize().background(if (aurora) W.Bg else Color(0xFF121212))) {
         if (aurora) Backdrop(Modifier.fillMaxWidth().height(1400.dp).offset { IntOffset(0, -shift) }, tint = Color(0xFF2B0B3A)) {}
         else Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0xFF242424), 0.28f to Color(0xFF161616), 0.7f to Color(0xFF121212), 1f to Color(0xFF0D0D0D))))
+        WallpaperLayer()
         val f = feed
         LazyColumn(state = st, contentPadding = PaddingValues(bottom = 210.dp), modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             col {

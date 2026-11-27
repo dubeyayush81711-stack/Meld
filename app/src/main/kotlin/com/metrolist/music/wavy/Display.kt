@@ -22,6 +22,12 @@ import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.metrolist.music.R
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.graphics.asImageBitmap
+import android.content.Context
 
 data class WavyTheme(val id: String, val name: String, val accent: Color, val accent2: Color, val bg: Color, val home: String)
 
@@ -85,6 +91,8 @@ fun DisplaySettings(onBack: () -> Unit) {
         Theming.fonts.forEach { (id, name) ->
             SRadio(name, "The quick brown fox jumps over the lazy dog", font == id) { Theming.setFont(id) }
         }
+        SSection("Wallpaper")
+        WallpaperSettings()
         SSection("Reset")
         SNav("Reset display", "Go back to the default look and font") { confirm = true }
         Spacer(Modifier.height(24.dp))
@@ -96,4 +104,42 @@ fun DisplaySettings(onBack: () -> Unit) {
         confirmButton = { TextButton({ Theming.reset(); confirm = false }) { Text("Reset") } },
         dismissButton = { TextButton({ confirm = false }) { Text("Cancel") } },
     )
+}
+
+
+/** Optional Home wallpaper from the user's own photo. Saved on this phone only, resized, with a dark layer so text stays readable. */
+object Wallpaper {
+    var version by mutableIntStateOf(0)
+    private fun file(c: Context) = java.io.File(c.filesDir, "wallpaper.jpg")
+    fun has(c: Context) = file(c).exists()
+    fun load(c: Context): android.graphics.Bitmap? = try { file(c).takeIf { it.exists() }?.let { android.graphics.BitmapFactory.decodeFile(it.path) } } catch (t: Throwable) { null }
+    fun import(c: Context, uri: android.net.Uri): Boolean = try {
+        val o = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        c.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, o) }
+        var sample = 1; while (maxOf(o.outWidth, o.outHeight) / sample > 1600) sample *= 2
+        val bmp = c.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }) }
+        if (bmp == null) false else { file(c).outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 82, it) }; version++; true }
+    } catch (t: Throwable) { false }
+    fun clear(c: Context) { file(c).delete(); version++ }
+}
+
+@Composable
+fun WallpaperLayer() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val v = Wallpaper.version
+    val bmp by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, v) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Wallpaper.load(ctx)?.asImageBitmap() } }
+    val b = bmp ?: return
+    androidx.compose.foundation.Image(b, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Color(0xB3000000)))
+}
+
+@Composable
+fun WallpaperSettings() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val v = Wallpaper.version
+    val pick = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) { val ok = Wallpaper.import(ctx, uri); android.widget.Toast.makeText(ctx, if (ok) "Wallpaper set on Home" else "Could not use that photo.", android.widget.Toast.LENGTH_SHORT).show() }
+    }
+    SNav("Home wallpaper", if (Wallpaper.has(ctx)) "Your photo is behind Home. Tap to change." else "Pick a photo from your gallery for Home.") { pick.launch("image/*") }
+    if (v >= 0 && Wallpaper.has(ctx)) SNav("Remove wallpaper", "Go back to the plain Home background") { Wallpaper.clear(ctx) }
 }
