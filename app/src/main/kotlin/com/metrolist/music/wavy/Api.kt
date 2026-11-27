@@ -107,6 +107,15 @@ object Api {
         if (j.has("access_token")) saveSession(j) else signIn(email, pw)
     }
 
+    /** Google sign-in: Supabase redirects back with the session in the link. Stores it and loads the user. */
+    suspend fun oauthSession(accessTok: String, refreshTok: String) {
+        saveSession(JSONObject().put("access_token", accessTok).put("refresh_token", refreshTok))
+        val u = JSONObject(exec(Request.Builder().url("$URL/auth/v1/user").get(), true))
+        saveSession(JSONObject().put("access_token", accessTok).put("refresh_token", refreshTok).put("user", u))
+    }
+
+    fun googleUrl(): String = "$URL/auth/v1/authorize?provider=google&redirect_to=" + java.net.URLEncoder.encode("com.wavy.app://login", "UTF-8")
+
     suspend fun recover(email: String) {
         val req = Request.Builder().url("$URL/auth/v1/recover")
             .post(JSONObject().put("email", email.trim()).toString().toRequestBody(JSON))

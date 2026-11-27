@@ -1,5 +1,6 @@
 package com.metrolist.music.wavy
 
+import android.content.Intent
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -86,11 +87,20 @@ fun LoginScreen(onDone: (needsPicker: Boolean) -> Unit) {
             try {
                 if (signup) Api.signUp(email, pw) else Api.signIn(email, pw)
                 busy = false; done(!onboardingDone())
-            } catch (e: ApiError) { busy = false; say(humanErr(e)) } catch (e: Exception) { busy = false; say("Something went wrong. Check your connection.") }
+            } catch (e: ApiError) { busy = false; say(humanErr(e).let { m -> if (signup && (m.contains("invalid", true) || m.contains("registered", true) || m.contains("exists", true))) "This email already has an account. Sign in with your password or tap Continue with Google." else m }) } catch (e: Exception) { busy = false; say("Something went wrong. Check your connection.") }
         }
     }
+    val gr by GoogleAuth.result
+    LaunchedEffect(gr) {
+        val r = gr ?: return@LaunchedEffect
+        GoogleAuth.result.value = null
+        if (r.third != null) { say(r.third!!); return@LaunchedEffect }
+        busy = true
+        try { Api.setRemember(true); Api.oauthSession(r.first, r.second); busy = false; done(!onboardingDone()) }
+        catch (e: ApiError) { busy = false; say(humanErr(e)) } catch (e: Exception) { busy = false; say("Google sign-in failed. Check your connection.") }
+    }
     LoginUi(busy, toast, { e, p, r -> auth(e, p, r, false) }, { e, p, r -> auth(e, p, r, true) },
-        { Toast.makeText(ctx, "Google sign-in is not switched on yet. Use email for now.", Toast.LENGTH_LONG).show() },
+        { try { ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Api.googleUrl()))) } catch (e: Exception) { say("No browser found to open Google sign-in.") } },
         { e -> if (e.isBlank()) say("Enter your email first") else scope.launch {
             try { Api.recover(e); say("If this email has an account, a reset link was sent.") } catch (x: ApiError) { say(humanErr(x)) } } })
 }
@@ -201,3 +211,5 @@ fun ArtistPicker(taste: Taste?, onDone: () -> Unit) {
         }
     }
 }
+
+object GoogleAuth { val result = androidx.compose.runtime.mutableStateOf<Triple<String, String, String?>?>(null) }

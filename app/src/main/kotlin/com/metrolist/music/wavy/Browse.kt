@@ -85,6 +85,19 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
         val ac = autocomplete(q.trim())
         sugg = TasteProfile.rankSuggestions((ytm.take(3) + ac + ytm.drop(3)).map { it.trim() }.filter { it.isNotEmpty() && !it.equals(q.trim(), true) }.distinctBy { it.lowercase() }).take(6)
     }
+    var liveSongs by remember { mutableStateOf<List<Track>>(emptyList()) }
+    LaunchedEffect(q) {
+        if (q.trim().length < 2) { liveSongs = emptyList(); return@LaunchedEffect }
+        delay(300)
+        val qq = q.trim()
+        val got = withContext(Dispatchers.IO) {
+            try {
+                val items = com.metrolist.innertube.YouTube.search(qq, com.metrolist.innertube.YouTube.SearchFilter.FILTER_SONG).getOrNull()?.items.orEmpty()
+                rankTyped(qq, items).mapNotNull { it.asTrack() }.filter { LangGuard.ok(it) && TasteProfile.affinity(it.artist) >= -2.5 }.distinctBy { normKey(it) }.take(10)
+            } catch (e: Exception) { emptyList<Track>() }
+        }
+        liveSongs = got
+    }
     var submitted by remember { mutableStateOf<String?>(null) }
     var summary by remember { mutableStateOf<List<SSection>?>(null) }
     var typed by remember { mutableStateOf<List<com.metrolist.innertube.models.YTItem>?>(null) }
@@ -221,8 +234,9 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 val hm = hist.filter { it.lowercase().contains(ql) && !it.equals(q.trim(), true) }.take(3)
                 val fy = if (ql.isEmpty()) TasteProfile.forYouSuggestions(6) else emptyList()
                 val rows = if (ql.isEmpty()) fy.map { it to hist.any { h -> h.equals(it, true) } } else (hm.map { it to true } + sugg.filter { s0 -> hm.none { it.equals(s0, true) } }.map { it to false }).take(8)
+                if (ql.isNotEmpty()) liveSongs.forEachIndexed { i, t -> col(key = "ls_" + t.id) { TrackRow(t, pc) { try { kbc?.hide() } catch (e: Exception) { }; playTracks(pc, liveSongs, i, "Search") } } }
                 col {
-                    rows.forEach { (sg, isHist) ->
+                    (if (ql.isNotEmpty() && liveSongs.isNotEmpty()) rows.take(3) else rows).forEach { (sg, isHist) ->
                         Row(Modifier.fillMaxWidth().clickable { go(sg) }.padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(painterResource(if (isHist) R.drawable.history else R.drawable.search), null, Modifier.size(20.dp), tint = W.Dim)
                             Text(sg, Modifier.weight(1f).padding(start = 14.dp), style = ts(16), maxLines = 1, overflow = TextOverflow.Ellipsis)
