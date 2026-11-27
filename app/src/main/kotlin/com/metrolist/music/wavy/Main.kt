@@ -116,10 +116,10 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
     LaunchedEffect(meta?.id) {
         val m = meta ?: return@LaunchedEffect
         val tr = Track(m.id, m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, m.duration, m.artists.firstOrNull()?.id, m.album?.title)
-        Taste.see(tr)
+        TasteProfile.see(tr)
         var pos = 0L
         try { while (true) { delay(1500); pos = try { pc?.player?.currentPosition ?: pos } catch (e: Exception) { pos } } }
-        finally { val p = pos; val d = m.duration * 1000L; Thread { try { Taste.played(tr, p, d) } catch (e: Exception) { } }.start() }
+        finally { val p = pos; val d = m.duration * 1000L; Thread { try { TasteProfile.played(tr, p, d) } catch (e: Exception) { } }.start() }
     }
     LaunchedEffect(Unit) { ArtistNav.open = { id, n -> page = "artist:" + (id ?: "") + ":" + n } }
     BackHandler(full) { full = false }

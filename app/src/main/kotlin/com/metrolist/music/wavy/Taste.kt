@@ -1,6 +1,6 @@
 package com.metrolist.music.wavy
 
-import androidx.compose.foundation.PaddingValues
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -35,7 +35,7 @@ import org.json.JSONObject
  * Every weight halves after 10 days, so recent listening counts most. Time of day is tracked per artist (4 buckets).
  * Recommendations come from YouTube Music's own radio for songs the user finished or liked, re-scored by this profile.
  */
-object Taste {
+object TasteProfile {
     private const val KEY = "taste_v1"
     private const val HALF_LIFE_MS = 10L * 24 * 3600 * 1000
     private class A(var n: String, var id: String?, var w: Double, var t: Long, val b: IntArray = IntArray(4))
@@ -180,8 +180,8 @@ object Taste {
 
 @Composable
 fun ForYouShelf(pc: PlayerConnection?) {
-    var list by remember { mutableStateOf<List<Track>>(Taste.cached()) }
-    LaunchedEffect(Unit) { try { list = Taste.recommend(20) } catch (e: Exception) { } }
+    var list by remember { mutableStateOf<List<Track>>(TasteProfile.cached()) }
+    LaunchedEffect(Unit) { try { list = TasteProfile.recommend(20) } catch (e: Exception) { } }
     if (list.isEmpty()) return
     Column {
         Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp)) {

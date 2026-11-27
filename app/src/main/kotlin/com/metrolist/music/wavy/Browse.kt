@@ -83,7 +83,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
         delay(150)
         val ytm = try { com.metrolist.innertube.YouTube.searchSuggestions(q.trim()).getOrNull()?.queries ?: emptyList() } catch (e: Exception) { emptyList() }
         val ac = autocomplete(q.trim())
-        sugg = Taste.rankSuggestions((ytm.take(3) + ac + ytm.drop(3)).map { it.trim() }.filter { it.isNotEmpty() && !it.equals(q.trim(), true) }.distinctBy { it.lowercase() }).take(6)
+        sugg = TasteProfile.rankSuggestions((ytm.take(3) + ac + ytm.drop(3)).map { it.trim() }.filter { it.isNotEmpty() && !it.equals(q.trim(), true) }.distinctBy { it.lowercase() }).take(6)
     }
     var submitted by remember { mutableStateOf<String?>(null) }
     var summary by remember { mutableStateOf<List<SSection>?>(null) }
@@ -216,7 +216,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
             } else if (submitted == null) {
                 val ql = q.trim().lowercase()
                 val hm = hist.filter { it.lowercase().contains(ql) && !it.equals(q.trim(), true) }.take(3)
-                val fy = if (ql.isEmpty()) Taste.forYouSuggestions(6) else emptyList()
+                val fy = if (ql.isEmpty()) TasteProfile.forYouSuggestions(6) else emptyList()
                 val rows = if (ql.isEmpty()) fy.map { it to hist.any { h -> h.equals(it, true) } } else (hm.map { it to true } + sugg.filter { s0 -> hm.none { it.equals(s0, true) } }.map { it to false }).take(8)
                 col {
                     rows.forEach { (sg, isHist) ->
