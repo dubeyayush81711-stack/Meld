@@ -73,7 +73,7 @@ fun PartyScreen(pc: PlayerConnection?, onBack: () -> Unit) {
     var name by remember { mutableStateOf("") }; var code by remember { mutableStateOf("") }
     var err by remember { mutableStateOf<String?>(null) }; var busy by remember { mutableStateOf(false) }
     var step by remember { mutableIntStateOf(0) }
-    var optLock by remember { mutableStateOf(false) }; var optApprove by remember { mutableStateOf(false) }; var optControl by remember { mutableStateOf(true) }; var optTheme by remember { mutableStateOf("Wavy") }
+    var optLock by remember { mutableStateOf(false) }; var optApprove by remember { mutableStateOf(false) }; var optControl by remember { mutableStateOf(true) }; var optTheme by remember { mutableStateOf("Wavy") }; val optLocks = remember { mutableStateMapOf("add" to false, "skip" to false, "chat" to false, "voice" to false) }
     LaunchedEffect(Unit) { try { val a = call("party_mine") as? JSONArray; if (a != null && a.length() > 0 && a.getJSONObject(0).optString("status") == "active") pid = a.getJSONObject(0).optString("id") } catch (e: Exception) { } }
     if (pid != null) { PartyRoom(pc, pid!!, onLeft = { pid = null; step = 0 }, onBack = onBack); return }
     if (step == 1) {
@@ -89,6 +89,13 @@ fun PartyScreen(pc: PlayerConnection?, onBack: () -> Unit) {
                         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) { Text(l, Modifier.weight(1f), style = ts(15)); Switch(v, { set(it) }) } }
                 }
                 Spacer(Modifier.height(18.dp))
+                Text("Lock for members (you can still allow people one by one)", style = ts(13, color = Color(0xFFCFC8D9)))
+                Spacer(Modifier.height(6.dp))
+                Column(Modifier.fillMaxWidth().glass(RoundedCornerShape(18.dp)).padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    listOf("add" to "Adding songs", "skip" to "Skip votes", "chat" to "Chat", "voice" to "Voice clips").forEach { (k, l) ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) { Text(l, Modifier.weight(1f), style = ts(15)); Switch(optLocks[k] == true, { optLocks[k] = it }) } }
+                }
+                Spacer(Modifier.height(18.dp))
                 Text("Room theme", style = ts(16, FontWeight.SemiBold)); Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     PARTY_THEMES.forEach { (n, c) -> Box(Modifier.size(46.dp).clip(CircleShape).background(c).border(if (optTheme == n) 3.dp else 1.dp, if (optTheme == n) W.Pink else Color(0x55FFFFFF), CircleShape).clickable { optTheme = n }) }
@@ -99,6 +106,7 @@ fun PartyScreen(pc: PlayerConnection?, onBack: () -> Unit) {
                     scope.launch { try {
                         val id = ((call("party_create", "p_name" to name.ifBlank { "Party" }) as JSONObject).optString("id"))
                         try { call("party_settings", "p_party" to id, "p_invite_locked" to optLock, "p_require_approval" to optApprove, "p_default_can_control" to optControl) } catch (e: Exception) { }
+                        optLocks.forEach { (k, on) -> if (on) try { call("party_set_lock", "p_party" to id, "p_feature" to k, "p_locked" to true) } catch (e: Exception) { } }
                         S.put("party_theme_$id", optTheme); pid = id
                     } catch (e: Exception) { err = humanErr(e) }; busy = false }
                 }, contentAlignment = Alignment.Center) { Text(if (busy) "Creating..." else "Create room", style = ts(17, FontWeight.SemiBold)) }
@@ -405,7 +413,7 @@ fun PartyBackdrop(tint: Color, bg: androidx.compose.ui.graphics.ImageBitmap? = n
         if (bg != null) {
             androidx.compose.foundation.Image(bg, null, Modifier.fillMaxSize().then(if (blur > 0) Modifier.blur((blur / 4).dp) else Modifier), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
             Box(Modifier.fillMaxSize().background(Color(0x99000000)))
-        }
+        } else WallpaperLayer("party")
         content()
     }
 }

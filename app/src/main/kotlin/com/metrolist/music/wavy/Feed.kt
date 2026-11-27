@@ -384,7 +384,8 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x55000000), 0.2f to Color.Transparent, 0.62f to Color.Transparent, 1f to Color(0xDD000000))))
                 Row(Modifier.align(Alignment.TopStart).fillMaxWidth().statusBarsPadding().padding(start = 20.dp, end = 12.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Row(Modifier.clip(RoundedCornerShape(50)).clickable { showLang = true }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (langs.isEmpty()) "For You" else langs.joinToString(" + "), style = ts(18, FontWeight.SemiBold), maxLines = 1)
+                        val nowLang = remember(pager.currentPage, tracks.size) { tracks.getOrNull(pager.currentPage)?.let { LangGuard.lang(it) }?.replaceFirstChar { c -> c.uppercase() } }
+                        Text(nowLang ?: (if (langs.isEmpty()) "For You" else langs.joinToString(" + ")), style = ts(18, FontWeight.SemiBold), maxLines = 1)
                         Icon(painterResource(R.drawable.expand_more), null, Modifier.size(22.dp), tint = Color.White)
                     }
                     Spacer(Modifier.weight(1f))
@@ -402,7 +403,6 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                         @Composable fun Act(icon: Int, tint: Color = Color.White, on: () -> Unit) = Box(Modifier.size(44.dp).clip(CircleShape).background(Color(0x22FFFFFF)).clickable { on() }, contentAlignment = Alignment.Center) { Icon(painterResource(icon), null, Modifier.size(24.dp), tint = tint) }
                         Act(if (liked) R.drawable.favorite else R.drawable.favorite_border, if (liked) W.Pink else Color.White) { liked = true; scope.launch { likeTrack(t.id) } }
                         Act(R.drawable.share) { ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "${t.title} - ${t.artist}\nhttps://music.youtube.com/watch?v=${t.id}"), "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                        Act(R.drawable.more_vert) { showFx = true }
                     }
                     Spacer(Modifier.height(10.dp))
                     val dur = ((if (meta?.id == t.id) pc?.player?.duration?.takeIf { it > 0 } else null) ?: (t.dur * 1000L)).coerceAtLeast(1)

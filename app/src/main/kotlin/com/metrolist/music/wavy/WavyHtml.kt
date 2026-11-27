@@ -271,22 +271,6 @@ fun WelcomeUi(onStart: () -> Unit) {
                 }
             }
         }
-        // stars
-        val star = remember { path("M50 0C54 30 70 46 100 50 70 54 54 70 50 100 46 70 30 54 0 50 30 46 46 30 50 0Z") }
-        data class St(val x: Float, val y: Float, val s: Float, val d1: Float, val d2: Float)
-        for (st in listOf(St(15f, 29.7f, 9.6f, .6f, 1.3f), St(14f, 37f, 4.1f, .8f, 2.1f), St(79.5f, 114.4f, 6f, 1.3f, .4f))) {
-            Canvas(Modifier.at(c, st.x, st.y).sz(c, st.s, st.s).graphicsLayer {
-                val t = tt(); val sp = prog(t, st.d1, .7f, EaseOut)
-                val tw = if (t >= st.d2) ping(t, st.d2, 3f) else -1f
-                alpha = if (tw >= 0f) 1f - .55f * tw else sp
-                val s1 = if (t < st.d1) 1f else .2f + .8f * sp
-                val s2 = s1 * (if (tw >= 0f) 1f - .2f * tw else 1f)
-                scaleX = s2; scaleY = s2; rotationZ = if (t < st.d1) 0f else -60f * (1f - sp)
-            }) {
-                drawCircle(rgba(190, 170, 255, .22f), size.width * .8f, center)
-                scale(size.width / 100f, Offset.Zero) { drawPath(star, Brush.linearGradient(listOf(Color(0xFFF4EEFF), Color(0xFFA99BE0)), Offset.Zero, Offset(100f, 100f))) }
-            }
-        }
         // halo
         Canvas(Modifier.at(c, 14f, 44f).sz(c, 72f, 72f).graphicsLayer { val t = tt(); alpha = if (t < 1.6f) prog(t, .4f, 1.2f) else ping(t, 1.6f, 3.4f) }) {
             val r = size.width / 2f

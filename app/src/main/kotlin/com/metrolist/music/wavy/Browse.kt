@@ -113,6 +113,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
         } catch (e: Exception) { err = "Voice input is not available on this phone." }
     }
     fun go(text: String) { val t = text.trim(); if (t.length < 1) return; q = t; filter = "All"; submitted = t; saveHistory(ctxS, t); hist = loadHistory(ctxS) }
+    val kbc = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     LaunchedEffect(submitted, filter) {
         val sq = submitted ?: return@LaunchedEffect
         err = null; busy = true
@@ -121,6 +122,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
             else { summary = null; typed = null; val p = meldTyped(sq, filter); typed = p.items; nextTok = p.next }
         } catch (e: Exception) { err = "Search failed. Check your connection." }
         busy = false
+        try { kbc?.hide() } catch (e: Exception) { }
     }
     val meta by (pc?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val playing by (pc?.isPlaying ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }).collectAsState()
@@ -132,6 +134,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     LaunchedEffect(searchFocused) { if (searchFocused) page = true }
     LaunchedEffect(page) { if (page) { try { focusReq.requestFocus() } catch (e: Exception) { } } }
     Box(Modifier.fillMaxSize().background(W.Bg)) {
+        WallpaperLayer("search")
         LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 210.dp)) {
             col {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -355,6 +358,7 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
     var asList by remember { mutableStateOf(false) }
     val q = query.trim().lowercase()
     Box(Modifier.fillMaxSize().background(W.Bg)) {
+        WallpaperLayer("library")
         LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(bottom = 210.dp)) {
             col { Row(Modifier.padding(16.dp, 12.dp, 16.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Avatar(38, onProfile)

@@ -17,7 +17,7 @@ object LangGuard {
         "kannada" to rx("kannada|sanjith hegde|vijay prakash"),
         "malayalam" to rx("malayalam|vineeth sreenivasan|sushin shyam"),
         "punjabi" to rx("punjabi|jatt|jatti|bhangra|karan aujla|ap dhillon|diljit dosanjh|sidhu moose ?wala|shubh|avvy sra|jasmine sandlas|gurnam bhullar|ammy virk|sharry mann|babbu maan|jazzy b|gippy grewal|b praak|harrdy sandhu|navaan sandhu|sunanda sharma|ninja|tegi pannu|satinder sartaaj|sartaaj|goldie sohel|mxrci"),
-        "haryanvi" to rx("haryanvi|raj mawar|aman jaji|manisha sharma|renuka panwar|masoom sharma|sapna choudhary|ajay hooda|diler kharkiya|ruchika jangid|pranjal dahiya"),
+        "haryanvi" to rx("haryanvi|vikram sarkar|vijay varma|sumit goswami|gulzaar chhaniwala|sandeep surila|amit saini rohtakiya|khasa aala chahar|ndee kundu|raj mawar|aman jaji|manisha sharma|renuka panwar|masoom sharma|sapna choudhary|ajay hooda|diler kharkiya|ruchika jangid|pranjal dahiya"),
         "bhojpuri" to rx("bhojpuri|pawan singh|khesari lal|neelkamal singh|dinesh lal yadav"),
         "marathi" to rx("marathi|ajay-atul|ajay atul"))
     private val south = setOf("tamil", "telugu", "kannada", "malayalam")

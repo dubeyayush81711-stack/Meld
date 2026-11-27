@@ -121,14 +121,17 @@ object Wallpaper {
         if (bmp == null) false else { file(c).outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 82, it) }; version++; true }
     } catch (t: Throwable) { false }
     fun clear(c: Context) { file(c).delete(); version++ }
+    fun places(@Suppress("UNUSED_PARAMETER") v: Int): Set<String> = S.s("wp_places", "home").split(',').filter { it.isNotBlank() }.toSet()
+    fun toggle(p: String) { val s = places(0).toMutableSet(); if (!s.add(p)) s.remove(p); S.put("wp_places", s.joinToString(",")); version++ }
 }
 
 @Composable
-fun WallpaperLayer() {
+fun WallpaperLayer(place: String = "home") {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val v = Wallpaper.version
     val bmp by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, v) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Wallpaper.load(ctx)?.asImageBitmap() } }
     val b = bmp ?: return
+    if (place !in Wallpaper.places(v)) return
     androidx.compose.foundation.Image(b, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
     androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Color(0xB3000000)))
 }
@@ -141,5 +144,11 @@ fun WallpaperSettings() {
         if (uri != null) { val ok = Wallpaper.import(ctx, uri); android.widget.Toast.makeText(ctx, if (ok) "Wallpaper set on Home" else "Could not use that photo.", android.widget.Toast.LENGTH_SHORT).show() }
     }
     SNav("Home wallpaper", if (Wallpaper.has(ctx)) "Your photo is behind Home. Tap to change." else "Pick a photo from your gallery for Home.") { pick.launch("image/*") }
-    if (v >= 0 && Wallpaper.has(ctx)) SNav("Remove wallpaper", "Go back to the plain Home background") { Wallpaper.clear(ctx) }
+    if (v >= 0 && Wallpaper.has(ctx)) {
+        val on = Wallpaper.places(v)
+        listOf("home" to "Home", "library" to "Your Library", "search" to "Search", "party" to "Party room").forEach { (k, l) ->
+            SNav("Show on $l", if (k in on) "On. Tap to turn off." else "Off. Tap to turn on.") { Wallpaper.toggle(k) }
+        }
+        SNav("Remove wallpaper", "Go back to the plain background") { Wallpaper.clear(ctx) }
+    }
 }

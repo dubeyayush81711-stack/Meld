@@ -101,7 +101,11 @@ private fun titleScore(q: String, x: YTItem): Double {
     val hit = ws.count { t.contains(it) } / ws.size.toDouble()
     val pw = phon(want); val pt = phon(x.title)
     val ph = if (pw.length >= 4 && (pt.contains(pw) || pw.contains(pt) && pt.length >= 4)) 0.9 else 0.0
-    return maxOf(if (t.startsWith(want)) 0.95 else 0.0, hit * 0.9, ph)
+    val tw = t.split(' '); val aw = (t + " " + fold(x.sub())).split(' ')
+    val hitAll = ws.count { w -> aw.any { it.startsWith(w) } } / ws.size.toDouble()
+    val hitT = ws.count { w -> tw.any { it.startsWith(w) } } / ws.size.toDouble()
+    val combo = if (hitAll >= 1.0 && hitT > 0.0) 0.82 + 0.1 * hitT else 0.0
+    return maxOf(if (t.startsWith(want)) 0.95 else 0.0, hit * 0.9, ph, combo)
 }
 
 /** An exact or near-exact title match goes first as the Top result; artist matches only lead when nothing matches by title. */
