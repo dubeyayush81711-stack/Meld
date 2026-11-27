@@ -267,7 +267,9 @@ fun Cover(url: String?, size: androidx.compose.ui.unit.Dp, radius: Int = 10, mod
 
 @Composable
 fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Unit, onProfile: () -> Unit, onParty: () -> Unit = {}, onSettings: () -> Unit = {}, onPlaylist: (Long, String) -> Unit = { _, _ -> }) {
-    var feed by remember { mutableStateOf<Feed?>(try { S.s("home_feed_cache_" + Api.uid, "").takeIf { it.length > 20 }?.let { parseFeed(JSONObject(it)) } } catch (e: Exception) { null }) }
+    var feed by remember { mutableStateOf<Feed?>(null) }
+    // the cached Home is parsed off the main thread so opening the app does not stall
+    LaunchedEffect(Unit) { val c = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { try { S.s("home_feed_cache_" + Api.uid, "").takeIf { it.length > 20 }?.let { parseFeed(JSONObject(it)) } } catch (e: Exception) { null } }; if (feed == null) feed = c }
     var name by remember { mutableStateOf("") }
     var err by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }

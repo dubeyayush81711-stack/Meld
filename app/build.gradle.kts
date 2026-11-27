@@ -213,6 +213,8 @@ android {
         }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            // Wavy never romanizes Japanese lyrics, so the 13 MB Japanese dictionary is left out of the phone build
+            if (project.findProperty("wavyAbi") == "phone") excludes += "com/atilika/kuromoji/ipadic/*.bin"
             excludes += "META-INF/NOTICE.md"
             excludes += "META-INF/CONTRIBUTORS.md"
             excludes += "META-INF/LICENSE.md"

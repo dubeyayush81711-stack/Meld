@@ -43,12 +43,16 @@ private suspend fun rawPage(titles: List<String>, offset: Int, seed: String): Li
     return out.chunked(6).flatMap { g -> g.sortedBy { Math.abs((seed + it.id).hashCode()) % 100 } }
 }
 
-fun normKey(t: Track) = (t.title.lowercase().replace(Regex("\\(.*?\\)|\\[.*?\\]|official|video|audio|lyrical|lyrics|\\bhd\\b|[^a-z0-9\u0900-\u0DFF ]"), " ").replace(Regex("\\s+"), " ").trim() + "|" + t.artist.lowercase().split(Regex("[,&]| x | feat\\.?")).first().trim())
+private val NK_JUNK = Regex("\\(.*?\\)|\\[.*?\\]|official|video|audio|lyrical|lyrics|\\bhd\\b|[^a-z0-9\u0900-\u0DFF ]")
+private val NK_WS = Regex("\\s+")
+private val NK_SPLIT = Regex("[,&]| x | feat\\.?")
+fun normKey(t: Track) = (t.title.lowercase().replace(NK_JUNK, " ").replace(NK_WS, " ").trim() + "|" + t.artist.lowercase().split(NK_SPLIT).first().trim())
 
 /** Songs the user has already seen in the language feed; kept across refreshes so repeats do not come back. */
 object Played {
-    private fun load(): LinkedHashSet<String> = LinkedHashSet(S.s("played_hist").split("\n").filter { it.isNotBlank() })
-    fun mark(t: Track) { val h = load(); h.remove(t.id); h.add(t.id); h.remove("k:" + normKey(t)); h.add("k:" + normKey(t)); S.put("played_hist", h.toList().takeLast(4000).joinToString("\n")) }
+    private var mem: LinkedHashSet<String>? = null
+    @Synchronized private fun load(): LinkedHashSet<String> = mem ?: LinkedHashSet(S.s("played_hist").split("\n").filter { it.isNotBlank() }).also { mem = it }
+    @Synchronized fun mark(t: Track) { val h = load(); h.remove(t.id); h.add(t.id); h.remove("k:" + normKey(t)); h.add("k:" + normKey(t)); while (h.size > 4000) h.remove(h.first()); val snap = h.joinToString("\n"); Thread { S.put("played_hist", snap) }.start() }
     fun filter(list: List<Track>): List<Track> {
         val h = load(); val seen = HashSet<String>(); val out = ArrayList<Track>()
         for (t in list) { val k = "k:" + normKey(t); if (t.id in h || k in h) continue; if (!seen.add(k) || !seen.add(t.id)) continue; out.add(t) }

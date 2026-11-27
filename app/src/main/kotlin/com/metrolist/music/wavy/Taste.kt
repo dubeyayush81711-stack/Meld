@@ -46,7 +46,8 @@ object TasteProfile {
     private var loaded = false
     private var cache: Pair<Long, List<Track>>? = null
 
-    fun key(artist: String) = artist.lowercase().split(Regex("[,&]| x | feat\\.?")).first().trim()
+    private val KSPLIT = Regex("[,&]| x | feat\\.?")
+    fun key(artist: String) = artist.lowercase().split(KSPLIT).first().trim()
     private fun bucket(): Int { val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY); return when { h < 6 -> 0; h < 12 -> 1; h < 18 -> 2; else -> 3 } }
     private fun eff(a: A, now: Long = System.currentTimeMillis()) = a.w * Math.pow(0.5, (now - a.t).toDouble() / HALF_LIFE_MS)
 

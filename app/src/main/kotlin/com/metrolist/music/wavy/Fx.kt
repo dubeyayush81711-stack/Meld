@@ -42,12 +42,14 @@ object Reduce {
 /** Simple persisted settings. Keys are plain strings. */
 object S {
     private var sp: android.content.SharedPreferences? = null
-    fun init(ctx: Context) { if (sp == null) { sp = ctx.applicationContext.getSharedPreferences("wavy_settings", Context.MODE_PRIVATE); Reduce.on = sp!!.getBoolean("reduce_fx", true) } }
+    fun init(ctx: Context) { if (sp == null) { sp = ctx.applicationContext.getSharedPreferences("wavy_settings", Context.MODE_PRIVATE); if (!sp!!.getBoolean("fx_v110", false)) sp!!.edit().putBoolean("reduce_fx", true).putBoolean("fx_v110", true).apply(); Reduce.on = sp!!.getBoolean("reduce_fx", true) } }
     fun keysWithPrefix(p: String): List<String> = sp?.all?.keys?.filter { it.startsWith(p) } ?: emptyList()
     fun b(k: String, d: Boolean = false) = sp?.getBoolean(k, d) ?: d
     fun f(k: String, d: Float = 0f) = sp?.getFloat(k, d) ?: d
     fun s(k: String, d: String = "") = sp?.getString(k, d) ?: d
-    fun put(k: String, v: Any) { val e = sp?.edit() ?: return; when (v) { is Boolean -> e.putBoolean(k, v); is Float -> e.putFloat(k, v); is String -> e.putString(k, v) }; e.apply(); WavyFx.refresh() }
+    fun put(k: String, v: Any) { val e = sp?.edit() ?: return; when (v) { is Boolean -> e.putBoolean(k, v); is Float -> e.putFloat(k, v); is String -> e.putString(k, v) }; e.apply(); if (QUIET.none { k.startsWith(it) }) WavyFx.refresh() }
+    // data caches and UI-only prefs: writing them must not reconfigure the audio chain (that was a source of stutter, and it ran on whatever thread saved)
+    private val QUIET = listOf("played_hist", "feed_cache_", "home_feed_cache_", "taste_v1", "liked_", "hide_", "queue_locked", "feed_langs", "fname_", "fthumb_", "follow_", "fame_cache", "my_langs_", "mood_", "home_look", "lyric_style", "reel_vq", "party_theme_", "ui_font", "theme")
 }
 
 @Composable

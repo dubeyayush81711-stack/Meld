@@ -368,8 +368,8 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                     Icon(painterResource(R.drawable.add), null, Modifier.padding(start = 22.dp).size(32.dp).clickable(onClick = onAddArtists), tint = Color.White)
                 }
             }
-            Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Playlists", "Artists", "Following", "Downloads", "Ringtones").forEach { c -> Text(c, Modifier.clip(RoundedCornerShape(50)).background(if (c == chip) W.Pink else Color(0xFF2A2A2A)).clickable { chip = c }.padding(horizontal = 16.dp, vertical = 8.dp), style = ts(14, FontWeight.Medium)) }
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Playlists", "Artists", "Following", "Downloads", "Ringtones").forEach { c -> Text(c, Modifier.clip(RoundedCornerShape(50)).background(if (c == chip) W.Pink else Color(0xFF2A2A2A)).clickable { chip = c }.padding(horizontal = 16.dp, vertical = 8.dp), style = ts(14, FontWeight.Medium), maxLines = 1, softWrap = false) }
             }
             if (chip != "Downloads" && chip != "Ringtones" && chip != "Following") Row(Modifier.fillMaxWidth().padding(16.dp, 14.dp, 16.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.weight(1f).clickable { az = !az }, verticalAlignment = Alignment.CenterVertically) {

@@ -341,6 +341,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean 
                 if (videoOn) {
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0xFF0B0A10), 1f to Color(0xFF000000))))
                     if (page == pager.settledPage && active) StreamVideo(t.id, pc, Modifier.fillMaxSize()) { diag = it }
+                    if (glowPref.value && page == pager.settledPage && active && playing) ReelGlow(bg, 0.55f)
                     run {
                         val synced = if (lyricsPref.value) lyrics.filter { it.t >= 0 } else emptyList()
                         val ci = synced.indexOfLast { it.t <= pos + 250 }
@@ -454,7 +455,7 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                     }
                 }
                 SToggle("Lyrics", "Show synced lyrics on the cover when a song has them.", lyricsPref)
-                SToggle("Animated light", "Soft moving glow behind the song while it plays.", glowPref)
+                SToggle("Ambient light", "Soft moving colour glow that follows the song. Works with the video and with the cover.", glowPref)
                 SToggle("Hook only", "Play about 25 seconds of each song, then move to the next.", hookPref)
                 SToggle("Reduce effects", "Turns off blur, the drifting background and the moving wave. Smoother on slower phones.", Reduce.state)
                 val cur = meta
@@ -524,7 +525,7 @@ private fun saveFeedCache(langs: String, l: List<Track>) { try {
 
 /** Two soft colour blobs drifting slowly. Plain gradients only, no blur, so it stays cheap on slow phones. */
 @Composable
-fun ReelGlow(tint: Color) {
+fun ReelGlow(tint: Color, strength: Float = 1f) {
     val tr = androidx.compose.animation.core.rememberInfiniteTransition(label = "glow")
     val a by tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(9000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "ga")
     val b by tr.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(13000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "gb")
@@ -532,7 +533,7 @@ fun ReelGlow(tint: Color) {
         val r = size.maxDimension * 0.55f
         val c1 = androidx.compose.ui.geometry.Offset(size.width * (0.15f + 0.7f * a), size.height * (0.25f + 0.2f * b))
         val c2 = androidx.compose.ui.geometry.Offset(size.width * (0.85f - 0.7f * b), size.height * (0.7f - 0.2f * a))
-        drawCircle(Brush.radialGradient(listOf(W.Pink.copy(alpha = 0.22f), Color.Transparent), c1, r), r, c1)
-        drawCircle(Brush.radialGradient(listOf(tint.copy(alpha = 0.55f), Color.Transparent), c2, r), r, c2)
+        drawCircle(Brush.radialGradient(listOf(W.Pink.copy(alpha = 0.22f * strength), Color.Transparent), c1, r), r, c1)
+        drawCircle(Brush.radialGradient(listOf(tint.copy(alpha = 0.55f * strength), Color.Transparent), c2, r), r, c2)
     })
 }
