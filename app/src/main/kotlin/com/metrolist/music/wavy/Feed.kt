@@ -438,10 +438,35 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
         }
         if (showOpts && pc != null) PlayerOptions(pc, onBoost = {}, onClose = { showOpts = false })
         if (showFx) {
-            Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { showFx = false })
-            BoxWithConstraints(Modifier.align(Alignment.BottomCenter)) {
-            Column(Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.86f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF0121016)).navigationBarsPadding().verticalScroll(rememberScrollState()).padding(top = 14.dp, bottom = 120.dp)) {
-                Box(Modifier.fillMaxWidth().height(30.dp).pointerInput(Unit) { detectVerticalDragGestures { _, d -> if (d > 10f) showFx = false } }, contentAlignment = Alignment.Center) { Box(Modifier.size(width = 40.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x55FFFFFF))) }
+            Box(Modifier.fillMaxSize().background(Color(0x66000000)).pointerInput(Unit) { detectVerticalDragGestures { _, d -> if (d > 10f) showFx = false } }.clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { showFx = false })
+            BoxWithConstraints(Modifier.align(Alignment.BottomCenter).padding(start = 8.dp, end = 8.dp, bottom = 96.dp)) {
+            val fxScroll = rememberScrollState()
+            val fxDrag = remember { androidx.compose.animation.core.Animatable(0f) }
+            val fxScope = rememberCoroutineScope()
+            val eat = remember { object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+                override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource): androidx.compose.ui.geometry.Offset {
+                    val dy = available.y
+                    if (dy < 0f && fxDrag.value > 0f) { val n = (fxDrag.value + dy).coerceAtLeast(0f); val used = n - fxDrag.value; fxScope.launch { fxDrag.snapTo(n) }; return androidx.compose.ui.geometry.Offset(0f, used) }
+                    return androidx.compose.ui.geometry.Offset.Zero
+                }
+                override fun onPostScroll(consumed: androidx.compose.ui.geometry.Offset, available: androidx.compose.ui.geometry.Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource): androidx.compose.ui.geometry.Offset {
+                    if (available.y > 0f && source == androidx.compose.ui.input.nestedscroll.NestedScrollSource.UserInput) fxScope.launch { fxDrag.snapTo(fxDrag.value + available.y) }
+                    return available
+                }
+                override suspend fun onPreFling(available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity {
+                    if (fxDrag.value <= 0f) return androidx.compose.ui.unit.Velocity.Zero
+                    if (available.y > 1400f || fxDrag.value > 260f) { fxDrag.animateTo(2400f, androidx.compose.animation.core.tween(160)); showFx = false }
+                    else fxDrag.animateTo(0f, androidx.compose.animation.core.spring(stiffness = 600f))
+                    return available
+                }
+                override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity = available
+            } }
+            Column(Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.80f).offset { androidx.compose.ui.unit.IntOffset(0, fxDrag.value.toInt()) }.clip(RoundedCornerShape(26.dp))
+                .background(Brush.verticalGradient(listOf(Color(0xB31E1626), Color(0xA6100B16))))
+                .border(1.dp, Brush.verticalGradient(listOf(Color(0x55FFFFFF), Color(0x14FFFFFF))), RoundedCornerShape(26.dp))
+                .nestedScroll(eat)
+                .verticalScroll(fxScroll).padding(top = 14.dp, bottom = 20.dp)) {
+                Box(Modifier.fillMaxWidth().height(30.dp).pointerInput(Unit) { detectVerticalDragGestures(onDragEnd = { fxScope.launch { if (fxDrag.value > 200f) { fxDrag.animateTo(2400f, androidx.compose.animation.core.tween(160)); showFx = false } else fxDrag.animateTo(0f) } }) { _, d -> fxScope.launch { fxDrag.snapTo((fxDrag.value + d).coerceAtLeast(0f)) } } }, contentAlignment = Alignment.Center) { Box(Modifier.size(width = 40.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x55FFFFFF))) }
                 Text("Music features", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = ts(18, FontWeight.SemiBold))
                 SToggle("Video player", "Play the music video behind the song. Off shows the cover.", videoPref)
                 run {

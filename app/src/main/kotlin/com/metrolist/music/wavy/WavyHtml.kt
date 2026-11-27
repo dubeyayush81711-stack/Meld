@@ -308,6 +308,8 @@ fun WelcomeUi(onStart: () -> Unit) {
             val mask: androidx.compose.ui.draw.CacheDrawScope.() -> androidx.compose.ui.draw.DrawResult = {
                 onDrawWithContent {
                     drawContent()
+                    drawRect(Color.Black, Offset.Zero, Size(size.width * .24f, size.height * .14f), blendMode = BlendMode.DstOut)
+                    drawRect(Color.Black, Offset(size.width * .82f, size.height * .86f), Size(size.width * .18f, size.height * .14f), blendMode = BlendMode.DstOut)
                     val cx = size.width / 2f; val cy = size.height / 2f
                     withTransform({ scale(1f, size.height / size.width, Offset(cx, cy)) }) {
                         drawRect(Brush.radialGradient(0f to Color.Black, .86f to Color.Black, 1f to Color.Transparent, center = Offset(cx, cy), radius = size.width / 2f),
@@ -315,9 +317,9 @@ fun WelcomeUi(onStart: () -> Unit) {
                     }
                 }
             }
-            Image(ImageBitmap.imageResource(R.drawable.wv_hp), null, contentScale = androidx.compose.ui.layout.ContentScale.FillBounds,
+            Image(ImageBitmap.imageResource(R.drawable.wv_hp2), null, contentScale = androidx.compose.ui.layout.ContentScale.FillBounds,
                 modifier = Modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }.drawWithCache(mask))
-            Image(ImageBitmap.imageResource(R.drawable.wv_hpglow), null, contentScale = androidx.compose.ui.layout.ContentScale.FillBounds,
+            Image(ImageBitmap.imageResource(R.drawable.wv_hpglow2), null, contentScale = androidx.compose.ui.layout.ContentScale.FillBounds,
                 modifier = Modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen; alpha = ping(tt(), 0f, 3.4f) }.drawWithCache(mask))
         }
         // glass
