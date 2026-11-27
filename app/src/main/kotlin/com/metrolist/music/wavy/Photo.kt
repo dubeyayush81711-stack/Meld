@@ -14,6 +14,7 @@ import java.io.File
 /** Profile photo kept on this phone: centre-cropped to a square, shown in a circle everywhere the avatar appears. */
 object AvatarStore {
     val ver = mutableIntStateOf(0)
+    @Volatile var last: Bitmap? = null; @Volatile var lastKey = ""
     private fun file(c: Context) = File(c.filesDir, "avatar_" + Api.uid + ".jpg")
     fun load(c: Context): Bitmap? = try { file(c).takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) } } catch (t: Throwable) { null }
     /** Decodes a down-sampled copy (never the full camera photo), applies the EXIF rotation, then crops to a square. Call off the main thread. */
@@ -37,4 +38,11 @@ object AvatarStore {
 }
 
 @Composable
-fun rememberAvatar(c: Context): Bitmap? { val v = AvatarStore.ver.intValue; return remember(v) { AvatarStore.load(c) } }
+fun rememberAvatar(c: Context): Bitmap? {
+    val v = AvatarStore.ver.intValue
+    // Decode on a background thread; the last decoded photo is reused so the avatar does not flash empty.
+    return produceState(AvatarStore.last?.takeIf { AvatarStore.lastKey == Api.uid + v }, v) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { AvatarStore.load(c) }
+        AvatarStore.last = value; AvatarStore.lastKey = Api.uid + v
+    }.value
+}

@@ -79,7 +79,7 @@ object Api {
         }
         var (code, body) = try { once() } catch (e: java.io.IOException) { throw ApiError("No connection. Check your internet.") }
         if (authed && (code == 401 || (code == 400 && body.contains("JWT")))) {
-            if (refreshToken(usedAccess)) { val r = once(); code = r.first; body = r.second }
+            if (refreshToken(usedAccess)) { val r = try { once() } catch (e: java.io.IOException) { throw ApiError("No connection. Check your internet.") }; code = r.first; body = r.second }
         }
         if (code !in 200..299) { if (code != 401 && code != 429 && !b.build().url.encodedPath.contains("/functions/") && !b.build().url.encodedPath.contains("/auth/")) ErrorLog.report("network", "HTTP " + code + " " + b.build().method + " " + b.build().url.encodedPath + " " + body.take(120)); throw ApiError(errText(body, code), code) }
         body

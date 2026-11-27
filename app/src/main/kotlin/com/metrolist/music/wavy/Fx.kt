@@ -85,6 +85,7 @@ object WavyFx {
     val beat = mutableStateOf(0L)
     val level = mutableStateOf(FloatArray(24))
     var torchOn = false
+    private var devReg = false
 
     fun attach(c: Context, p: PlayerConnection) {
         S.init(c); ctx = c.applicationContext
@@ -97,6 +98,7 @@ object WavyFx {
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && S.b("stop_after_song")) { pc?.player?.pause(); S.put("stop_after_song", false) }
             }
         })
+        if (!devReg) { devReg = true
         val am = ctx!!.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         am.registerAudioDeviceCallback(object : AudioDeviceCallback() {
             override fun onAudioDevicesAdded(added: Array<out AudioDeviceInfo>) {
@@ -113,6 +115,7 @@ object WavyFx {
                 addAction(android.bluetooth.BluetoothDevice.ACTION_ACL_CONNECTED); addAction(android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED)
                 addAction(android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED); addAction(android.media.AudioManager.ACTION_HEADSET_PLUG) })
         } catch (e: Exception) { }
+        }
         updateDevice()
         rebuild()
     }

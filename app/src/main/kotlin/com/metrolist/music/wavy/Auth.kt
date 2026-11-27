@@ -102,7 +102,7 @@ fun LoginScreen(onDone: (needsPicker: Boolean) -> Unit) {
     LoginUi(busy, toast, { e, p, r -> auth(e, p, r, false) }, { e, p, r -> auth(e, p, r, true) },
         { try { ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Api.googleUrl()))) } catch (e: Exception) { say("No browser found to open Google sign-in.") } },
         { e -> if (e.isBlank()) say("Enter your email first") else scope.launch {
-            try { Api.recover(e); say("If this email has an account, a reset link was sent.") } catch (x: ApiError) { say(humanErr(x)) } } })
+            try { Api.recover(e); say("If this email has an account, a reset link was sent.") } catch (x: ApiError) { say(humanErr(x)) } catch (x: Exception) { say("Something went wrong. Check your connection.") } } })
 }
 
 /** Artists behind a language's top songs: the song rows carry artist names, which are matched to the artist catalog. */
