@@ -88,7 +88,8 @@ fun WavyApp(pc: PlayerConnection?) {
         }
         }
         val rl by ResetAuth.link
-        rl?.let { NewPasswordScreen(it) { ok -> ResetAuth.link.value = null; if (ok) stage = if (onboardingDone()) "main" else "ob1" } }
+        val rsScope = rememberCoroutineScope()
+        rl?.let { NewPasswordScreen(it) { ok -> ResetAuth.link.value = null; if (ok) rsScope.launch { stage = if (onboardingDone()) "main" else "ob1" } } }
     }
     }
 }

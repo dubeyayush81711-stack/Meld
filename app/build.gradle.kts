@@ -40,7 +40,7 @@ android {
         applicationId = applicationIdOverride ?: "com.meld.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 28
+        versionCode = 28 + (Regex("WAVY_BUILD = \"dev-(\\d+)\"").find(file("src/main/kotlin/com/metrolist/music/wavy/Theme.kt").readText())?.groupValues?.get(1)?.toInt() ?: 0)
         versionName = "0.9.2"
         val baseVersionName = requireNotNull(versionName)
         buildConfigField("String", "BASE_VERSION_NAME", "\"$baseVersionName\"")

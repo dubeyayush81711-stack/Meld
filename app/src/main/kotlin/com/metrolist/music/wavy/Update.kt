@@ -27,11 +27,11 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
-class UpdateInfo(val build: Int, val tag: String, val notes: String, val url: String, val size: Long)
+class UpdateInfo(val build: Int, val tag: String, val notes: String, val url: String, val size: Long, val sha: String = "")
 
 /** Checks the public GitHub releases of the Wavy repo (free, no login) and downloads the newer APK inside the app. */
 object Updater {
-    private const val API = "https://api.github.com/repos/dubeyayush81711-stack/Meld/releases?per_page=30"
+    private const val API = "https://api.github.com/repos/dubeyayush81711-stack/Meld/releases?per_page=12"
     var info by mutableStateOf<UpdateInfo?>(null)
     var checking by mutableStateOf(false)
     var checkedOnce by mutableStateOf(false)
@@ -53,6 +53,7 @@ object Updater {
             val found = withContext(Dispatchers.IO) {
                 val c = URL(API).openConnection() as HttpURLConnection
                 c.connectTimeout = 10000; c.readTimeout = 15000; c.setRequestProperty("Accept", "application/vnd.github+json")
+                if (c.responseCode != 200) throw java.io.IOException("HTTP " + c.responseCode)
                 val txt = c.inputStream.bufferedReader().use { it.readText() }
                 val a = JSONArray(txt); var best: UpdateInfo? = null
                 for (i in 0 until a.length()) {
@@ -60,10 +61,10 @@ object Updater {
                     val tag = r.optString("tag_name"); val m = Regex("^wavy-test-(\\d+)$").find(tag) ?: continue
                     val n = m.groupValues[1].toInt()
                     val assets = r.optJSONArray("assets") ?: continue
-                    var url = ""; var size = 0L
-                    for (k in 0 until assets.length()) { val s = assets.getJSONObject(k); if (s.optString("name").endsWith(".apk")) { url = s.optString("browser_download_url"); size = s.optLong("size") } }
+                    var url = ""; var size = 0L; var sha = ""
+                    for (k in 0 until assets.length()) { val s = assets.getJSONObject(k); if (url.isEmpty() && s.optString("name").endsWith(".apk")) { url = s.optString("browser_download_url"); size = s.optLong("size"); sha = s.optString("digest").removePrefix("sha256:").lowercase() } }
                     if (url.isEmpty()) continue
-                    if (best == null || n > best.build) best = UpdateInfo(n, tag, r.optString("body"), url, size)
+                    if (best == null || n > best.build) best = UpdateInfo(n, tag, r.optString("body"), url, size, sha)
                 }
                 best
             }
@@ -78,15 +79,35 @@ object Updater {
             val f = File(dir, "Wavy-update.apk")
             val c = URL(u.url).openConnection() as HttpURLConnection
             c.connectTimeout = 15000; c.readTimeout = 30000; c.instanceFollowRedirects = true
+            if (c.responseCode != 200) { error = "Download failed (server said " + c.responseCode + "). Try again later."; return@withContext null }
             val total = if (c.contentLengthLong > 0) c.contentLengthLong else u.size
+            val md = java.security.MessageDigest.getInstance("SHA-256"); var got = 0L
             c.inputStream.use { ins -> f.outputStream().use { out ->
-                val buf = ByteArray(64 * 1024); var got = 0L; var last = 0L
-                while (true) { val n = ins.read(buf); if (n < 0) break; out.write(buf, 0, n); got += n
+                val buf = ByteArray(64 * 1024); var last = 0L
+                while (true) { val n = ins.read(buf); if (n < 0) break; out.write(buf, 0, n); md.update(buf, 0, n); got += n
                     val now = System.currentTimeMillis(); if (now - last > 120 && total > 0) { last = now; progress = (got.toFloat() / total).coerceIn(0f, 1f); gotBytes = got; totalBytes = total } }
             } }
+            if ((total > 0 && got != total) || got < 1_000_000L) { f.delete(); error = "The download was cut off. Check your connection and try again."; return@withContext null }
+            val hex = md.digest().joinToString("") { "%02x".format(it) }
+            if (u.sha.isNotEmpty() && u.sha != hex) { f.delete(); error = "The downloaded file did not match the published checksum, so it was not installed."; return@withContext null }
+            if (!sameSigner(ctx, f)) { f.delete(); error = "The downloaded file is not signed by the same key as this app, so it was not installed."; return@withContext null }
             progress = 1f; f
         } catch (e: Exception) { null }
     }
+
+    @Suppress("DEPRECATION")
+    private fun sameSigner(ctx: Context, f: File): Boolean = try {
+        val pm = ctx.packageManager
+        fun sigs(i: android.content.pm.PackageInfo?): Set<String> {
+            val s = i?.signingInfo ?: return emptySet()
+            val arr = if (s.hasMultipleSigners()) s.apkContentsSigners else s.signingCertificateHistory
+            return arr.map { java.security.MessageDigest.getInstance("SHA-256").digest(it.toByteArray()).joinToString("") { b -> "%02x".format(b) } }.toSet()
+        }
+        val mine = sigs(pm.getPackageInfo(ctx.packageName, android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES))
+        val theirs = sigs(pm.getPackageArchiveInfo(f.path, android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES))
+        // If the phone cannot read the package at all, let Android's own installer decide (it enforces the same signature rule).
+        theirs.isEmpty() || mine.isEmpty() || mine.any { it in theirs }
+    } catch (e: Exception) { true }
 
     fun install(ctx: Context, f: File): Boolean {
         if (!ctx.packageManager.canRequestPackageInstalls()) {
@@ -128,7 +149,7 @@ fun UpdatePage(u: UpdateInfo, onLater: () -> Unit) {
                         Updater.busy = true; Updater.progress = 0f
                         val f = file ?: Updater.download(ctx, u)
                         Updater.busy = false
-                        if (f == null) { Updater.error = "Download failed. Check your connection and try again." }
+                        if (f == null) { if (Updater.error == null) Updater.error = "Download failed. Check your connection and try again." }
                         else { file = f; if (!Updater.install(ctx, f)) needPerm = true }
                     }
                 }, contentAlignment = Alignment.Center) { Text(if (Updater.busy) "Downloading..." else "Update", style = ts(16, FontWeight.SemiBold)) }

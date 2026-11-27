@@ -43,7 +43,8 @@ object Api {
             processStarted = true
             if (!p.getBoolean("remember", true) && p.getBoolean("cold", false)) clearSession(p)
         }
-        access = p.getString("a", "") ?: ""; refresh = p.getString("r", "") ?: ""
+        access = TokenVault.dec(p.getString("a", "") ?: ""); refresh = TokenVault.dec(p.getString("r", "") ?: "")
+        if (access.isNotEmpty() && !(p.getString("a", "") ?: "").startsWith("enc:")) p.edit().putString("a", TokenVault.enc(access)).putString("r", TokenVault.enc(refresh)).apply()
         uid = p.getString("uid", "") ?: ""; email = p.getString("email", "") ?: ""
         p.edit().putBoolean("cold", true).apply()
     }
@@ -59,7 +60,7 @@ object Api {
     private fun saveSession(j: JSONObject) {
         access = j.getString("access_token"); refresh = j.getString("refresh_token")
         val u = j.optJSONObject("user"); if (u != null) { uid = u.optString("id"); email = u.optString("email") }
-        prefs?.edit()?.putString("a", access)?.putString("r", refresh)?.putString("uid", uid)?.putString("email", email)?.apply()
+        prefs?.edit()?.putString("a", TokenVault.enc(access))?.putString("r", TokenVault.enc(refresh))?.putString("uid", uid)?.putString("email", email)?.apply()
     }
 
     private fun errText(body: String, code: Int): String = try {
