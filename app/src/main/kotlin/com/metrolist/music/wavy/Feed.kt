@@ -477,8 +477,8 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                             if (pls.isEmpty()) Text("No playlists yet", Modifier.padding(horizontal = 40.dp, vertical = 8.dp), style = ts(14, color = W.Dim))
                             pls.forEach { (id, nm) -> Text(nm, Modifier.fillMaxWidth().clickable { plOpen = false; scope.launch { val ok = try { Api.post("playlist_tracks", JSONObject().put("playlist_id", id).put("track_id", ct.id).put("position", (System.currentTimeMillis() / 1000).toInt()).put("added_by", Api.uid)); true } catch (e: Exception) { false }; Toast.makeText(ctx, if (ok) "Added to $nm" else "Could not add. Try again.", Toast.LENGTH_SHORT).show() } }.padding(horizontal = 40.dp, vertical = 12.dp), style = ts(16)) }
                         }
-                        var sleepMin by remember { mutableIntStateOf(0) }
-                        Row2("Sleep timer", if (sleepMin == 0) "Off. Tap to pause the music after 15, 30 or 60 minutes." else "Pausing in $sleepMin min. Tap to change.") {
+                        var sleepMin by remember { mutableIntStateOf(SleepTimer.chosen) }
+                        Row2("Sleep timer", if (sleepMin == 0) "Off. Tap to pause the music after 15, 30 or 60 minutes." else "Set for $sleepMin min from when you picked it. Tap to change.") {
                             sleepMin = when (sleepMin) { 0 -> 15; 15 -> 30; 30 -> 60; else -> 0 }
                             SleepTimer.set(pc, sleepMin)
                         }
@@ -495,7 +495,9 @@ object MusicRefresh { var n by androidx.compose.runtime.mutableIntStateOf(0) }
 
 object SleepTimer {
     /** Uses the player service's own sleep timer, so it survives this screen closing and fades the music out. */
+    var chosen = 0
     fun set(pc: com.metrolist.music.playback.PlayerConnection?, min: Int) {
+        chosen = min
         try { if (min <= 0) pc?.service?.sleepTimer?.clear() else pc?.service?.sleepTimer?.start(min) } catch (e: Exception) { }
     }
 }
