@@ -190,6 +190,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean 
         reloading = refreshN > 0 || !langSkip
         while (true) {
             try {
+                if (refreshN > 0 && attempt == 0) TasteProfile.invalidate()
                 val got = TasteProfile.blend(mixFollowed(feedPage(langs, 0, seed), followedSongs()), TasteProfile.recommendQuick())
                 if (got.isNotEmpty()) { if (refreshN > 0) { first = null; feedGen++ }; feed = got; err = null; saveFeedCache(langs.joinToString(","), got); break }
                 if (feed.isNotEmpty() && refreshN == 0) break
@@ -389,9 +390,11 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                         Icon(painterResource(R.drawable.expand_more), null, Modifier.size(22.dp), tint = Color.White)
                     }
                     Spacer(Modifier.weight(1f))
+                    Icon(painterResource(R.drawable.refresh), null, Modifier.clickable(enabled = !reloading) { seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; first = null; refreshN++ }.padding(8.dp).size(24.dp), tint = if (reloading) W.Pink else Color.White)
                     Icon(painterResource(R.drawable.search), null, Modifier.clickable { onSearch() }.padding(8.dp).size(24.dp), tint = Color.White)
                     Icon(painterResource(R.drawable.more_vert), null, Modifier.clickable { showFx = true }.padding(8.dp).size(24.dp), tint = Color.White)
                 }
+                if (reloading) androidx.compose.material3.LinearProgressIndicator(Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding().height(2.dp), color = W.Pink, trackColor = Color.Transparent)
                 Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 84.dp)) {
                     Text(t.title, style = ts(26, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Row(Modifier.padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -424,7 +427,8 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
             var titles by remember { mutableStateOf<List<String>>(emptyList()) }
             LaunchedEffect(Unit) { titles = languageTiles().map { it.second } }
             Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { showLang = false })
-            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF0121016)).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 112.dp)) {
+            val sdL = rememberSheetDrag { showLang = false }
+            Column(Modifier.align(Alignment.BottomCenter).then(sdL.mod).fillMaxWidth().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF0121016)).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 112.dp)) {
                 Box(Modifier.fillMaxWidth().height(30.dp).pointerInput(Unit) { detectVerticalDragGestures { _, d -> if (d > 10f) showLang = false } }, contentAlignment = Alignment.Center) { Box(Modifier.size(width = 40.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x55FFFFFF))) }
                 Text("What do you want to hear?", style = ts(18, FontWeight.SemiBold))
                 Text("Pick one or more. The feed follows them.", Modifier.padding(top = 4.dp, bottom = 14.dp), style = ts(13, color = Color(0xFFB9B2C4)))

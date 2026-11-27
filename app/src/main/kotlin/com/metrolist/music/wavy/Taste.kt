@@ -148,7 +148,16 @@ object TasteProfile {
                 if (total > (score[k] ?: -9.0) || rc > 1) { score[k] = Math.max(total, score[k] ?: -9.0); if (by[k] == null) by[k] = t }
             }
         }
-        val fresh = Played.filter(LangGuard.filter(score.entries.sortedByDescending { it.value }.mapNotNull { by[it.key] }))
+        val cand = Played.filter(LangGuard.filter(score.entries.sortedByDescending { it.value }.mapNotNull { by[it.key] }))
+        // Fame gate: songs by artists the user already plays always stay; new artists must be well known (about 1M+ monthly listeners on YouTube Music).
+        // Unknown fame (lookup failed) is kept. Proxy, not real play counts.
+        try { Fame.warm(cand.take(40).map { it.artistId }) } catch (e: Exception) { }
+        val famed = cand.filter { t -> affinity(t.artist) > 0.5 || Fame.score(listOf(t.artistId)).let { f -> f == 0f && !Fame.known(t.artistId) || f >= 0.5f } }
+        // Explore / exploit: about 2 familiar-artist songs for every new-artist song, so picks are not only what he already plays.
+        val known = famed.filter { affinity(it.artist) > 0.5 }; val fresh0 = famed.filter { affinity(it.artist) <= 0.5 }
+        val mixed = ArrayList<Track>(); val ki = known.iterator(); val ni = fresh0.iterator()
+        while (ki.hasNext() || ni.hasNext()) { repeat(2) { if (ki.hasNext()) mixed.add(ki.next()) }; if (ni.hasNext()) mixed.add(ni.next()) }
+        val fresh = if (mixed.size >= 6) mixed else famed.ifEmpty { cand }
         // variety: no artist twice in a row within 3 picks, at most 3 songs per artist
         val out = ArrayList<Track>(); val cnt = HashMap<String, Int>(); val pool = ArrayList(fresh)
         while (out.size < n && pool.isNotEmpty()) {
@@ -156,8 +165,9 @@ object TasteProfile {
             val pick = pool.firstOrNull { key(it.artist) !in last && (cnt[key(it.artist)] ?: 0) < 3 } ?: pool.firstOrNull { (cnt[key(it.artist)] ?: 0) < 3 } ?: break
             pool.remove(pick); out.add(pick); cnt[key(pick.artist)] = (cnt[key(pick.artist)] ?: 0) + 1
         }
-        if (out.isNotEmpty()) cache = System.currentTimeMillis() to out
-        out
+        val checked = AiGate.verify(out)
+        if (checked.isNotEmpty()) cache = System.currentTimeMillis() to checked
+        checked
     }
 
     suspend fun recommendQuick(): List<Track> = withTimeoutOrNull(3500) { recommend() } ?: cached()

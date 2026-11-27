@@ -79,7 +79,7 @@ object Api {
         if (authed && (code == 401 || (code == 400 && body.contains("JWT")))) {
             if (refreshToken(usedAccess)) { val r = once(); code = r.first; body = r.second }
         }
-        if (code !in 200..299) { if (code != 401 && code != 429 && !b.build().url.encodedPath.contains("/functions/")) ErrorLog.report("network", "HTTP " + code + " " + b.build().method + " " + b.build().url.encodedPath + " " + body.take(120)); throw ApiError(errText(body, code), code) }
+        if (code !in 200..299) { if (code != 401 && code != 429 && !b.build().url.encodedPath.contains("/functions/") && !b.build().url.encodedPath.contains("/auth/")) ErrorLog.report("network", "HTTP " + code + " " + b.build().method + " " + b.build().url.encodedPath + " " + body.take(120)); throw ApiError(errText(body, code), code) }
         body
     }
 
@@ -114,10 +114,15 @@ object Api {
         saveSession(JSONObject().put("access_token", accessTok).put("refresh_token", refreshTok).put("user", u))
     }
 
+    /** Sets a new password for the signed-in user (used after the reset link). */
+    suspend fun setPassword(pw: String) {
+        exec(Request.Builder().url("$URL/auth/v1/user").put(JSONObject().put("password", pw).toString().toRequestBody(JSON)), true)
+    }
+
     fun googleUrl(): String = "$URL/auth/v1/authorize?provider=google&redirect_to=" + java.net.URLEncoder.encode("com.wavy.app://login", "UTF-8")
 
     suspend fun recover(email: String) {
-        val req = Request.Builder().url("$URL/auth/v1/recover")
+        val req = Request.Builder().url("$URL/auth/v1/recover?redirect_to=" + java.net.URLEncoder.encode("com.wavy.app://reset", "UTF-8"))
             .post(JSONObject().put("email", email.trim()).toString().toRequestBody(JSON))
         exec(req, false)
     }

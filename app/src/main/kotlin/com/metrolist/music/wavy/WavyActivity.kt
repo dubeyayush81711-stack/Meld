@@ -57,9 +57,13 @@ class WavyActivity : ComponentActivity() {
 
     private fun handleLink(i: Intent?) {
         val d = i?.data ?: return
-        if (d.scheme != "com.wavy.app" || d.host != "login") return
+        if (d.scheme != "com.wavy.app" || (d.host != "login" && d.host != "reset")) return
         val raw = d.encodedFragment ?: d.encodedQuery ?: ""
         val m = raw.split("&").filter { it.contains("=") }.associate { it.substringBefore("=") to java.net.URLDecoder.decode(it.substringAfter("="), "UTF-8") }
+        if (d.host == "reset") {
+            ResetAuth.link.value = if (m["access_token"] != null && m["refresh_token"] != null) Triple(m["access_token"]!!, m["refresh_token"]!!, null) else Triple("", "", m["error_description"] ?: "This reset link is not valid or has expired.")
+            return
+        }
         GoogleAuth.result.value = if (m["access_token"] != null && m["refresh_token"] != null) Triple(m["access_token"]!!, m["refresh_token"]!!, null) else Triple("", "", m["error_description"] ?: "Google sign-in did not finish.")
     }
 

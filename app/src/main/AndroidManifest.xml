@@ -72,6 +72,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="com.wavy.app" android:host="login" />
+                <data android:scheme="com.wavy.app" android:host="reset" />
             </intent-filter>
         </activity>
 

@@ -87,6 +87,8 @@ fun WavyApp(pc: PlayerConnection?) {
             }
         }
         }
+        val rl by ResetAuth.link
+        rl?.let { NewPasswordScreen(it) { ok -> ResetAuth.link.value = null; if (ok) stage = if (onboardingDone()) "main" else "ob1" } }
     }
     }
 }
@@ -591,8 +593,9 @@ fun TrackRow(t: Track, pc: PlayerConnection?, onPlay: () -> Unit) {
                 val dls by (WDl.util?.downloads ?: kotlinx.coroutines.flow.MutableStateFlow(emptyMap())).collectAsState()
                 val isDone = WDl.doneIds(dls).contains(t.id)
                 androidx.compose.ui.window.Dialog(onDismissRequest = { menu = false; pick = false }, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+                    val sdM = rememberSheetDrag { menu = false; pick = false }
                     Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { menu = false; pick = false }) {
-                        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(Color(0xF2121018)).clickable(enabled = false) {}.navigationBarsPadding().padding(bottom = 12.dp)) {
+                        Column(Modifier.align(Alignment.BottomCenter).then(sdM.mod).fillMaxWidth().clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(Color(0xF2121018)).clickable(enabled = false) {}.navigationBarsPadding().padding(bottom = 12.dp)) {
                             Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp).size(width = 44.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x55FFFFFF)))
                             Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Cover(t.cover, 56.dp, 10)

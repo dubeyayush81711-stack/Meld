@@ -190,6 +190,7 @@ object Fame {
         val n = m.groupValues[1].replace(",", ".").toDoubleOrNull() ?: return null
         return n * when (m.groupValues[2].uppercase()) { "K" -> 1e3; "M" -> 1e6; "B" -> 1e9; else -> 1.0 }
     }
+    fun known(id: String?): Boolean { load(); return id != null && subs.containsKey(id) }
     fun score(artistIds: List<String?>): Float { load(); return artistIds.filterNotNull().maxOfOrNull { (subs[it] ?: 0f).coerceAtLeast(0f) } ?: 0f }
     /** Looks up up to 8 artists not yet known, in parallel. Safe to call repeatedly, known artists cost nothing. */
     suspend fun warm(artistIds: List<String?>) = withContext(Dispatchers.IO) {
