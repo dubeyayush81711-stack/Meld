@@ -209,6 +209,13 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                         Icon(painterResource(R.drawable.mic), null, tint = Color.White, modifier = Modifier.padding(end = 16.dp).size(26.dp).clickable { showMic = true })
                     }
                     if (showMic) MicScreen(onClose = { showMic = false }, onResult = { said -> showMic = false; q = said })
+                    var plShow by remember { mutableStateOf(false) }
+                    var myPls by remember { mutableStateOf<List<Pair<Long, String>>>(emptyList()) }
+                    Text("Add one of my playlists", Modifier.padding(start = 20.dp, top = 2.dp, bottom = 6.dp).clickable { plShow = !plShow; if (plShow) scope.launch { myPls = try { val arr = (Api.rpc("profile_stats") as? JSONObject)?.optJSONArray("playlists"); (0 until (arr?.length() ?: 0)).map { arr!!.getJSONObject(it) }.map { it.optLong("id") to (if (it.optBoolean("is_favourite")) "Favourites" else it.optString("name")) } } catch (e: Exception) { emptyList() } } }, style = ts(13, FontWeight.SemiBold, W.Pink))
+                    if (plShow) Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 6.dp)) {
+                        if (myPls.isEmpty()) Text("No playlists found.", style = ts(13, color = W.Dim))
+                        myPls.forEach { (plId, plName) -> Text(plName, Modifier.fillMaxWidth().clickable { plShow = false; scope.launch { try { val n = call("party_add_playlist", "p_party" to pid, "p_playlist" to plId); tick++; Toast.makeText(ctx, "Added $n songs from $plName", Toast.LENGTH_SHORT).show() } catch (e: Exception) { Toast.makeText(ctx, humanErr(e), Toast.LENGTH_SHORT).show() } } }.padding(vertical = 9.dp), style = ts(15), maxLines = 1) }
+                    }
                     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 24.dp)) {
                         if (q.length >= 2) items(found) { t -> TrackRow(t, null) { scope.launch { try { call("party_add_external_song", "p_party" to pid, "p_video_id" to t.id, "p_title" to t.title, "p_artist" to t.artist, "p_cover" to (t.cover ?: ""), "p_dur" to t.dur); q = ""; tick++ } catch (e: Exception) { Toast.makeText(ctx, humanErr(e), Toast.LENGTH_SHORT).show() } } } }
                         else items((0 until queue.length()).map { queue.getJSONObject(it) }) { it2 ->

@@ -5,6 +5,9 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.json.JSONArray
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -173,6 +176,9 @@ fun QueueSheet(pc: PlayerConnection, onClose: () -> Unit) {
     var items by remember { mutableStateOf((0 until p.mediaItemCount).map { p.getMediaItemAt(it) }) }
     fun durOf(m: androidx.media3.common.MediaItem): Int = (m.localConfiguration?.tag as? com.metrolist.music.models.MediaMetadata)?.duration?.takeIf { it > 0 } ?: 0
     val total = items.sumOf { durOf(it) }
+    var dragIdx by remember { mutableIntStateOf(-1) }
+    var dragDy by remember { mutableFloatStateOf(0f) }
+    val rowPx = with(androidx.compose.ui.platform.LocalDensity.current) { 64.dp.toPx() }
     Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(onClick = onClose)) {
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.78f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(GlassSheet).clickable(enabled = false) {}.padding(top = 16.dp)) {
             Text("Queue", Modifier.padding(start = 22.dp), style = ts(22, FontWeight.Bold))
@@ -180,14 +186,17 @@ fun QueueSheet(pc: PlayerConnection, onClose: () -> Unit) {
             LazyColumn(Modifier.navigationBarsPadding()) {
                 itemsIndexed(items, key = { i, it -> it.mediaId + "#" + i }) { i, it ->
                     val now = i == idx
-                    Row(Modifier.fillMaxWidth().then(if (now) Modifier.background(Color(0x22FFFFFF)) else Modifier).clickable { p.seekTo(i, 0); p.play() }.padding(start = 22.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().height(64.dp).graphicsLayer { translationY = if (dragIdx == i) dragDy else 0f; alpha = if (dragIdx == i) 0.85f else 1f }.then(if (now || dragIdx == i) Modifier.background(Color(0x22FFFFFF)) else Modifier).clickable { p.seekTo(i, 0); p.play() }.padding(start = 22.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Cover(it.mediaMetadata.artworkUri?.toString(), 48.dp, 8)
                         Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                             Text(it.mediaMetadata.title?.toString() ?: "", style = ts(15, FontWeight.SemiBold, if (now) W.Pink else Color.White), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(it.mediaMetadata.artist?.toString() ?: "", style = ts(12, color = W.Dim), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        if (i > 0) Text("\u25B2", Modifier.clickable { p.moveMediaItem(i, i - 1); items = (0 until p.mediaItemCount).map { k -> p.getMediaItemAt(k) } }.padding(10.dp), style = ts(14, color = W.Dim))
-                        if (i < items.size - 1) Text("\u25BC", Modifier.clickable { p.moveMediaItem(i, i + 1); items = (0 until p.mediaItemCount).map { k -> p.getMediaItemAt(k) } }.padding(10.dp), style = ts(14, color = W.Dim))
+                        Text("\u2261", Modifier.pointerInput(i, items.size) { detectDragGestures(
+                            onDragStart = { dragIdx = i; dragDy = 0f },
+                            onDrag = { c, d -> c.consume(); dragDy += d.y },
+                            onDragEnd = { val to = (i + Math.round(dragDy / rowPx)).coerceIn(0, items.size - 1); if (to != i) { p.moveMediaItem(i, to); items = (0 until p.mediaItemCount).map { k -> p.getMediaItemAt(k) } }; dragIdx = -1; dragDy = 0f },
+                            onDragCancel = { dragIdx = -1; dragDy = 0f }) }.padding(horizontal = 12.dp, vertical = 10.dp), style = ts(24, color = W.Dim))
                         if (!now) Text("\u2715", Modifier.clickable { p.removeMediaItem(i); items = (0 until p.mediaItemCount).map { k -> p.getMediaItemAt(k) } }.padding(10.dp), style = ts(14, color = W.Dim))
                     }
                 }
