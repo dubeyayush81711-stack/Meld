@@ -92,7 +92,12 @@ fun ArtistScreen(artistId: String?, name: String, pc: PlayerConnection?, onBack:
         LazyColumn(Modifier.fillMaxSize(), state = lst, contentPadding = PaddingValues(bottom = 210.dp)) {
             col {
                 Box(Modifier.fillMaxWidth().height(340.dp)) {
-                    AsyncImage(pg.artist.thumbnail, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alignment = Alignment.TopCenter)
+                    // face fallback chain: artist photo, then the cover of their first song, then a plain initial
+                    var photoBad by remember(pg.artist.thumbnail) { mutableStateOf(false) }
+                    val songThumb = sections.flatMap { it.items }.filterIsInstance<com.metrolist.innertube.models.SongItem>().firstOrNull()?.thumbnail
+                    val heroUrl = if (!photoBad && !pg.artist.thumbnail.isNullOrBlank()) pg.artist.thumbnail else songThumb
+                    if (heroUrl != null) AsyncImage(heroUrl, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alignment = Alignment.TopCenter, onError = { if (heroUrl == pg.artist.thumbnail) photoBad = true })
+                    else Box(Modifier.fillMaxSize().background(W.Grad), contentAlignment = Alignment.Center) { Text(aName.take(1).uppercase(), style = ts(96, FontWeight.Bold, Color(0x55FFFFFF))) }
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x66000000), 0.35f to Color.Transparent, 1f to W.Bg)))
                     Box(Modifier.statusBarsPadding()) { BackDot(onBack) }
                     Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 20.dp)) {
@@ -121,7 +126,7 @@ fun ArtistScreen(artistId: String?, name: String, pc: PlayerConnection?, onBack:
                 }
                 col {
                     val more = popularSec?.moreEndpoint
-                    if (fullSongs == null && (more != null || popular.size > 10)) Text(if (loadingAll) "Loading..." else "See more", Modifier.padding(20.dp, 10.dp).clip(RoundedCornerShape(50)).glass(RoundedCornerShape(50)).clickable(enabled = !loadingAll) {
+                    if (fullSongs == null && (more != null || popular.size > 10)) Text(if (loadingAll) "Loading..." else "See more", Modifier.padding(20.dp, 10.dp).clickable(enabled = !loadingAll) {
                         loadingAll = true
                         scope.launch {
                             val out = ArrayList<Track>(popular)

@@ -255,7 +255,7 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 168.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+            if (tab != 1) Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 168.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                 @Composable fun Ctl(icon: Int, label: String, on: Boolean = false, red: Boolean = false, click: () -> Unit) = Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.size(54.dp).clip(CircleShape).background(if (red) Color(0xFFE5354F) else if (on) W.Pink else Color(0x33FFFFFF)).clickable(onClick = click), contentAlignment = Alignment.Center) { Icon(painterResource(icon), null, Modifier.size(26.dp), tint = Color.White) }
                     Text(label, Modifier.padding(top = 4.dp), style = ts(11, color = Color(0xFFCFC8D9))) }
