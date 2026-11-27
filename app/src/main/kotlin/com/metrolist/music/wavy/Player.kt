@@ -85,7 +85,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
         } catch (e: Exception) { }
     }
     val bg by androidx.compose.animation.animateColorAsState(tint, tween(600), label = "bg")
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, bg.copy(alpha = 0.55f).compositeOver(Color(0xFF0B0B0D)), Color(0xFF0B0B0D))))
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, bg.copy(alpha = 0.55f).compositeOver(W.Base), W.Base)))
         .pointerInput(showQueue || showOpts || showAdv || fullLy != null) { if (!(showQueue || showOpts || showAdv || fullLy != null)) detectVerticalDragGestures { _, d -> if (d > 40f) onClose() } }) {
         WallpaperLayer("player")
         Column(Modifier.fillMaxSize().then(if ((showQueue || showOpts || showAdv || fullLy != null)) Modifier.blur(20.dp) else Modifier).statusBarsPadding().navigationBarsPadding().verticalScroll(scroll).padding(horizontal = 22.dp)) {

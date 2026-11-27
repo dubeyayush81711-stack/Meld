@@ -29,7 +29,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.graphics.asImageBitmap
 import android.content.Context
 
-data class WavyTheme(val id: String, val name: String, val accent: Color, val accent2: Color, val bg: Color, val home: String)
+data class WavyTheme(val id: String, val name: String, val accent: Color, val accent2: Color, val bg: Color, val home: String, val card: Color = Color(0xFF1B1920), val sheet: Color = Color(0xF5111B21), val base: Color = Color(0xFF0B0B0D))
 
 /** Display choices. The default ("pink") is exactly the look Wavy already had, so nothing changes until a user picks something else. */
 object Theming {
@@ -43,6 +43,7 @@ object Theming {
         WavyTheme("orange", "Orange", Color(0xFFFB923C), Color(0xFFEA580C), Color(0xFF0B141A), "midnight"),
         WavyTheme("red", "Red", Color(0xFFEF4444), Color(0xFFB91C1C), Color(0xFF0B141A), "midnight"),
         WavyTheme("teal", "Teal", Color(0xFF14B8A6), Color(0xFF0F766E), Color(0xFF0B141A), "midnight"),
+        WavyTheme("vice", "Vice (neon sunset)", Color(0xFFF76685), Color(0xFFFFA948), Color(0xFF120A1F), "aurora", Color(0xFF231338), Color(0xF51A0F2B), Color(0xFF0A0512)),
         WavyTheme("blackorange", "Black and orange", Color(0xFFFF7A1A), Color(0xFFC2410C), Color(0xFF000000), "midnight"),
     )
     private var loaded = false
@@ -51,7 +52,7 @@ object Theming {
     private fun load() { if (loaded) return; val sp = S.s("theme", ""); if (sp.isNotEmpty() || S.s("ui_font", "").isNotEmpty() || true) { loaded = true; themeId.value = S.s("theme", "pink"); fontId.value = S.s("ui_font", "figtree") } }
     fun cur(): WavyTheme { load(); return themes.firstOrNull { it.id == themeId.value } ?: themes[0] }
     fun fontKey(): String { load(); return fontId.value }
-    fun setTheme(t: WavyTheme) { load(); themeId.value = t.id; S.put("theme", t.id); S.put("home_look", t.home) }
+    fun setTheme(t: WavyTheme) { load(); themeId.value = t.id; S.put("theme", t.id); S.put("home_look", t.home); if (t.id == "vice") setFont("outfit") }
     fun setFont(id: String) { load(); fontId.value = id; S.put("ui_font", id) }
     fun reset() { setTheme(themes[0]); setFont("figtree") }
 
@@ -85,7 +86,7 @@ fun DisplaySettings(onBack: () -> Unit) {
             Row(Modifier.padding(start = 20.dp, top = 6.dp)) {
                 Text("\u25CF  ", style = ts(18, color = t.accent))
             }
-            SRadio(t.name, if (t.id == "aurora") "The colourful Home you had before." else if (t.id == "midnight") "Dark grey, calm and clean." else "", sel == t.id) { Theming.setTheme(t) }
+            SRadio(t.name, if (t.id == "aurora") "The colourful Home you had before." else if (t.id == "midnight") "Dark grey, calm and clean." else if (t.id == "vice") "Neon pink and sunset orange on deep purple, bold type." else "", sel == t.id) { Theming.setTheme(t) }
         }
         SSection("Font")
         Theming.fonts.forEach { (id, name) ->

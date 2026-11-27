@@ -330,7 +330,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean 
             LaunchedEffect(flashN) { if (flashN > 0) { delay(700); flash = 0 } }
             val hs by animateFloatAsState(if (burst > 0) 1f else 0f, tween(350), label = "h")
             LaunchedEffect(burst) { if (burst > 0) { delay(700); burst = 0 } }
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, Color(0xFF14080F), Color(0xFF0B0B0D))))
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, Color(0xFF14080F), W.Base)))
                 .pointerInput(t.id) { detectTapGestures(
                     onTap = { pc?.player?.let { p -> if (p.isPlaying) p.pause() else p.play() }; flash = 1; flashN++ },
                     onDoubleTap = { o ->
@@ -371,7 +371,7 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                     }
                 }
                 if (showPlain) androidx.compose.ui.window.Dialog(onDismissRequest = { showPlain = false }, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
-                    Box(Modifier.fillMaxSize().background(Color(0xFF0B0B0D)).statusBarsPadding()) {
+                    Box(Modifier.fillMaxSize().background(W.Base).statusBarsPadding()) {
                         androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 80.dp, bottom = 60.dp)) {
                             item { Text(t.title, style = ts(22, FontWeight.Bold)); Text(t.artist, Modifier.padding(bottom = 18.dp), style = ts(15, color = Color(0xB3FFFFFF))) }
                             items(lyrics.size) { i -> Text(lyrics[i].text, Modifier.padding(vertical = 5.dp), style = ts(19, FontWeight.Medium)) }

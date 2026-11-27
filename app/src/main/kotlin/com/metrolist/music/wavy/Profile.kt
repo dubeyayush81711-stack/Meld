@@ -31,8 +31,8 @@ fun ProfileScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSettings: () -> U
     var reload by remember { mutableIntStateOf(0) }
     LaunchedEffect(reload) { try { stats = Api.rpc("profile_stats") as? JSONObject } catch (e: Exception) { } }
     val name = stats?.optString("name").orEmpty().ifBlank { Api.email.substringBefore("@") }
-    Box(Modifier.fillMaxSize().background(Color(0xFF0B0B0D))) {
-        Box(Modifier.fillMaxWidth().height(330.dp).background(Brush.verticalGradient(listOf(Color(0xFF8E2A70), Color(0xFF3B0C20), Color(0xFF0B0B0D)))))
+    Box(Modifier.fillMaxSize().background(W.Base)) {
+        Box(Modifier.fillMaxWidth().height(330.dp).background(Brush.verticalGradient(listOf(Color(0xFF8E2A70), Color(0xFF3B0C20), W.Base))))
         Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 20.dp)) {
             Row(Modifier.padding(top = 14.dp)) { Icon(painterResource(R.drawable.arrow_back), null, Modifier.size(30.dp).clickable(onClick = onBack), tint = Color.White) }
             Spacer(Modifier.height(28.dp))
