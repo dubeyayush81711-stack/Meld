@@ -160,18 +160,25 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
 fun QueueSheet(pc: PlayerConnection, onClose: () -> Unit) {
     val idx by pc.currentMediaItemIndex.collectAsState()
     val p = pc.player
-    val items = remember { (0 until p.mediaItemCount).map { p.getMediaItemAt(it) } }
+    var items by remember { mutableStateOf((0 until p.mediaItemCount).map { p.getMediaItemAt(it) }) }
+    fun durOf(m: androidx.media3.common.MediaItem): Int = (m.localConfiguration?.tag as? com.metrolist.music.models.MediaMetadata)?.duration?.takeIf { it > 0 } ?: 0
+    val total = items.sumOf { durOf(it) }
     Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(onClick = onClose)) {
-        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.7f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(GlassSheet).clickable(enabled = false) {}.padding(top = 16.dp)) {
-            Text("Queue", Modifier.padding(start = 22.dp, bottom = 10.dp), style = ts(20, FontWeight.SemiBold))
+        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.78f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(GlassSheet).clickable(enabled = false) {}.padding(top = 16.dp)) {
+            Text("Queue", Modifier.padding(start = 22.dp), style = ts(22, FontWeight.Bold))
+            Text("${items.size} songs" + if (total > 0) " \u00B7 ${if (total >= 3600) "${total / 3600} hr " else ""}${(total % 3600) / 60} min" else "", Modifier.padding(start = 22.dp, bottom = 10.dp), style = ts(13, color = W.Dim))
             LazyColumn(Modifier.navigationBarsPadding()) {
-                itemsIndexed(items) { i, it ->
-                    Row(Modifier.fillMaxWidth().clickable { p.seekTo(i, 0); p.play() }.padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                itemsIndexed(items, key = { i, it -> it.mediaId + "#" + i }) { i, it ->
+                    val now = i == idx
+                    Row(Modifier.fillMaxWidth().then(if (now) Modifier.background(Color(0x22FFFFFF)) else Modifier).clickable { p.seekTo(i, 0); p.play() }.padding(start = 22.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Cover(it.mediaMetadata.artworkUri?.toString(), 48.dp, 8)
-                        Column(Modifier.padding(start = 14.dp)) {
-                            Text(it.mediaMetadata.title?.toString() ?: "", style = ts(15, FontWeight.SemiBold, if (i == idx) W.Pink else Color.White), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                            Text(it.mediaMetadata.title?.toString() ?: "", style = ts(15, FontWeight.SemiBold, if (now) W.Pink else Color.White), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(it.mediaMetadata.artist?.toString() ?: "", style = ts(12, color = W.Dim), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
+                        if (i > 0) Text("\u25B2", Modifier.clickable { p.moveMediaItem(i, i - 1); items = (0 until p.mediaItemCount).map { k -> p.getMediaItemAt(k) } }.padding(10.dp), style = ts(14, color = W.Dim))
+                        if (i < items.size - 1) Text("\u25BC", Modifier.clickable { p.moveMediaItem(i, i + 1); items = (0 until p.mediaItemCount).map { k -> p.getMediaItemAt(k) } }.padding(10.dp), style = ts(14, color = W.Dim))
+                        if (!now) Text("\u2715", Modifier.clickable { p.removeMediaItem(i); items = (0 until p.mediaItemCount).map { k -> p.getMediaItemAt(k) } }.padding(10.dp), style = ts(14, color = W.Dim))
                     }
                 }
             }
