@@ -185,6 +185,7 @@ fun NavBar(sel: Int, haze: dev.chrisbanes.haze.HazeState? = null, onDouble: (Int
     var lastTap by remember { mutableStateOf(-1 to 0L) }
     val hap = androidx.compose.ui.platform.LocalHapticFeedback.current
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().then(if (haze != null) Modifier.hazeBlur(input = dev.chrisbanes.haze.HazeInput.Sources(haze), style = dev.chrisbanes.haze.blur.HazeBlurStyle { blurRadius(64.dp) }) else Modifier).then(if (haze != null) Modifier.background(androidx.compose.ui.graphics.Brush.verticalGradient(0f to Color(0x00141019), 0.3f to Color(0xE6141019), 1f to Color(0xF0141019))) else Modifier.background(Color(0xEB141019)))) {
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(MiniTint.c.copy(alpha = if (MiniTint.c == Color.Transparent) 0f else 0.55f), MiniTint.c.copy(alpha = if (MiniTint.c == Color.Transparent) 0f else 0.30f)))))
         val tabW = maxWidth / tabs.size
         val ind by androidx.compose.animation.core.animateDpAsState(tabW * sel + (tabW - 36.dp) / 2, androidx.compose.animation.core.spring(dampingRatio = 0.65f, stiffness = 420f), label = "ind")
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 6.dp, bottom = 8.dp)) {
@@ -221,12 +222,14 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
                 val p = androidx.palette.graphics.Palette.from(b).generate()
                 val c = p.getDarkMutedColor(p.getMutedColor(p.getDominantColor(0xFF3A1428.toInt())))
                 val hsv = FloatArray(3); android.graphics.Color.colorToHSV(c, hsv)
-                hsv[2] = hsv[2].coerceAtMost(0.32f); hsv[1] = hsv[1].coerceAtMost(0.75f)
+                hsv[2] = hsv[2].coerceIn(0.26f, 0.44f); hsv[1] = hsv[1].coerceAtMost(0.85f)
                 tint = Color(android.graphics.Color.HSVToColor(hsv))
             }
         } catch (_: Exception) {}
     }
     val tintA by androidx.compose.animation.animateColorAsState(tint, label = "tint")
+    SideEffect { MiniTint.c = tintA }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { MiniTint.c = Color.Transparent } }
     val shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
     val spin by androidx.compose.animation.core.rememberInfiniteTransition(label = "spin").animateFloat(0f, 360f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(14000, easing = androidx.compose.animation.core.LinearEasing)), label = "sp")
     Box(Modifier.padding(horizontal = 11.dp).fillMaxWidth().height(62.dp).clip(shape)
@@ -580,3 +583,5 @@ fun TrackRow(t: Track, pc: PlayerConnection?, onPlay: () -> Unit) {
 }
 
 fun LazyListScope.col(key: Any? = null, content: @Composable ColumnScope.() -> Unit) { item(key = key) { Column(content = content) } }
+
+object MiniTint { var c by androidx.compose.runtime.mutableStateOf(Color.Transparent) }
