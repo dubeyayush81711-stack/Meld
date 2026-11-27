@@ -19,11 +19,16 @@ suspend fun languageTiles(): List<Pair<String, String>> {
 
 /** One page of the Music tab feed for the chosen languages (titles). Empty selection = the mixed For You feed. Ranked by the backend's chart rank, interleaved across languages. */
 suspend fun feedPage(titles: List<String>, offset: Int, seed: String): List<Track> {
-    // never show a song the user already heard: keep reading deeper pages until enough fresh ones are found
+    // never show a song the user already heard. The first three pages are fetched at the same time (was one after the other), more only if still short.
     val out = ArrayList<Track>(); val seen = HashSet<String>()
-    var off = offset; var tries = 0
-    while (tries < 5 && out.size < 12) {
-        val raw = try { rawPage(titles, off, seed) } catch (e: Exception) { if (tries == 0) throw e else emptyList() }
+    val step = if (titles.isEmpty()) 30 else 24 * titles.size
+    val first = kotlinx.coroutines.coroutineScope {
+        (0 until 3).map { k -> async { try { rawPage(titles, offset + k * step, seed) } catch (e: Exception) { if (k == 0) throw e else emptyList() } } }.map { it.await() }
+    }
+    for (raw in first) for (t in Played.filter(raw)) if (seen.add(t.id)) out.add(t)
+    var off = offset + 3 * step; var tries = 0
+    while (tries < 3 && out.size < 12) {
+        val raw = try { rawPage(titles, off, seed) } catch (e: Exception) { emptyList() }
         if (raw.isEmpty()) break
         for (t in Played.filter(raw)) if (seen.add(t.id)) out.add(t)
         off += raw.size; tries++

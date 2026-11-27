@@ -424,7 +424,7 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
             LaunchedEffect(Unit) { titles = languageTiles().map { it.second } }
             Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { showLang = false })
             Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF0121016)).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 112.dp)) {
-                Box(Modifier.align(Alignment.CenterHorizontally).padding(bottom = 12.dp).size(width = 40.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x55FFFFFF)))
+                Box(Modifier.fillMaxWidth().height(30.dp).pointerInput(Unit) { androidx.compose.foundation.gestures.detectVerticalDragGestures { _, d -> if (d > 10f) showLang = false } }, contentAlignment = Alignment.Center) { Box(Modifier.size(width = 40.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x55FFFFFF))) }
                 Text("What do you want to hear?", style = ts(18, FontWeight.SemiBold))
                 Text("Pick one or more. The feed follows them.", Modifier.padding(top = 4.dp, bottom = 14.dp), style = ts(13, color = Color(0xFFB9B2C4)))
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -440,6 +440,7 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
             Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { showFx = false })
             BoxWithConstraints(Modifier.align(Alignment.BottomCenter)) {
             Column(Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.86f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF0121016)).navigationBarsPadding().verticalScroll(rememberScrollState()).padding(top = 14.dp, bottom = 120.dp)) {
+                Box(Modifier.fillMaxWidth().height(30.dp).pointerInput(Unit) { androidx.compose.foundation.gestures.detectVerticalDragGestures { _, d -> if (d > 10f) showFx = false } }, contentAlignment = Alignment.Center) { Box(Modifier.size(width = 40.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x55FFFFFF))) }
                 Text("Music features", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = ts(18, FontWeight.SemiBold))
                 SToggle("Video player", "Play the music video behind the song. Off shows the cover.", videoPref)
                 run {
