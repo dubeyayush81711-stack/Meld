@@ -124,6 +124,18 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
             if (cur < 0 || cur >= pl.mediaItemCount || !LangGuard.ok(tr(cur))) return@LaunchedEffect
             var i = minOf(cur + 12, pl.mediaItemCount - 1)
             while (i > cur) { if (!LangGuard.ok(tr(i))) pl.removeMediaItem(i); i-- }
+            // AI check (wavy-verify): asks the model which of the next songs do not fit the chosen languages or are low-quality uploads. Silent if the function is not reachable.
+            val last = minOf(cur + 10, pl.mediaItemCount - 1)
+            if (last > cur && !S.b("verify_ai_off")) {
+                val arr = org.json.JSONArray(); for (k in cur + 1..last) { val t = tr(k); arr.put(JSONObject().put("id", t.id).put("title", t.title).put("artist", t.artist)) }
+                val now = tr(cur)
+                val r = Api.fn("wavy-verify", JSONObject().put("langs", org.json.JSONArray(LangGuard.selected())).put("now", JSONObject().put("title", now.title).put("artist", now.artist)).put("items", arr))
+                val rm = r?.optJSONArray("remove")
+                if (rm != null) for (q in 0 until rm.length()) {
+                    val id = rm.optString(q); val c2 = pl.currentMediaItemIndex
+                    for (k in pl.mediaItemCount - 1 downTo c2 + 1) if (pl.getMediaItemAt(k).mediaId == id) { pl.removeMediaItem(k); break }
+                }
+            }
         } catch (e: Exception) { }
     }
     // taste profile: how long each song was really heard (finished, partly, skipped)

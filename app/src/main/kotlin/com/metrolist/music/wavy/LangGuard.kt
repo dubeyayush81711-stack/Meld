@@ -37,6 +37,7 @@ object LangGuard {
         keyed = key; allowed = if (l.isEmpty()) null else if ("south" in l) l + south else l
         return allowed
     }
+    fun selected(): List<String> = allow()?.filter { it !in south }.orEmpty().toList()
     /** Call after the saved language list changes. */
     fun reset() { keyed = null }
 
