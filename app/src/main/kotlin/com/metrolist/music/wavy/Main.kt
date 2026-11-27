@@ -112,6 +112,15 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         delay(15000)
         try { Api.post("plays", JSONObject().put("user_id", Api.uid).put("track_id", id)) } catch (e: Exception) { }
     }
+    // taste profile: how long each song was really heard (finished, partly, skipped)
+    LaunchedEffect(meta?.id) {
+        val m = meta ?: return@LaunchedEffect
+        val tr = Track(m.id, m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, m.duration, m.artists.firstOrNull()?.id, m.album?.title)
+        Taste.see(tr)
+        var pos = 0L
+        try { while (true) { delay(1500); pos = try { pc?.player?.currentPosition ?: pos } catch (e: Exception) { pos } } }
+        finally { val p = pos; val d = m.duration * 1000L; Thread { try { Taste.played(tr, p, d) } catch (e: Exception) { } }.start() }
+    }
     LaunchedEffect(Unit) { ArtistNav.open = { id, n -> page = "artist:" + (id ?: "") + ":" + n } }
     BackHandler(full) { full = false }
     BackHandler(!full && page != null) { page = when { page == "set:hub" -> null; page!!.startsWith("set:") -> "set:hub"; else -> null } }
@@ -329,6 +338,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
             } else {
                 if (cat == "All" && f != null) item { QuickTiles(f.favouritesId, tiles, onPlaylist, onParty, f.sections.firstOrNull { it.type == "made_for_you" && it.tracks.isNotEmpty() }?.let { m -> { playTracks(pc, m.tracks, 0, m.title) } }) }
                 if (f != null) item { Hero(f, pc) }
+                if (f != null && cat == "All") item { ForYouShelf(pc) }
                 if (f == null) item {
                     Box(Modifier.fillMaxWidth().padding(60.dp), contentAlignment = Alignment.Center) {
                         if (err != null) Column(horizontalAlignment = Alignment.CenterHorizontally) {

@@ -66,7 +66,7 @@ suspend fun likeTrack(id: String): Boolean = try {
     val pls = (Api.rpc("profile_stats") as? JSONObject)?.optJSONArray("playlists")
     val fav = (0 until (pls?.length() ?: 0)).map { pls!!.getJSONObject(it) }.firstOrNull { it.optBoolean("is_favourite") }?.optLong("id")
     if (fav == null) false else {
-        Api.post("playlist_tracks", JSONObject().put("playlist_id", fav).put("track_id", id).put("position", (System.currentTimeMillis() / 1000).toInt()).put("added_by", Api.uid)); true
+        Api.post("playlist_tracks", JSONObject().put("playlist_id", fav).put("track_id", id).put("position", (System.currentTimeMillis() / 1000).toInt()).put("added_by", Api.uid)); try { Taste.liked(id) } catch (e: Exception) { }; true
     }
 } catch (e: Exception) { false }
 
@@ -189,7 +189,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean 
         reloading = refreshN > 0 || !langSkip
         while (true) {
             try {
-                val got = mixFollowed(feedPage(langs, 0, seed), followedSongs())
+                val got = Taste.blend(mixFollowed(feedPage(langs, 0, seed), followedSongs()), Taste.recommendQuick())
                 if (got.isNotEmpty()) { if (refreshN > 0) { first = null; feedGen++ }; feed = got; err = null; saveFeedCache(langs.joinToString(","), got); break }
                 if (feed.isNotEmpty() && refreshN == 0) break
             } catch (e: ApiError) { err = humanErr(e) } catch (e: Exception) { err = "No connection. Retrying..." }
@@ -226,7 +226,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean 
     LaunchedEffect(pager.settledPage, tracks.size) {
         if (tracks.size - pager.settledPage <= 5 && !loadingMore && feed.size < 200) {
             loadingMore = true
-            try { val more = feedPage(langs, feed.size, seed); val have = feed.map { it.id }.toSet(); feed = feed + mixFollowed(more, followed, HashSet(have)).filter { it.id !in have } } catch (e: Exception) { }
+            try { val more = feedPage(langs, feed.size, seed); val have = feed.map { it.id }.toSet(); feed = feed + Taste.blend(mixFollowed(more, followed, HashSet(have)), Taste.cached(), have).filter { it.id !in have } } catch (e: Exception) { }
             loadingMore = false
         }
     }

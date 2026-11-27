@@ -40,7 +40,7 @@ fun loadHistory(ctx: Context): List<String> = try {
 
 private fun store(ctx: Context, l: List<String>) { prefs(ctx).edit().putString(key(), JSONArray(l).toString()).apply() }
 
-fun saveHistory(ctx: Context, q: String) { store(ctx, (listOf(q) + loadHistory(ctx).filter { !it.equals(q, true) }).take(30)) }
+fun saveHistory(ctx: Context, q: String) { try { Taste.searched(q) } catch (e: Exception) { }; store(ctx, (listOf(q) + loadHistory(ctx).filter { !it.equals(q, true) }).take(30)) }
 fun removeHistory(ctx: Context, q: String): List<String> { val l = loadHistory(ctx).filter { it != q }; store(ctx, l); return l }
 fun clearHistory(ctx: Context) { store(ctx, emptyList()) }
 
