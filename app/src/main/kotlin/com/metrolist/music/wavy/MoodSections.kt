@@ -43,7 +43,6 @@ private fun query(mood: String, lang: String): String {
 }
 
 /** A Home row filled by live YouTube Music searches for a mood in the user's languages (cached; drops covers, karaoke, slowed and reverb). */
-@Composable
 fun clearMoodCache() { moodCache.clear() }
 
 @Composable
