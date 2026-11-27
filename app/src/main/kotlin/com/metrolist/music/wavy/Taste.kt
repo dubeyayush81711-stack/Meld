@@ -202,7 +202,7 @@ fun ForYouShelf(pc: PlayerConnection?) {
     if (list.isEmpty()) return
     Column {
         Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp)) {
-            Text("Based on what you play, like and skip", style = ts(12, color = Color(0x94FFFFFF)))
+            Text(TasteProfile.topArtists(2).let { a -> if (a.isEmpty()) "Based on what you play, like and skip" else "Because you play " + a.joinToString(" and ") }, style = ts(12, color = Color(0x94FFFFFF)))
             Text("Picked for you", style = ts(20, androidx.compose.ui.text.font.FontWeight.SemiBold))
         }
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {

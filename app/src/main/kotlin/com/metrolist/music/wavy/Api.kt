@@ -3,6 +3,7 @@ package com.metrolist.music.wavy
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -200,13 +201,22 @@ fun JSONArray?.artistItems(): List<ArtistItem> = if (this == null) emptyList() e
 
 data class Feed(val sections: List<Section>, val favouritesId: Long?)
 
+/** Daily Mix ("made_for_you"): drop songs by lesser-known artists the user does not already play. Uses only cached fame, and warms the cache in the background for next time. */
+private fun gateMade(type: String, l: List<Track>): List<Track> {
+    if (type != "made_for_you" || l.isEmpty()) return l
+    val ids = l.map { it.artistId }
+    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { try { Fame.warm(ids) } catch (e: Exception) { } }
+    val kept = l.filter { t -> TasteProfile.affinity(t.artist) > 0.5 || Fame.score(listOf(t.artistId)).let { f -> f <= 0f || f >= 0.5f } }
+    return if (kept.size >= 5) kept else l
+}
+
 fun parseFeed(j: JSONObject): Feed {
     val arr = j.optJSONArray("sections") ?: JSONArray()
     val secs = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }.map { s ->
         val albs = s.optJSONArray("albums")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }.map { o ->
             AlbumItem(o.optString("album"), o.optString("artist"), o.str("cover_url"), o.optJSONArray("tracks").tracks()) } } ?: emptyList()
         Section(s.optString("id"), s.optString("type"), s.optString("title"), s.str("subtitle"), s.str("cover_url"),
-            LangGuard.filter(s.optJSONArray("tracks").tracks()), albs.map { al -> al.copy(tracks = LangGuard.filter(al.tracks)) }.filter { it.tracks.isNotEmpty() }, s.optJSONArray("artists").artistItems())
+            gateMade(s.optString("type"), LangGuard.filter(s.optJSONArray("tracks").tracks())), albs.map { al -> al.copy(tracks = LangGuard.filter(al.tracks)) }.filter { it.tracks.isNotEmpty() }, s.optJSONArray("artists").artistItems())
     }
     return Feed(secs, if (j.isNull("favourites_playlist_id")) null else j.optLong("favourites_playlist_id"))
 }
