@@ -125,6 +125,20 @@ object Api {
         return parse(exec(req, true)) as? JSONObject
     }
 
+    /** Private storage upload/download with the user session. */
+    suspend fun storagePut(bucket: String, path: String, bytes: ByteArray, mime: String) { withContext(Dispatchers.IO) {
+        val enc = path.split("/").joinToString("/") { java.net.URLEncoder.encode(it, "UTF-8") }
+        val req = Request.Builder().url("$URL/storage/v1/object/$bucket/$enc").header("apikey", KEY).header("Authorization", "Bearer $access").header("x-upsert", "true").post(bytes.toRequestBody(mime.toMediaType())).build()
+        http.newCall(req).execute().use { r -> if (!r.isSuccessful) throw ApiError("Upload failed (${r.code})", r.code) }
+    } }
+    suspend fun storageGet(bucket: String, path: String): ByteArray? = withContext(Dispatchers.IO) {
+        try {
+            val enc = path.split("/").joinToString("/") { java.net.URLEncoder.encode(it, "UTF-8") }
+            val req = Request.Builder().url("$URL/storage/v1/object/authenticated/$bucket/$enc").header("apikey", KEY).header("Authorization", "Bearer $access").get().build()
+            http.newCall(req).execute().use { r -> if (r.isSuccessful) r.body?.bytes() else null }
+        } catch (e: Exception) { null }
+    }
+
     suspend fun get(path: String): Any? = parse(exec(Request.Builder().url("$URL/rest/v1/$path").get(), true))
 
     suspend fun post(path: String, body: Any, upsert: Boolean = false) {

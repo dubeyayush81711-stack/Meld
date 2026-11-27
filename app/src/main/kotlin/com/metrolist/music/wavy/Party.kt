@@ -2,6 +2,8 @@ package com.metrolist.music.wavy
 
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.withStyle
@@ -172,8 +174,29 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
     // the one who can control moves the room to the next song when this one ends
     LaunchedEffect(can, qid) { while (can && qid != 0L) { delay(1500); if (pc?.player?.playbackState == androidx.media3.common.Player.STATE_ENDED) { try { call("party_next", "p_party" to pid, "p_ended_queue" to qid) } catch (e: Exception) { }; break } } }
     var themeTick by remember { mutableIntStateOf(0) }
+    val bgPath = s.optString("bg_path").takeIf { it.isNotBlank() && it != "null" }
+    var bgBmp by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(bgPath) {
+        bgBmp = if (bgPath == null) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Api.storageGet("party-bg", bgPath)?.let { b -> try { android.graphics.BitmapFactory.decodeByteArray(b, 0, b.size)?.asImageBitmap() } catch (e: Exception) { null } } }
+    }
+    val pickBg = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) scope.launch {
+            try {
+                val bytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val o = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    ctx.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, o) }
+                    var sample = 1; while (maxOf(o.outWidth, o.outHeight) / sample > 1600) sample *= 2
+                    val bmp = ctx.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }) } ?: throw ApiError("Could not read the photo")
+                    val out = java.io.ByteArrayOutputStream(); bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, out); out.toByteArray()
+                }
+                val path = "$pid/bg${System.currentTimeMillis() / 1000}.jpg"
+                Api.storagePut("party-bg", path, bytes, "image/jpeg")
+                call("party_set_background", "p_party" to pid, "p_path" to path, "p_blur" to s.optInt("bg_blur")); tick++
+            } catch (e: Exception) { Toast.makeText(ctx, "Could not set the background. Try a smaller photo.", Toast.LENGTH_SHORT).show() }
+        }
+    }
     var confirmEnd by remember { mutableStateOf(false) }
-    PartyBackdrop(tint = remember(themeTick) { partyTheme(pid) }) {
+    PartyBackdrop(tint = remember(themeTick) { partyTheme(pid) }, bg = bgBmp, blur = s.optInt("bg_blur")) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.arrow_back), null, Modifier.size(26.dp).clickable(onClick = onBack), tint = Color.White)
@@ -311,6 +334,14 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                     Text("Lock for members (you can still allow people one by one)", Modifier.padding(top = 10.dp, bottom = 2.dp), style = ts(12, color = Color(0xFFB9B2C4)))
                     listOf("add" to "Adding songs", "skip" to "Skip votes", "chat" to "Chat").forEach { (k, l) ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) { Text(l, Modifier.weight(1f)); Switch(lk?.optBoolean(k) == true, { nv -> scope.launch { try { call("party_set_lock", "p_party" to pid, "p_feature" to k, "p_locked" to nv); tick++ } catch (e: Exception) { Toast.makeText(ctx, "Could not change this", Toast.LENGTH_SHORT).show() } } }) } }
+                    Text("Room background", Modifier.padding(top = 10.dp, bottom = 6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Text("Choose photo", Modifier.clickable { pickBg.launch("image/*") }, color = W.Pink)
+                        if (bgPath != null) Text("Remove", Modifier.clickable { scope.launch { try { call("party_reset_background", "p_party" to pid); tick++ } catch (e: Exception) { } } }, color = W.Pink)
+                    }
+                    if (bgPath != null) Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        listOf("Sharp" to 0, "Soft" to 40, "Blurry" to 90).forEach { (l, v) -> Text(l, Modifier.clickable { scope.launch { try { call("party_set_background_blur", "p_party" to pid, "p_blur" to v); tick++ } catch (e: Exception) { } } }, color = if (s.optInt("bg_blur") == v) W.Pink else Color(0xFFB9B2C4)) }
+                    }
                     Text("Room theme", Modifier.padding(top = 10.dp, bottom = 6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { PARTY_THEMES.forEach { (n, c) -> Box(Modifier.size(36.dp).clip(CircleShape).background(c).border(if (S.s("party_theme_$pid", "Wavy") == n) 3.dp else 1.dp, if (S.s("party_theme_$pid", "Wavy") == n) W.Pink else Color(0x55FFFFFF), CircleShape).clickable { S.put("party_theme_$pid", n); themeTick++ }) } }
                     Text("New code", Modifier.padding(top = 10.dp).clickable { scope.launch { try { call("party_settings", "p_party" to pid, "p_new_code" to true); tick++ } catch (e: Exception) { } } }, color = W.Pink)
@@ -322,10 +353,16 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
 
 /** Party screens sit on pure black. The room colour is only a faint glow at the top. */
 @Composable
-fun PartyBackdrop(tint: Color, content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit) {
+fun PartyBackdrop(tint: Color, bg: androidx.compose.ui.graphics.ImageBitmap? = null, blur: Int = 0, content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit) {
     androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Color.Black).drawBehind {
         drawRect(Brush.verticalGradient(listOf(tint.copy(alpha = 0.16f), Color.Transparent), 0f, size.height * 0.4f))
-    }, content = content)
+    }) {
+        if (bg != null) {
+            androidx.compose.foundation.Image(bg, null, Modifier.fillMaxSize().then(if (blur > 0) Modifier.blur((blur / 4).dp) else Modifier), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+            Box(Modifier.fillMaxSize().background(Color(0x99000000)))
+        }
+        content()
+    }
 }
 
 
