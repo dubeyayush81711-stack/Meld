@@ -73,8 +73,14 @@ suspend fun loadEpisodes(feed: String): List<Ep> = withContext(Dispatchers.IO) {
     out
 }
 
-fun playEpisodes(pc: PlayerConnection?, pod: Pod, eps: List<Ep>, index: Int) {
-    if (pc == null || eps.isEmpty()) return
+/** Follows redirects (tracking prefixes, http to https) so the player gets the final audio address. Returns the original on any failure. */
+suspend fun finalUrl(u: String): String = withContext(Dispatchers.IO) {
+    try { podHttp.newCall(Request.Builder().url(u).head().header("User-Agent", "Mozilla/5.0").build()).execute().use { r -> if (r.isSuccessful) r.request.url.toString() else u } } catch (e: Exception) { u }
+}
+
+fun playEpisodes(pc: PlayerConnection?, pod: Pod, eps0: List<Ep>, index: Int) {
+    if (pc == null || eps0.isEmpty()) return
+    val eps = eps0
     val items = eps.map { e ->
         val id = "local:pod" + Integer.toHexString(e.url.hashCode())
         Track(id, e.title, pod.name, pod.art, e.dur, null, pod.name).toMeta().toMediaItem().buildUpon().setUri(e.url).build()
@@ -107,7 +113,7 @@ fun PodcastsTab(pc: PlayerConnection?) {
             if (e == null) Text("Loading episodes...", Modifier.padding(8.dp), style = ts(14, color = W.Dim))
             else if (e.isEmpty()) Text("This feed has no playable episodes.", Modifier.padding(8.dp), style = ts(14, color = W.Dim))
             else e.forEachIndexed { i, ep ->
-                Row(Modifier.fillMaxWidth().clickable { playEpisodes(pc, o, e, i) }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clickable { sc.launch { val fixed = e.toMutableList(); fixed[i] = e[i].copy(url = finalUrl(e[i].url)); playEpisodes(pc, o, fixed, i) } }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(ep.title, style = ts(16, FontWeight.Medium), maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Text(listOf(ep.date, if (ep.dur > 0) "${ep.dur / 60} min" else "").filter { it.isNotBlank() }.joinToString(" \u00B7 "), style = ts(13, color = W.Dim))

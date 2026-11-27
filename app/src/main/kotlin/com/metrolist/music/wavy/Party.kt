@@ -151,7 +151,7 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
     LaunchedEffect(pid, tick) { try { lockInfo = call("party_locks", "p_party" to pid) as? JSONObject } catch (e: Exception) { } }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { PartyState.full = false } }
     val partyLife = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(pid, tick) { partyLife.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) { while (true) { try { st = call("party_state", "p_party" to pid) as? JSONObject } catch (e: Exception) { }; delay(1800) } } }
+    LaunchedEffect(pid, tick) { partyLife.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) { while (true) { try { st = call("party_state", "p_party" to pid) as? JSONObject } catch (e: Exception) { }; delay(if (PartyState.foreground) 1800L else 4500L) } } }
     LaunchedEffect(q) { if (q.length < 2) { found = emptyList(); return@LaunchedEffect }; delay(350)
         try { found = ((Api.rpc("search_all", JSONObject().put("p_q", q).put("p_limit", 20)) as? JSONObject)?.optJSONArray("tracks")).tracks() } catch (e: Exception) { }
         if (found.isEmpty()) found = try { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.metrolist.innertube.YouTube.search(q, com.metrolist.innertube.YouTube.SearchFilter.FILTER_SONG).getOrNull()?.items?.mapNotNull { it.asTrack() } ?: emptyList() } } catch (e: Exception) { emptyList() } }
@@ -412,7 +412,7 @@ fun PartyBackdrop(tint: Color, bg: androidx.compose.ui.graphics.ImageBitmap? = n
 
 
 /** True while this phone is in a Party room. The normal mini player is replaced by the island pill, and room songs are the only ones playing. */
-object PartyState { var active by mutableStateOf(false); var full by mutableStateOf(false)
+object PartyState { var foreground = true; var active by mutableStateOf(false); var full by mutableStateOf(false)
     var title by mutableStateOf(""); var artist by mutableStateOf(""); var thumb by mutableStateOf<String?>(null); var playing by mutableStateOf(false); var members by mutableIntStateOf(0) }
 
 @Composable
