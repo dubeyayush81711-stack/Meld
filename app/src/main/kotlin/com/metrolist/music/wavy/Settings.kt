@@ -221,7 +221,15 @@ fun AboutSettings(onBack: () -> Unit, go: (String) -> Unit = {}) {
         SToggle("Send error reports", "Sends crashes and errors (app version, screen, error text, phone model). No personal data.", boolPref("send_errors", true))
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp).clip(RoundedCornerShape(20.dp)).background(Color(0x14FFFFFF)).border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(20.dp))) {
         SNav("Alternate website", "bangersongs.vercel.app") { try { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://bangersongs.vercel.app"))) } catch (_: Exception) {} }
-        SNav("Third-party licenses", "Wavy is built on open-source software (GPL-3.0).") { }
+        var lic by remember { mutableStateOf(false) }
+        SNav("Third-party licenses", "Wavy is built on open-source software (GPL-3.0).") { lic = true }
+        if (lic) androidx.compose.ui.window.Dialog(onDismissRequest = { lic = false }) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF1A1620)).padding(20.dp)) {
+                Text("Open-source licenses", style = ts(18, FontWeight.SemiBold))
+                Text("Wavy is free software under the GNU General Public License v3.0. It is built on the open-source Metrolist music player (GPL-3.0) and other open-source libraries (Apache-2.0 and MIT) such as Jetpack Compose, Media3, OkHttp and Coil. The full license text is in the LICENSE file of the source code.", Modifier.padding(top = 10.dp), style = ts(14, color = Color(0xFFD6CCD3)))
+                Text("Source code and license", Modifier.padding(top = 14.dp).clickable { try { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/dubeyayush81711-stack/Meld")).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) {} }, style = ts(15, FontWeight.SemiBold, W.Pink))
+            }
+        }
         SNav("Talk with agent", "Ask how Wavy works or report a bug.") { go("support") }
         }
     }
