@@ -257,14 +257,16 @@ fun Cover(url: String?, size: androidx.compose.ui.unit.Dp, radius: Int = 10, mod
 
 @Composable
 fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Unit, onProfile: () -> Unit, onParty: () -> Unit = {}, onSettings: () -> Unit = {}, onPlaylist: (Long, String) -> Unit = { _, _ -> }) {
-    var feed by remember { mutableStateOf<Feed?>(null) }
+    var feed by remember { mutableStateOf<Feed?>(try { S.s("home_feed_cache_" + Api.uid, "").takeIf { it.length > 20 }?.let { parseFeed(JSONObject(it)) } } catch (e: Exception) { null }) }
     var name by remember { mutableStateOf("") }
     var err by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
     LaunchedEffect(reload) {
         err = null
         try {
-            feed = parseFeed(Api.rpc("home_feed") as JSONObject)
+            val raw = Api.rpc("home_feed") as JSONObject
+            feed = parseFeed(raw)
+            try { val s = raw.toString(); if (s.length < 400_000) S.put("home_feed_cache_" + Api.uid, s) } catch (_: Exception) { }
             val p = Api.get("profiles?id=eq.${Api.uid}&select=name") as? JSONArray
             name = p?.optJSONObject(0)?.optString("name").orEmpty().ifBlank { Api.email.substringBefore("@") }
         } catch (e: ApiError) { err = humanErr(e) } catch (e: Exception) { err = "Something went wrong." }

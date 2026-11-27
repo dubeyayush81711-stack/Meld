@@ -139,6 +139,15 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
         lifeOwner.lifecycle.addObserver(o)
         onDispose { lifeOwner.lifecycle.removeObserver(o) }
     }
+    // coming back to this tab builds a new player and surface; re-attach shortly after and restart a stalled player
+    LaunchedEffect(ex) {
+        for (d in longArrayOf(300, 700, 1500)) {
+            delay(d)
+            tvRef.value?.let { try { ex.setVideoTextureView(it) } catch (_: Exception) {} }
+            try { if (ex.playbackState == androidx.media3.common.Player.STATE_IDLE) ex.prepare() } catch (_: Exception) {}
+            pc?.player?.let { p -> try { if (kotlin.math.abs(ex.currentPosition - p.currentPosition) > 600) ex.seekTo(p.currentPosition); ex.playWhenReady = p.isPlaying } catch (_: Exception) {} }
+        }
+    }
     val ar = if (arOv > 0f) arOv else cand.w.toFloat() / cand.h.coerceAtLeast(1)
     androidx.compose.foundation.layout.BoxWithConstraints(modifier.clipToBounds()) {
         val h = maxHeight
