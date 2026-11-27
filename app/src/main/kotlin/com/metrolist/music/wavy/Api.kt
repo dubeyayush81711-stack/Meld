@@ -131,6 +131,19 @@ object Api {
         val req = Request.Builder().url("$URL/storage/v1/object/$bucket/$enc").header("apikey", KEY).header("Authorization", "Bearer $access").header("x-upsert", "true").post(bytes.toRequestBody(mime.toMediaType())).build()
         http.newCall(req).execute().use { r -> if (!r.isSuccessful) throw ApiError("Upload failed (${r.code})", r.code) }
     } }
+    /** Removes every file under a folder prefix. Best effort. */
+    suspend fun storageClear(bucket: String, prefix: String) { withContext(Dispatchers.IO) {
+        try {
+            val lreq = Request.Builder().url("$URL/storage/v1/object/list/$bucket").header("apikey", KEY).header("Authorization", "Bearer $access")
+                .post(JSONObject().put("prefix", prefix).put("limit", 500).toString().toRequestBody(JSON)).build()
+            val arr = http.newCall(lreq).execute().use { r -> if (r.isSuccessful) org.json.JSONArray(r.body?.string() ?: "[]") else null } ?: return@withContext
+            val names = (0 until arr.length()).map { prefix + "/" + arr.getJSONObject(it).optString("name") }
+            if (names.isEmpty()) return@withContext
+            val dreq = Request.Builder().url("$URL/storage/v1/object/$bucket").header("apikey", KEY).header("Authorization", "Bearer $access")
+                .delete(JSONObject().put("prefixes", org.json.JSONArray(names)).toString().toRequestBody(JSON)).build()
+            http.newCall(dreq).execute().close()
+        } catch (e: Exception) { }
+    } }
     suspend fun storageGet(bucket: String, path: String): ByteArray? = withContext(Dispatchers.IO) {
         try {
             val enc = path.split("/").joinToString("/") { java.net.URLEncoder.encode(it, "UTF-8") }

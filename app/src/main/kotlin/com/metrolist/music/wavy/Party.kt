@@ -268,6 +268,21 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                                         Text("Add", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { scope.launch { try { call("party_add_external_song", "p_party" to pid, "p_video_id" to vid, "p_title" to ti, "p_artist" to ar, "p_cover" to cv, "p_dur" to du); tick++; Toast.makeText(ctx, "Added to the queue", Toast.LENGTH_SHORT).show() } catch (e: Exception) { Toast.makeText(ctx, humanErr(e), Toast.LENGTH_SHORT).show() } } }.padding(16.dp, 8.dp), style = ts(13, FontWeight.SemiBold))
                                     }
                                 }
+                            } else if (body.startsWith("\uD83C\uDF99VOICE|")) {
+                                val f = body.split("|"); val vp = f.getOrNull(1) ?: ""; val secs = f.getOrNull(2) ?: "0"
+                                var vState by remember(vp) { mutableStateOf(0) }
+                                Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(m.optString("name"), style = ts(12, FontWeight.SemiBold, W.Pink), modifier = Modifier.padding(end = 10.dp))
+                                    Row(Modifier.glass(RoundedCornerShape(50)).clickable(enabled = vState != 1) { vState = 1
+                                        scope.launch { try {
+                                            val bytes = Api.storageGet("party-voice", vp) ?: throw ApiError("gone")
+                                            val fl = java.io.File(ctx.cacheDir, "vc_" + vp.hashCode() + ".m4a"); kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { fl.writeBytes(bytes) }
+                                            val mp = android.media.MediaPlayer(); mp.setDataSource(fl.absolutePath); mp.prepare(); vState = 2; mp.setOnCompletionListener { it.release(); vState = 0 }; mp.start()
+                                        } catch (e: Exception) { vState = 0; Toast.makeText(ctx, "This voice clip is not available.", Toast.LENGTH_SHORT).show() } }
+                                    }.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(if (vState == 1) "Loading..." else if (vState == 2) "Playing..." else "\u25B6 Voice clip ${secs}s", style = ts(14, FontWeight.Medium))
+                                    }
+                                }
                             } else Text(buildAnnotatedString { withStyle(SpanStyle(color = W.Pink, fontWeight = FontWeight.SemiBold)) { append(m.optString("name") + "  ") }; append(body) }, Modifier.padding(vertical = 5.dp), style = ts(15))
                         }
                     }
@@ -282,6 +297,36 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                     }
                     if (!muted) Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(painterResource(R.drawable.music_note), null, Modifier.padding(end = 10.dp).size(28.dp).clickable { reqMode = !reqMode; q = "" }, tint = if (reqMode) W.Pink else Color.White)
+                        var rec by remember { mutableStateOf<android.media.MediaRecorder?>(null) }
+                        var recFile by remember { mutableStateOf<java.io.File?>(null) }
+                        var recStart by remember { mutableLongStateOf(0L) }
+                        fun stopAndSend() {
+                            val r = rec ?: return; val fl = recFile ?: return; rec = null
+                            val secs = ((System.currentTimeMillis() - recStart) / 1000).toInt().coerceAtLeast(1)
+                            try { r.stop() } catch (e: Exception) { }; r.release()
+                            if (secs < 1) return
+                            scope.launch { try {
+                                val bytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { fl.readBytes() }
+                                val path = "$pid/${System.currentTimeMillis() / 1000}_${Api.uid.take(8)}.m4a"
+                                Api.storagePut("party-voice", path, bytes, "audio/mp4")
+                                call("party_send_message", "p_party" to pid, "p_body" to "\uD83C\uDF99VOICE|$path|$secs"); tick++
+                            } catch (e: Exception) { Toast.makeText(ctx, "Could not send the voice clip.", Toast.LENGTH_SHORT).show() } }
+                        }
+                        fun startRec() {
+                            try {
+                                val fl = java.io.File(ctx.cacheDir, "rec_${System.currentTimeMillis()}.m4a"); recFile = fl
+                                val r = android.media.MediaRecorder(); r.setAudioSource(android.media.MediaRecorder.AudioSource.MIC); r.setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4)
+                                r.setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC); r.setAudioEncodingBitRate(48000); r.setAudioSamplingRate(32000); r.setMaxDuration(60000); r.setOutputFile(fl.absolutePath)
+                                r.setOnInfoListener { _, what, _ -> if (what == android.media.MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) stopAndSend() }
+                                r.prepare(); r.start(); rec = r; recStart = System.currentTimeMillis()
+                            } catch (e: Exception) { rec = null; Toast.makeText(ctx, "Could not start recording.", Toast.LENGTH_SHORT).show() }
+                        }
+                        val micPerm = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { ok -> if (ok) startRec() }
+                        DisposableEffect(Unit) { onDispose { try { rec?.stop() } catch (e: Exception) { }; rec?.release() } }
+                        Icon(painterResource(R.drawable.mic), null, Modifier.padding(end = 10.dp).size(28.dp).clickable {
+                            if (rec != null) stopAndSend()
+                            else if (ctx.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) startRec() else micPerm.launch(android.Manifest.permission.RECORD_AUDIO)
+                        }, tint = if (rec != null) Color(0xFFFF4D6D) else Color.White)
                         Box(Modifier.weight(1f)) { PillField(msg, { msg = it }, "Message") }
                         Icon(painterResource(R.drawable.arrow_upward), null, Modifier.padding(start = 10.dp).size(30.dp).clickable { if (msg.isNotBlank()) { val b = msg; msg = ""; scope.launch { try { call("party_send_message", "p_party" to pid, "p_body" to b); tick++ } catch (e: Exception) { Toast.makeText(ctx, humanErr(e), Toast.LENGTH_SHORT).show() } } } }, tint = W.Pink)
                     } else Text("You are muted by the host.", Modifier.padding(16.dp), style = ts(13, color = W.Dim))
@@ -322,7 +367,7 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
             }
         }
         if (confirmEnd) AlertDialog(onDismissRequest = { confirmEnd = false }, title = { Text("End party for everyone?") }, text = { Text("Everyone in the room is removed and the room closes.") },
-            confirmButton = { Text("End party", Modifier.clickable { confirmEnd = false; scope.launch { try { call("party_end", "p_party" to pid); leaveRoom() } catch (e: Exception) { } } }.padding(12.dp), color = Color(0xFFFF6B8A)) },
+            confirmButton = { Text("End party", Modifier.clickable { confirmEnd = false; scope.launch { try { Api.storageClear("party-voice", pid.toString()); call("party_end", "p_party" to pid); leaveRoom() } catch (e: Exception) { } } }.padding(12.dp), color = Color(0xFFFF6B8A)) },
             dismissButton = { Text("Cancel", Modifier.clickable { confirmEnd = false }.padding(12.dp), color = Color.White) })
         if (settings) {
             val set = s.getJSONObject("settings")
@@ -332,7 +377,7 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                         Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) { Text(l, Modifier.weight(1f)); Switch(v, { nv -> scope.launch { try { call("party_settings", "p_party" to pid, "p_" + k to nv); tick++ } catch (e: Exception) { } } }) } }
                     val lk = lockInfo?.optJSONObject("locks")
                     Text("Lock for members (you can still allow people one by one)", Modifier.padding(top = 10.dp, bottom = 2.dp), style = ts(12, color = Color(0xFFB9B2C4)))
-                    listOf("add" to "Adding songs", "skip" to "Skip votes", "chat" to "Chat").forEach { (k, l) ->
+                    listOf("add" to "Adding songs", "skip" to "Skip votes", "chat" to "Chat", "voice" to "Voice clips").forEach { (k, l) ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) { Text(l, Modifier.weight(1f)); Switch(lk?.optBoolean(k) == true, { nv -> scope.launch { try { call("party_set_lock", "p_party" to pid, "p_feature" to k, "p_locked" to nv); tick++ } catch (e: Exception) { Toast.makeText(ctx, "Could not change this", Toast.LENGTH_SHORT).show() } } }) } }
                     Text("Room background", Modifier.padding(top = 10.dp, bottom = 6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
