@@ -368,9 +368,9 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                 }
             }
             Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Playlists", "Artists", "Downloads", "Ringtones").forEach { c -> Text(c, Modifier.clip(RoundedCornerShape(50)).background(if (c == chip) W.Pink else Color(0xFF2A2A2A)).clickable { chip = c }.padding(horizontal = 16.dp, vertical = 8.dp), style = ts(14, FontWeight.Medium)) }
+                listOf("Playlists", "Artists", "Following", "Downloads", "Ringtones").forEach { c -> Text(c, Modifier.clip(RoundedCornerShape(50)).background(if (c == chip) W.Pink else Color(0xFF2A2A2A)).clickable { chip = c }.padding(horizontal = 16.dp, vertical = 8.dp), style = ts(14, FontWeight.Medium)) }
             }
-            if (chip != "Downloads" && chip != "Ringtones") Row(Modifier.fillMaxWidth().padding(16.dp, 14.dp, 16.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (chip != "Downloads" && chip != "Ringtones" && chip != "Following") Row(Modifier.fillMaxWidth().padding(16.dp, 14.dp, 16.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.weight(1f).clickable { az = !az }, verticalAlignment = Alignment.CenterVertically) {
                     Icon(painterResource(R.drawable.wavy_sort), null, Modifier.size(22.dp), tint = Color.White)
                     Text(if (az) "A-Z" else "Recents", Modifier.padding(start = 12.dp), style = ts(15, FontWeight.Bold))
@@ -378,7 +378,13 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                 if (chip == "Artists") Icon(painterResource(if (asList) R.drawable.grid_view else R.drawable.list), null, Modifier.size(24.dp).clickable { asList = !asList }, tint = Color.White)
             }
             Spacer(Modifier.height(6.dp)) }
-            if (chip == "Ringtones") col { TonesTab() } else if (chip == "Downloads") col {
+            if (chip == "Following") col {
+                val fl = followedArtistIds().map { Triple(it, S.s("fname_$it"), S.s("fthumb_$it").ifBlank { null }) }.filter { it.second.isNotBlank() }
+                if (fl.isEmpty()) Text("Artists you follow show here. Open an artist and tap Follow. Their popular songs get extra weight in your picks.", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
+                else fl.forEach { (id, nm, th) -> Row(Modifier.fillMaxWidth().clickable { ArtistNav.open?.invoke(id, nm) }.padding(16.dp, 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Cover(th, 64.dp, 32)
+                    Column(Modifier.padding(start = 16.dp)) { Text(nm, style = ts(17, FontWeight.SemiBold), maxLines = 1); Text("Following", style = ts(14, color = W.Dim)) } } }
+            } else if (chip == "Ringtones") col { TonesTab() } else if (chip == "Downloads") col {
                 val dls by (WDl.util?.downloads ?: kotlinx.coroutines.flow.MutableStateFlow(emptyMap())).collectAsState()
                 val ids = WDl.doneIds(dls)
                 val tl by produceState(emptyList<Track>(), ids) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ids.mapNotNull { WDl.toTrack(it) } } }

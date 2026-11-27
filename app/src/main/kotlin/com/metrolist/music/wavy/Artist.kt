@@ -106,7 +106,7 @@ fun ArtistScreen(artistId: String?, name: String, pc: PlayerConnection?, onBack:
                     }
                 }
                 Row(Modifier.padding(20.dp, 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    FollowButton(pg.artist.id, aName, big = true)
+                    FollowButton(pg.artist.id, aName, big = true, thumb = pg.artist.thumbnail)
                     Spacer(Modifier.weight(1f))
                     Box(Modifier.size(48.dp).glass(CircleShape).clickable { if (popular.isNotEmpty()) playTracks(pc, popular.shuffled(), 0, aName) }, contentAlignment = Alignment.Center) {
                         Icon(painterResource(R.drawable.shuffle), null, Modifier.size(24.dp), tint = Color.White) }

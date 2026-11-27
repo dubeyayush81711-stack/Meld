@@ -68,11 +68,12 @@ fun SongItem.toTrack() = Track(id, title, artists.joinToString { it.name }, thum
 fun stripContacts(s: String?): String? = s?.replace(Regex("[\\w.+-]+@[\\w-]+\\.[\\w.-]+"), "")?.replace(Regex("(?i)contact\\s*:?"), "")?.trim()?.takeIf { it.isNotBlank() }
 
 @Composable
-fun FollowButton(artistId: String?, name: String, big: Boolean = false) {
+fun FollowButton(artistId: String?, name: String, big: Boolean = false, thumb: String? = null) {
     var on by remember(artistId) { mutableStateOf(artistId != null && S.b("follow_$artistId")) }
     val scope = rememberCoroutineScope()
     Text(if (on) "Following" else "Follow", Modifier.clip(RoundedCornerShape(50)).border(1.dp, Color(0xFF9A9A9A), RoundedCornerShape(50)).clickable(enabled = artistId != null) {
         on = !on; S.put("follow_$artistId", on)
+        if (on) { S.put("fname_$artistId", name); if (thumb != null) S.put("fthumb_$artistId", thumb) }
         scope.launch { try { if (on) Api.post("user_artists", org.json.JSONObject().put("artist_id", artistId), true) else Api.delete("user_artists?artist_id=eq.$artistId") } catch (e: Exception) { } }
     }.padding(horizontal = if (big) 22.dp else 16.dp, vertical = if (big) 12.dp else 8.dp), style = ts(if (big) 16 else 14, FontWeight.SemiBold))
 }
