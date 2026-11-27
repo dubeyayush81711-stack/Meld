@@ -93,7 +93,9 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
         if (list.isEmpty()) onDiag(why.ifEmpty { "no video stream" }) else videoCandCache[id] = System.currentTimeMillis() to list
         cands = list
     }
-    val cand = cands.getOrNull(idx) ?: return
+    val cap = S.s("reel_vq", "auto").toIntOrNull() ?: 0
+    val ordered = remember(cands, cap) { if (cap <= 0) cands else cands.filter { it.h in 1..cap }.sortedByDescending { it.h } + cands.filter { it.h !in 1..cap }.sortedBy { it.h } }
+    val cand = ordered.getOrNull(idx) ?: return
     val ex = remember(cand.url) {
         androidx.media3.exoplayer.ExoPlayer.Builder(ctx).build().apply {
             volume = 0f
@@ -161,7 +163,7 @@ fun StreamVideo(id: String, pc: PlayerConnection?, modifier: Modifier, onDiag: (
 fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean = true) {
     var showFx by remember { mutableStateOf(false) }
     val lyricsPref = boolPref("reel_lyrics", true); var showOpts by remember { mutableStateOf(false) }
-    val glowPref = boolPref("reel_glow", false); val videoPref = boolPref("reel_video", false); val hookPref = boolPref("reel_hook", true)
+    val glowPref = boolPref("reel_glow", false); val videoPref = boolPref("reel_video", false); val hookPref = boolPref("reel_hook", false)
     val videoOn = videoPref.value
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -439,6 +441,18 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
             Column(Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.86f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Color(0xF0121016)).navigationBarsPadding().verticalScroll(rememberScrollState()).padding(top = 14.dp, bottom = 120.dp)) {
                 Text("Music features", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = ts(18, FontWeight.SemiBold))
                 SToggle("Video player", "Play the music video behind the song. Off shows the cover.", videoPref)
+                run {
+                    var vq by remember { mutableStateOf(S.s("reel_vq", "auto")) }
+                    Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
+                        Text("Video quality", style = ts(17, FontWeight.Medium))
+                        Text("Lower is smoother on slow phones. Auto picks the best the song has.", style = ts(13, color = Color(0xFFB9B2C4)))
+                        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("auto" to "Auto", "360" to "360p", "720" to "720p", "1080" to "1080p").forEach { (k, l) ->
+                                Text(l, Modifier.clip(RoundedCornerShape(50)).background(if (vq == k) W.Pink else Color(0x22FFFFFF)).clickable { vq = k; S.put("reel_vq", k) }.padding(horizontal = 16.dp, vertical = 8.dp), style = ts(14, FontWeight.Medium))
+                            }
+                        }
+                    }
+                }
                 SToggle("Lyrics", "Show synced lyrics on the cover when a song has them.", lyricsPref)
                 SToggle("Animated light", "Soft moving glow behind the song while it plays.", glowPref)
                 SToggle("Hook only", "Play about 25 seconds of each song, then move to the next.", hookPref)

@@ -318,9 +318,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                 }
                 Spacer(Modifier.height(10.dp))
             }
-            if (cat == "Podcasts") item {
-                Text("Podcasts are not available yet. Music is what Wavy plays for now.", Modifier.padding(horizontal = 28.dp, vertical = 40.dp), style = ts(15, color = W.Dim))
-            } else if (cat == "Chill") item {
+            if (cat == "Podcasts") item { PodcastsTab(pc) } else if (cat == "Chill") item {
                 Column {
                     Text("Chill", Modifier.padding(start = 20.dp, bottom = 12.dp), style = ts(24, FontWeight.SemiBold))
                     if (chill.isEmpty()) Text("Loading...", Modifier.padding(24.dp), style = ts(14, color = W.Dim))
