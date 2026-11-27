@@ -191,6 +191,19 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 Text("Trending now", Modifier.padding(bottom = 4.dp), style = ts(20, FontWeight.SemiBold))
             }
             if (q.isEmpty() && !page) trending.forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, trending, i, "Trending now") } } }
+            if (q.isEmpty() && !page) col {
+                Text("Browse all", Modifier.padding(bottom = 12.dp), style = ts(20, FontWeight.SemiBold))
+                listOf("Pop" to 0xFFE8115B, "Hip-hop" to 0xFF8D67AB, "Romance" to 0xFFE91E63, "Party" to 0xFFF59B23, "Workout" to 0xFF1E3264, "Chill" to 0xFF477D95,
+                    "Sad songs" to 0xFF503750, "Devotional" to 0xFFBA5D07, "Focus" to 0xFF148A08, "Retro" to 0xFF7D4B32, "Rock" to 0xFFBC5900, "Dance" to 0xFF0D73EC).chunked(2).forEach { pair ->
+                    Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        pair.forEach { (name, c) ->
+                            Box(Modifier.weight(1f).height(84.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(Color(c), Color(c).copy(alpha = 0.55f)))).clickable { page = true; go(name + " songs") }.padding(14.dp)) {
+                                Text(name, style = ts(17, FontWeight.Bold), modifier = Modifier.align(Alignment.TopStart))
+                            }
+                        }
+                    }
+                }
+            }
             if (q.isEmpty() && !page) col { Spacer(Modifier.height(18.dp)) }
             if (q.isEmpty() && !page) {
                 val m = meta

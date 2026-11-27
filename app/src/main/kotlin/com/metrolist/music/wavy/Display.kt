@@ -146,7 +146,7 @@ fun WallpaperSettings() {
     SNav("Home wallpaper", if (Wallpaper.has(ctx)) "Your photo is behind Home. Tap to change." else "Pick a photo from your gallery for Home.") { pick.launch("image/*") }
     if (v >= 0 && Wallpaper.has(ctx)) {
         val on = Wallpaper.places(v)
-        listOf("home" to "Home", "library" to "Your Library", "search" to "Search", "party" to "Party room").forEach { (k, l) ->
+        listOf("home" to "Home", "library" to "Your Library", "search" to "Search", "party" to "Party room", "player" to "Player").forEach { (k, l) ->
             SNav("Show on $l", if (k in on) "On. Tap to turn off." else "Off. Tap to turn on.") { Wallpaper.toggle(k) }
         }
         SNav("Remove wallpaper", "Go back to the plain background") { Wallpaper.clear(ctx) }
