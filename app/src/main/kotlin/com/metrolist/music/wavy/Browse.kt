@@ -520,7 +520,7 @@ class LangPager(val code: String, val title: String, val latest: Boolean) {
         while (out.size < 15 && !exhausted && guard++ < 6) {
             var got: List<Track> = emptyList()
             if (!backendDone) {
-                got = try { (Api.rpc("language_top", JSONObject().put("p_lang", code).put("p_limit", 30).put("p_offset", off)) as? JSONArray).tracks() } catch (e: Exception) { emptyList() }
+                got = try { (Api.rpc("language_top", JSONObject().put("p_lang", code).put("p_limit", 30).put("p_offset", off)) as? JSONArray).tracks() } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e; emptyList() }
                 off += 30; if (got.size < 30) backendDone = true
             } else {
                 val r = withContext(Dispatchers.IO) {
@@ -529,7 +529,7 @@ class LangPager(val code: String, val title: String, val latest: Boolean) {
                         if (c != null) com.metrolist.innertube.YouTube.searchContinuation(c).getOrNull()?.let { it.items to it.continuation }
                         else if (qi < queries.size) com.metrolist.innertube.YouTube.search(queries[qi++], com.metrolist.innertube.YouTube.SearchFilter.FILTER_SONG).getOrNull()?.let { it.items to it.continuation }
                         else null
-                    } catch (e: Exception) { null }
+                    } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e; null }
                 }
                 if (r == null) { if (cont != null) cont = null else if (qi >= queries.size) exhausted = true }
                 else { cont = r.second; got = r.first.mapNotNull { it.asTrack() } }
@@ -552,10 +552,10 @@ fun LangListScreen(title: String, code: String, pc: PlayerConnection?, onBack: (
     LaunchedEffect(tab, l.size) {
         if (loading || pager.exhausted) return@LaunchedEffect
         val last = state.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-        if (l.isEmpty() || last >= l.size - 6) { loading = true; l.addAll(pager.more()); loading = false }
+        if (l.isEmpty() || last >= l.size - 6) { loading = true; try { l.addAll(pager.more()) } finally { loading = false } }
     }
     LaunchedEffect(tab) { snapshotFlow { state.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }.collect { last ->
-        if (!loading && !pager.exhausted && l.isNotEmpty() && last >= l.size - 6) { loading = true; l.addAll(pager.more()); loading = false } } }
+        if (!loading && !pager.exhausted && l.isNotEmpty() && last >= l.size - 6) { loading = true; try { l.addAll(pager.more()) } finally { loading = false } } } }
     val name = if (tab == 0) "Most viewed in $title" else "Latest $title hits"
     Box(Modifier.fillMaxSize().background(W.Bg)) {
         Column(Modifier.fillMaxSize()) {

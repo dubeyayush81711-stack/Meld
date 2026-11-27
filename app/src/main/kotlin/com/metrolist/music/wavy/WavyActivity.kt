@@ -58,6 +58,9 @@ class WavyActivity : ComponentActivity() {
     private fun handleLink(i: Intent?) {
         val d = i?.data ?: return
         if (d.scheme != "com.wavy.app" || (d.host != "login" && d.host != "reset")) return
+        // Only accept a link this phone asked for (Google tap or reset request in the last 2 hours), so a crafted link cannot sign the user into someone else's account.
+        val asked = S.s("pend_" + d.host, "0").toLongOrNull() ?: 0L
+        if (System.currentTimeMillis() - asked > 2 * 3600_000L) { i.data = null; return }
         val raw = d.encodedFragment ?: d.encodedQuery ?: ""
         i.data = null   // handled once: a rotate or re-create must not replay the link
         val m = raw.split("&").filter { it.contains("=") }.associate { it.substringBefore("=") to (try { java.net.URLDecoder.decode(it.substringAfter("="), "UTF-8") } catch (e: Exception) { "" }) }

@@ -49,7 +49,7 @@ object S {
     fun s(k: String, d: String = "") = sp?.getString(k, d) ?: d
     fun put(k: String, v: Any) { val e = sp?.edit() ?: return; when (v) { is Boolean -> e.putBoolean(k, v); is Float -> e.putFloat(k, v); is String -> e.putString(k, v) }; e.apply(); if (QUIET.none { k.startsWith(it) }) WavyFx.refresh() }
     // data caches and UI-only prefs: writing them must not reconfigure the audio chain (that was a source of stutter, and it ran on whatever thread saved)
-    private val QUIET = listOf("played_hist", "recent_tracks_", "feed_cache_", "home_feed_cache_", "taste_v1", "liked_", "hide_", "queue_locked", "feed_langs", "fname_", "fthumb_", "follow_", "fame_cache", "my_langs_", "mood_", "home_look", "lyric_style", "reel_vq", "party_theme_", "ui_font", "theme")
+    private val QUIET = listOf("pend_", "played_hist", "recent_tracks_", "feed_cache_", "home_feed_cache_", "taste_v1", "liked_", "hide_", "queue_locked", "feed_langs", "fname_", "fthumb_", "follow_", "fame_cache", "my_langs_", "mood_", "home_look", "lyric_style", "reel_vq", "party_theme_", "ui_font", "theme")
 }
 
 @Composable

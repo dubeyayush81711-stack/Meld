@@ -121,9 +121,11 @@ object Api {
         exec(Request.Builder().url("$URL/auth/v1/user").put(JSONObject().put("password", pw).toString().toRequestBody(JSON)), true)
     }
 
-    fun googleUrl(): String = "$URL/auth/v1/authorize?provider=google&redirect_to=" + java.net.URLEncoder.encode("com.wavy.app://login", "UTF-8")
+    fun googleUrl(): String { S.put("pend_login", System.currentTimeMillis().toString()); return googleUrl0() }
+    private fun googleUrl0(): String = "$URL/auth/v1/authorize?provider=google&redirect_to=" + java.net.URLEncoder.encode("com.wavy.app://login", "UTF-8")
 
     suspend fun recover(email: String) {
+        S.put("pend_reset", System.currentTimeMillis().toString())
         val req = Request.Builder().url("$URL/auth/v1/recover?redirect_to=" + java.net.URLEncoder.encode("com.wavy.app://reset", "UTF-8"))
             .post(JSONObject().put("email", email.trim()).toString().toRequestBody(JSON))
         exec(req, false)

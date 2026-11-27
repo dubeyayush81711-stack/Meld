@@ -554,7 +554,7 @@ fun SectionHeader(t: String) {
 
 @Composable
 fun BigCard(cover: String?, label: String, sub: String?, onClick: () -> Unit) {
-    Column(Modifier.width(216.dp).clickable(onClick = onClick)) {
+    Column(Modifier.width(216.dp).pressScale().clickable(onClick = onClick)) {
         Box {
             Cover(cover, 216.dp, 18, Modifier.height(122.dp).width(216.dp))
             Text(label, Modifier.align(Alignment.BottomStart).padding(9.dp).clip(RoundedCornerShape(11.dp)).background(Color(0x73140A1E)).border(0.7.dp, Color(0x40FFFFFF), RoundedCornerShape(11.dp)).padding(horizontal = 11.dp, vertical = 4.dp),
@@ -566,8 +566,8 @@ fun BigCard(cover: String?, label: String, sub: String?, onClick: () -> Unit) {
 
 @Composable
 fun MiniCard(cover: String?, title: String, sub: String, onClick: () -> Unit) {
-    Column(Modifier.width(148.dp).clickable(onClick = onClick)) {
-        Cover(cover, 148.dp, 18, Modifier.shadow(8.dp, RoundedCornerShape(18.dp)))
+    Column(Modifier.width(148.dp).pressScale().clickable(onClick = onClick)) {
+        Cover(cover, 148.dp, 18)
         Text(title, Modifier.padding(top = 8.dp), style = ts(13, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(sub, style = ts(11, color = Color(0x8CFFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
