@@ -209,7 +209,7 @@ fun NavBar(sel: Int, haze: dev.chrisbanes.haze.HazeState? = null, onDouble: (Int
     var lastTap by remember { mutableStateOf(-1 to 0L) }
     val hap = androidx.compose.ui.platform.LocalHapticFeedback.current
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().then(if (haze != null) Modifier.hazeBlur(input = dev.chrisbanes.haze.HazeInput.Sources(haze), style = dev.chrisbanes.haze.blur.HazeBlurStyle { blurRadius(64.dp) }) else Modifier).then(if (haze != null) Modifier.background(androidx.compose.ui.graphics.Brush.verticalGradient(0f to Color(0x00141019), 0.3f to Color(0xE6141019), 1f to Color(0xF0141019))) else Modifier.background(Color(0xEB141019)))) {
-        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(MiniTint.c.copy(alpha = if (MiniTint.c == Color.Transparent) 0f else 0.9f), MiniTint.c.copy(alpha = if (MiniTint.c == Color.Transparent) 0f else 0.78f)))))
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(MiniTint.c.copy(alpha = if (MiniTint.c == Color.Transparent) 0f else 0.55f), MiniTint.c.copy(alpha = if (MiniTint.c == Color.Transparent) 0f else 0.30f)))))
         val tabW = maxWidth / tabs.size
         val ind by androidx.compose.animation.core.animateDpAsState(tabW * sel + (tabW - 36.dp) / 2, androidx.compose.animation.core.spring(dampingRatio = 0.65f, stiffness = 420f), label = "ind")
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 6.dp, bottom = 8.dp)) {
@@ -254,11 +254,11 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
     val tintA by androidx.compose.animation.animateColorAsState(tint, label = "tint")
     SideEffect { MiniTint.c = tintA }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { MiniTint.c = Color.Transparent } }
-    val shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
+    val shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
     val spin by androidx.compose.animation.core.rememberInfiniteTransition(label = "spin").animateFloat(0f, 360f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(14000, easing = androidx.compose.animation.core.LinearEasing)), label = "sp")
     Box(Modifier.padding(horizontal = 11.dp).fillMaxWidth().height(62.dp).clip(shape)
         .background(Color(0xFF15111A)).background(Brush.linearGradient(listOf(tintA.copy(alpha = 0.92f), tintA.copy(alpha = 0.78f), tintA.copy(alpha = 0.92f)))).background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.10f), Color.Transparent)))
-        .border(0.8.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.34f), Color.Transparent)), shape).clickable(onClick = onOpen)) {
+        .border(0.8.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.34f), Color.White.copy(alpha = 0.10f))), shape).clickable(onClick = onOpen)) {
         Row(Modifier.fillMaxSize().padding(start = 9.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(m.thumbnailUrl?.let { u -> if ((u.contains("googleusercontent.com") || u.contains("ggpht.com")) && u.contains("=")) u.substringBeforeLast("=") + "=w192-h192-l90-rj" else u }, null, Modifier.size(45.dp).graphicsLayer { rotationZ = if (playing) spin else 0f }.clip(CircleShape).background(W.Card), contentScale = ContentScale.Crop)
             Column(Modifier.weight(1f).padding(horizontal = 11.dp)) {
