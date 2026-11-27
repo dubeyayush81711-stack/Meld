@@ -19,11 +19,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: mkdir -p ~/.android && cp .github/keys/debug.keystore ~/.android/debug.keystore
       - run: chmod +x gradlew
-      - run: ./gradlew --console=plain assembleFossDebug -x lint --warning-mode summary
+      - run: ./gradlew --console=plain assembleFossRelease -x lint --warning-mode summary
         env:
           METROLIST_APPLICATION_ID: com.wavy.app
           METROLIST_APP_NAME: Wavy
-      - run: mkdir -p apk && cp app/build/outputs/apk/foss/debug/*.apk apk/
+      - run: mkdir -p apk && cp app/build/outputs/apk/foss/release/*.apk apk/
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

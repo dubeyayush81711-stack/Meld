@@ -38,7 +38,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: mkdir -p ~/.android && cp .github/keys/debug.keystore ~/.android/debug.keystore
       - run: chmod +x gradlew
-      - run: ./gradlew --console=plain assembleFossRelease -x lint --warning-mode summary
+      - run: ./gradlew --console=plain assembleFossRelease -PwavyAbi=phone -x lint --warning-mode summary
         env:
           METROLIST_APPLICATION_ID: com.wavy.app
           METROLIST_APP_NAME: Wavy
