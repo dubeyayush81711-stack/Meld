@@ -76,10 +76,10 @@ fun HomeHead(title: String, sub: String? = null, onAll: (() -> Unit)? = null, ar
     Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             if (sub != null) Text(sub, style = ts(12, color = Color(0xB3FFFFFF)))
-            Text(title, style = ts(24, FontWeight.SemiBold, W.Pink), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, style = ts(22, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (onAll != null) Text("Play all", Modifier.clip(RoundedCornerShape(50)).border(1.dp, W.Pink, RoundedCornerShape(50)).clickable(onClick = onAll).padding(horizontal = 16.dp, vertical = 7.dp), style = ts(14, FontWeight.Medium, W.Pink))
-        if (arrow != null) Icon(painterResource(R.drawable.arrow_forward), null, Modifier.clip(CircleShape).clickable(onClick = arrow).padding(6.dp).size(24.dp), tint = W.Pink)
+        if (arrow != null) Icon(painterResource(R.drawable.arrow_forward), null, Modifier.clip(CircleShape).clickable(onClick = arrow).padding(6.dp).size(24.dp), tint = Color.White)
     }
 }
 
