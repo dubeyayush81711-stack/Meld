@@ -34,7 +34,8 @@ data class WavyTheme(val id: String, val name: String, val accent: Color, val ac
 /** Display choices. The default ("pink") is exactly the look Wavy already had, so nothing changes until a user picks something else. */
 object Theming {
     val themes = listOf(
-        WavyTheme("pink", "Wavy pink (default)", Color(0xFFFF2D78), Color(0xFF8E3BEA), Color(0xFF0B141A), "midnight"),
+        WavyTheme("pink", "Wavy violet (default)", Color(0xFF8B5CF6), Color(0xFF38BDF8), Color(0xFF0B141A), "midnight"),
+        WavyTheme("hotpink", "Hot pink (the old default)", Color(0xFFFF2D78), Color(0xFF8E3BEA), Color(0xFF0B141A), "midnight"),
         WavyTheme("midnight", "Midnight", Color(0xFFFF2D78), Color(0xFF8E3BEA), Color(0xFF121212), "midnight"),
         WavyTheme("aurora", "Aurora (colourful Home)", Color(0xFFFF2D78), Color(0xFF8E3BEA), Color(0xFF0B141A), "aurora"),
         WavyTheme("purple", "Purple", Color(0xFFA855F7), Color(0xFF6D28D9), Color(0xFF0B141A), "midnight"),

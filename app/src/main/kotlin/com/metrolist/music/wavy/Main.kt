@@ -299,7 +299,7 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
             Icon(painterResource(R.drawable.skip_next), null, Modifier.size(38.dp).pressScale().clip(CircleShape).clickable { pc.seekToNext() }.padding(7.dp), tint = Color.White)
         }
         Box(Modifier.align(Alignment.BottomStart).padding(horizontal = 18.dp).padding(bottom = 5.dp).fillMaxWidth().height(2.dp).clip(RoundedCornerShape(1.dp)).background(Color(0x2EFFFFFF))) {
-            Box(Modifier.fillMaxWidth((pos.toFloat() / dur.coerceAtLeast(1)).coerceIn(0f, 1f)).fillMaxHeight().background(Brush.horizontalGradient(listOf(Color(0xFFFF7FAE), Color(0xFFFF2D78)))))
+            Box(Modifier.fillMaxWidth((pos.toFloat() / dur.coerceAtLeast(1)).coerceIn(0f, 1f)).fillMaxHeight().background(Brush.horizontalGradient(listOf(Theming.cur().accent2, Theming.cur().accent))))
         }
     }
 }
@@ -458,7 +458,7 @@ fun Hero(f: Feed, pc: PlayerConnection?) {
                 Text(s.title, Modifier.padding(top = 6.dp), style = ts(16, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(s.tracks.take(3).joinToString(", ") { it.artist }, style = ts(12, color = Color(0xFFB9B2C4)), maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            Box(Modifier.size(50.dp).clip(CircleShape).background(Brush.verticalGradient(listOf(Color(0xFFFF4F97), Color(0xFFFF2D78)))), contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.play), null, Modifier.size(24.dp), tint = Color.White) }
+            Box(Modifier.size(50.dp).clip(CircleShape).background(Brush.verticalGradient(listOf(W.Pink, W.Pink2))), contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.play), null, Modifier.size(24.dp), tint = Color.White) }
         }
     }
     Spacer(Modifier.height(26.dp))
