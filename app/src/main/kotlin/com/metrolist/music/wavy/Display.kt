@@ -131,7 +131,7 @@ object Wallpaper {
         val bmp = c.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }) }
         if (bmp == null) false else { file(c).outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 82, it) }; version++; true }
     } catch (t: Throwable) { false }
-    fun clear(c: Context) { file(c).delete(); version++ }
+    fun clear(c: Context) { file(c).delete(); S.put("wp_places", "home"); S.put("wp_blur", "0.25"); version++ }
     fun places(@Suppress("UNUSED_PARAMETER") v: Int): Set<String> = S.s("wp_places", "home").split(',').filter { it.isNotBlank() }.toSet()
     fun toggle(p: String) { val s = places(0).toMutableSet(); if (!s.add(p)) s.remove(p); S.put("wp_places", s.joinToString(",")); version++ }
 }
@@ -156,7 +156,7 @@ fun WallpaperSettings() {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val v = Wallpaper.version
     val pick = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) { val ok = Wallpaper.import(ctx, uri); if (ok && Theming.cur().id == "leonida") S.put("wp_places", "home,search,library,player"); android.widget.Toast.makeText(ctx, if (ok) "Wallpaper set on Home" else "Could not use that photo.", android.widget.Toast.LENGTH_SHORT).show() }
+        if (uri != null) { val ok = Wallpaper.import(ctx, uri); if (ok) S.put("wp_places", "home,search,library,player,party"); android.widget.Toast.makeText(ctx, if (ok) "Wallpaper set on Home" else "Could not use that photo.", android.widget.Toast.LENGTH_SHORT).show() }
     }
     SNav("Custom background", if (Wallpaper.has(ctx)) "Your photo, stored only on this phone. Tap to change." else "Pick any photo from your gallery. It stays on this phone.") { pick.launch("image/*") }
     if (v >= 0 && Wallpaper.has(ctx)) {
@@ -165,7 +165,7 @@ fun WallpaperSettings() {
             SNav("Show on $l", if (k in on) "On. Tap to turn off." else "Off. Tap to turn on.") { Wallpaper.toggle(k) }
         }
         SSlider("Blur: " + (Wallpaper.blur(v) * 100).toInt() + "%", Wallpaper.blur(v)) { Wallpaper.setBlur(it) }
-        SNav("Remove wallpaper", "Go back to the plain background") { Wallpaper.clear(ctx) }
+        SNav("Reset background", "Remove your photo and go back to the theme background") { Wallpaper.clear(ctx) }
     }
 }
 
@@ -182,7 +182,7 @@ fun LeonidaBg(place: String) {
     }
     if (place != "party") {
         androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.wavy_leonida_bg), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Color(0x33000000)))
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Color(0x66000000)))
         return
     }
     androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(*stops.toTypedArray())))
