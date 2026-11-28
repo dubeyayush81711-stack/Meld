@@ -96,8 +96,11 @@ fun LoginScreen(onDone: (needsPicker: Boolean) -> Unit) {
         GoogleAuth.result.value = null
         if (r.third != null) { say(r.third!!); return@LaunchedEffect }
         busy = true
-        try { Api.setRemember(true); Api.oauthSession(r.first, r.second); busy = false; done(!onboardingDone()) }
-        catch (e: ApiError) { busy = false; say(humanErr(e)) } catch (e: Exception) { busy = false; say("Google sign-in failed. Check your connection.") }
+        // own coroutine: clearing result above restarts this effect, which used to cancel the sign-in half way and show the error toast
+        scope.launch {
+            try { Api.setRemember(true); Api.oauthSession(r.first, r.second); busy = false; done(!onboardingDone()) }
+            catch (e: ApiError) { busy = false; say(humanErr(e)) } catch (e: Exception) { busy = false; say("Google sign-in failed. Check your connection.") }
+        }
     }
     LoginUi(busy, toast, { e, p, r -> auth(e, p, r, false) }, { e, p, r -> auth(e, p, r, true) },
         { try { ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Api.googleUrl()))) } catch (e: Exception) { say("No browser found to open Google sign-in.") } },

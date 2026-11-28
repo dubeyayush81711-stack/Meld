@@ -535,7 +535,7 @@ fun LoginUi(busy: Boolean, toast: Pair<Int, String>?, onLogin: (String, String, 
             Text("New to Wavy? ", softWrap = false, style = TextStyle(fontFamily = Poppins, fontSize = c.sp(4.2f), color = Color.White))
             Text("SIGN UP", Modifier.pointerInput(busy) { detectTapGestures { if (!busy) {
                 val e = em.trim()
-                if (!emailOk.matches(e)) { badOn1 = true; bad1++; showToast("Type your email and a password above, then tap Sign up") }
+                if (!emailOk.matches(e)) { badOn1 = true; bad1++; showToast("Enter email and password first") }
                 else if (pw.length < 6) { badOn2 = true; bad2++; showToast("Password must be at least 6 characters") }
                 else onSignup(e, pw, rem) } } }, softWrap = false,
                 style = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.SemiBold, fontSize = c.sp(4.2f), color = PINK, letterSpacing = c.sp(.05f)))
