@@ -74,7 +74,11 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
     var sugg by remember { mutableStateOf<List<String>>(emptyList()) }
     var trending by remember { mutableStateOf<List<Track>>(emptyList()) }
     LaunchedEffect(Unit) {
-        try { trending = (Api.rpc("player_feed_ig", JSONObject().put("p_limit", 8).put("p_offset", 0).put("p_region", "IN").put("p_seed", "trend")) as? JSONArray).tracks() } catch (e: Exception) { }
+        // real chart rank (cross-list: YouTube Music + Instagram + Spotify India), best first, only the user's languages; re-read every 30 min while open
+        while (true) {
+            try { val got = LangGuard.filter((Api.rpc("player_trending", JSONObject().put("p_limit", 30).put("p_region", "IN")) as? JSONArray).tracks()).take(10); if (got.isNotEmpty()) trending = got } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+            kotlinx.coroutines.delay(30 * 60_000L)
+        }
     }
     val ctxS = androidx.compose.ui.platform.LocalContext.current
     var hist by remember { mutableStateOf(loadHistory(ctxS)) }

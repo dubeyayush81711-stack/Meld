@@ -36,6 +36,9 @@ suspend fun feedPage(titles: List<String>, offset: Int, seed: String): List<Trac
     return out
 }
 
+/** Manual refresh moves the language lists deeper (8 songs per press, wraps after 3) so the Refresh button brings songs that were not on screen before. */
+object FeedRot { @Volatile var n = 0; fun next() { n = (n + 1) % 4 } }
+
 private suspend fun rawPage(titles: List<String>, offset: Int, seed: String): List<Track> {
     if (titles.isEmpty()) return (Api.rpc("player_feed_ig", JSONObject().put("p_limit", 30).put("p_offset", offset).put("p_region", "IN").put("p_seed", seed)) as? JSONArray).tracks()
     val tiles = languageTiles()
@@ -43,7 +46,7 @@ private suspend fun rawPage(titles: List<String>, offset: Int, seed: String): Li
     if (codes.isEmpty()) return emptyList()
     val per = 24
     val lists = kotlinx.coroutines.coroutineScope {
-        codes.map { c -> async { try { kotlinx.coroutines.withTimeoutOrNull(8000) { (Api.rpc("language_top", JSONObject().put("p_lang", c).put("p_limit", per).put("p_offset", offset / codes.size)) as? JSONArray).tracks() } ?: emptyList() } catch (e: Exception) { emptyList() } } }.map { it.await() }
+        codes.map { c -> async { try { kotlinx.coroutines.withTimeoutOrNull(8000) { (Api.rpc("language_top", JSONObject().put("p_lang", c).put("p_limit", per).put("p_offset", offset / codes.size + FeedRot.n * 8)) as? JSONArray).tracks() } ?: emptyList() } catch (e: Exception) { emptyList() } } }.map { it.await() }
     }
     val out = ArrayList<Track>()
     for (i in 0 until per) for (l in lists) l.getOrNull(i)?.let { if (LangGuard.quality(it)) out.add(it) }

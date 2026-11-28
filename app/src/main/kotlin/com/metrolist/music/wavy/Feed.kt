@@ -185,6 +185,8 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean 
     var feedGen by remember { mutableIntStateOf(0) }
     var reloading by remember { mutableStateOf(false) }
     var langSkip by remember { mutableStateOf(true) }
+    var note by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(note) { if (note != null) { delay(2200); note = null } }
     LaunchedEffect(refreshN, langs) {
         var attempt = 0
         reloading = refreshN > 0 || !langSkip
@@ -192,10 +194,10 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean 
             try {
                 if (refreshN > 0 && attempt == 0) TasteProfile.invalidate()
                 val got = TasteProfile.blend(mixFollowed(feedPage(langs, 0, seed), followedSongs()), TasteProfile.recommendQuick())
-                if (got.isNotEmpty()) { if (refreshN > 0) { first = null; feedGen++ }; feed = got; err = null; saveFeedCache(langs.joinToString(","), got); break }
+                if (got.isNotEmpty()) { if (refreshN > 0) { first = null; feedGen++; note = "Songs updated" }; feed = got; err = null; saveFeedCache(langs.joinToString(","), got); break }
                 if (feed.isNotEmpty() && refreshN == 0) break
             } catch (e: ApiError) { err = humanErr(e) } catch (e: Exception) { err = "No connection. Retrying..." }
-            attempt++; if (attempt >= 4) { if (feed.isEmpty()) err = err ?: "Could not load songs. Pull down to try again."; break }
+            attempt++; if (attempt >= 4) { if (refreshN > 0) note = "Could not update. Try again."; if (feed.isEmpty()) err = err ?: "Could not load songs. Pull down to try again."; break }
             delay(1200L * attempt)
         }
         reloading = false
@@ -232,8 +234,8 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean 
             loadingMore = false
         }
     }
-    LaunchedEffect(MusicRefresh.n) { if (MusicRefresh.n > 0) { seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; first = null; refreshN++ } }
-    LaunchedEffect(langs) { if (langSkip) langSkip = false else { seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; first = null; refreshN++ } }
+    LaunchedEffect(MusicRefresh.n) { if (MusicRefresh.n > 0) { FeedRot.next(); seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; first = null; refreshN++ } }
+    LaunchedEffect(langs) { if (langSkip) langSkip = false else { FeedRot.next(); seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; first = null; refreshN++ } }
     LaunchedEffect(refreshN) { if (refreshN > 0) { lastDriven = 0; pager.scrollToPage(0) } }
     // when the song changes by itself (auto next, notification, screen off/on), the pager follows it; it never forces a song
     LaunchedEffect(meta?.id, first?.id, tracks.size) {
@@ -390,7 +392,7 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                         Icon(painterResource(R.drawable.expand_more), null, Modifier.size(22.dp), tint = Color.White)
                     }
                     Spacer(Modifier.weight(1f))
-                    Icon(painterResource(R.drawable.refresh), null, Modifier.clickable(enabled = !reloading) { seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; first = null; refreshN++ }.padding(8.dp).size(24.dp), tint = if (reloading) W.Pink else Color.White)
+                    Icon(painterResource(R.drawable.refresh), null, Modifier.clickable(enabled = !reloading) { FeedRot.next(); seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; first = null; refreshN++ }.padding(8.dp).size(24.dp), tint = if (reloading) W.Pink else Color.White)
                     Icon(painterResource(R.drawable.search), null, Modifier.clickable { onSearch() }.padding(8.dp).size(24.dp), tint = Color.White)
                     Icon(painterResource(R.drawable.more_vert), null, Modifier.clickable { showFx = true }.padding(8.dp).size(24.dp), tint = Color.White)
                 }
@@ -415,6 +417,7 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                 }
             }
         }
+        note?.let { n -> Text(n, Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 64.dp).clip(RoundedCornerShape(50)).background(Color(0xCC14080F)).padding(horizontal = 16.dp, vertical = 7.dp), style = ts(13, FontWeight.Medium)) }
         if (reloading) Text("Updating songs...", Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 64.dp).clip(RoundedCornerShape(50)).background(Color(0xCC14080F)).padding(horizontal = 16.dp, vertical = 7.dp), style = ts(13, FontWeight.Medium))
         var cutOpen by remember { mutableStateOf(false) }
         if (cutOpen) { val ct0 = tracks.getOrNull(pager.currentPage); if (ct0 != null) RingtoneCutter(ct0, pc) { cutOpen = false } }
