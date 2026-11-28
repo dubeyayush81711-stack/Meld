@@ -47,7 +47,7 @@ rec_stop 03_search
 rec_start 04_library
 tapt '^Library$'; sleep 3; snap s8_library
 rec_stop 04_library
-for T in 'Home' 'Search' 'Music' 'Your Library'; do tapt "^$T\$" ; sleep 4; n=$(echo $T|tr -d ' '); snap tab_${n}_0; swipe_up; sleep 2; snap tab_${n}_1; swipe_up; sleep 2; snap tab_${n}_2; done
+for T in 'Home:135' 'Search:405' 'Music:675' 'Your Library:945'; do X=${T##*:}; T=${T%%:*}; tap $X 2100; sleep 4; n=$(echo $T|tr -d ' '); snap tab_${n}_0; swipe_up; sleep 2; snap tab_${n}_1; swipe_up; sleep 2; snap tab_${n}_2; done
 rec_start 05_search_play
 tapt '^Search$'; sleep 3
 c=$(python3 .github/demo/ui.py edit 0) && { tap $c; sleep 1; typeslow "kesariya"; sleep 1; adb shell input keyevent 66; }
