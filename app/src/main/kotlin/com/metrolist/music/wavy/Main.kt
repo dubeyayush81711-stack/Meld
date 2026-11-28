@@ -399,6 +399,8 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                 if (cat == "All") { item { RecentList(pc) } }
                 if (f != null) item { Hero(f, pc) }
                 if (f != null && cat == "All") item { ForYouShelf(pc) }
+                if (cat == "All") item { BestOfShelf(pc) }
+                if (cat == "All") item { RelatedShelf(pc) }
                 if (f == null) item {
                     Box(Modifier.fillMaxWidth().padding(60.dp), contentAlignment = Alignment.Center) {
                         if (err != null) Column(horizontalAlignment = Alignment.CenterHorizontally) {
