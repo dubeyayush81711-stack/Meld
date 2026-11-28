@@ -54,5 +54,6 @@ c=$(python3 .github/demo/ui.py edit 0) && { tap $c; sleep 1; typeslow "kesariya"
 sleep 7; snap s9_results
 tapt 'Kesariya'; sleep 12; snap s10_player
 sleep 10; snap s11_player2
+tap 400 1963; sleep 4; snap p_full1; sleep 6; snap p_full2; adb shell input tap 540 1500; sleep 2; snap p_paused; adb shell input swipe 540 700 540 1600 400; sleep 2; snap p_pulled
 rec_stop 05_search_play
 adb logcat -d > dumps/logcat.txt; ls -la clips
