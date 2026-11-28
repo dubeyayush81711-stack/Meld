@@ -5,6 +5,7 @@ P=com.wavy.app
 rec_start(){ adb shell "screenrecord --time-limit 170 /sdcard/$1.mp4" & RP=$!; sleep 2; }
 rec_stop(){ adb shell pkill -2 screenrecord; sleep 3; wait $RP 2>/dev/null; adb pull /sdcard/$1.mp4 clips/$1.mp4 >/dev/null; }
 snap(){ adb exec-out screencap -p > dumps/$1.png; python3 .github/demo/ui.py find 'zzzz' >/dev/null 2>&1; adb exec-out cat /sdcard/u.xml > dumps/$1.xml 2>/dev/null; }
+typeslow(){ local s="$1"; adb shell input keyevent 123; for i in $(seq 1 40); do adb shell input keyevent 67; done; for ((i=0;i<${#s};i+=3)); do adb shell input text "${s:i:3}"; sleep 0.5; done; }
 tap(){ adb shell input tap $1 $2; }
 tapt(){ for i in 1 2 3 4 5 6; do c=$(python3 .github/demo/ui.py find "$1") && { tap $c; return 0; }; sleep 2; done; echo "NOT FOUND $1"; return 1; }
 swipe_up(){ adb shell input swipe 540 1700 540 600 700; }
@@ -20,10 +21,10 @@ for k in 1 2 3; do
   tapt 'Continue with email|Sign in with email|Email|Log in|Sign in' ; sleep 3
 done
 snap s2_login
-c=$(python3 .github/demo/ui.py edit 0) && { tap $c; sleep 1; adb shell input text "$DEMO_EMAIL"; sleep 1; }
-c=$(python3 .github/demo/ui.py edit 1) && { tap $c; sleep 1; adb shell input text "$DEMO_PASS"; sleep 1; }
+c=$(python3 .github/demo/ui.py edit 0) && { tap $c; sleep 1; typeslow "$DEMO_EMAIL"; sleep 1; }
+c=$(python3 .github/demo/ui.py edit 1) && { tap $c; sleep 1; typeslow "$DEMO_PASS"; sleep 1; }
 snap s3_filled
-adb shell input keyevent 66; sleep 14
+adb shell input keyevent 4; sleep 2; tapt '^Sign in$'; sleep 14
 snap s4_after_login
 for k in 1 2 3; do sleep 6; snap s5_wait$k; done
 rec_stop 01_login
@@ -42,7 +43,7 @@ tapt '^Library$'; sleep 3; snap s8_library
 rec_stop 04_library
 rec_start 05_search_play
 tapt '^Search$'; sleep 3
-c=$(python3 .github/demo/ui.py edit 0) && { tap $c; sleep 1; adb shell input text "kesariya"; sleep 1; adb shell input keyevent 66; }
+c=$(python3 .github/demo/ui.py edit 0) && { tap $c; sleep 1; typeslow "kesariya"; sleep 1; adb shell input keyevent 66; }
 sleep 7; snap s9_results
 tapt 'Kesariya'; sleep 12; snap s10_player
 sleep 10; snap s11_player2
