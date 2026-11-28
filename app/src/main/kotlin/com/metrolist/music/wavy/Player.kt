@@ -74,7 +74,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
     val scroll = rememberScrollState()
     var fullLy by remember { mutableStateOf<List<LyricLine>?>(null) }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(m?.id) { while (true) { pos = pc.player.currentPosition; delay(400) } }
+    LaunchedEffect(m?.id) { while (true) { pos = pc.player.currentPosition; delay(if (pc.player.isPlaying) 400 else 1000) } }
     val dur = pc.player.duration.takeIf { it > 0 } ?: ((m?.duration ?: 0) * 1000L)
     var tint by remember { mutableStateOf(Color(0xFF55091F)) }
     LaunchedEffect(m?.thumbnailUrl) {
@@ -118,7 +118,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             onDragCancel = { pullScope.launch { pullY.animateTo(0f) } }
         ) { _, d -> pullScope.launch { pullY.snapTo((pullY.value + d).coerceAtLeast(0f)) } } }) {
         WallpaperLayer("player")
-        Column(Modifier.fillMaxSize().then(if ((showQueue || showOpts || showAdv || fullLy != null)) Modifier.blur(20.dp) else Modifier).statusBarsPadding().navigationBarsPadding().verticalScroll(scroll).padding(horizontal = 22.dp)) {
+        Column(Modifier.fillMaxSize().then(if ((showQueue || showOpts || showAdv || fullLy != null) && !Reduce.on) Modifier.blur(20.dp) else Modifier).statusBarsPadding().navigationBarsPadding().verticalScroll(scroll).padding(horizontal = 22.dp)) {
             Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.expand_more), null, Modifier.size(34.dp).clickable(onClick = onClose), tint = Color.White)
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {

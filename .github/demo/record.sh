@@ -36,9 +36,9 @@ sleep 8; snap s5_home_first
 rec_stop 01_login
 # ---- home
 rec_start 02_home
-sleep 3; for i in 1 2 3 4 5 6; do swipe_up; sleep 2.5; done
+sleep 3; adb shell dumpsys gfxinfo com.wavy.app reset >/dev/null; for i in 1 2 3 4 5 6; do swipe_up; sleep 2.5; done
 for i in 1 2 3 4 5 6; do adb shell input swipe 540 600 540 1800 600; sleep 1.5; done
-snap s6_home
+adb shell dumpsys gfxinfo com.wavy.app | grep -E "Total frames|Janky|percentile" > dumps/gfx_home.txt; snap s6_home
 rec_stop 02_home
 # ---- nav probe
 rec_start 03_search
