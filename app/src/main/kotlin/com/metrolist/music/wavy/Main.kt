@@ -385,9 +385,9 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                     chill.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, chill, i, "Chill") } }
                 }
             } else {
-                if (cat == "All") { item { RecentList(pc) } }
-                if (cat == "All") item { PartyLive(onParty) }
                 if (cat == "All" && f != null) item { QuickTiles(f.favouritesId, tiles, onPlaylist, onParty, f.sections.firstOrNull { it.type == "made_for_you" && it.tracks.isNotEmpty() }?.let { m -> { playTracks(pc, m.tracks, 0, m.title) } }) }
+                if (cat == "All") item { PartyLive(onParty) }
+                if (cat == "All") { item { RecentList(pc) } }
                 if (f != null) item { Hero(f, pc) }
                 if (f != null && cat == "All") item { ForYouShelf(pc) }
                 if (f == null) item {
