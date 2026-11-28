@@ -117,6 +117,15 @@ suspend fun langArtists(code: String): List<ArtistItem> {
         raw.split(",", "&", " feat. ", " ft. ", " x ").map { it.trim().replace(Regex("\\s+"), " ") }.filter { it.length > 1 }.distinct().forEach { n ->
             val k = n.lowercase(); count[k] = (count[k] ?: 0) + 1; orig.putIfAbsent(k, n) }
     }
+    // International = the international chart minus every artist who also appears in the Hindi, Punjabi or South chart (backend chart data, so Indian artists stay out)
+    if (code == "international") {
+        val indian = HashSet<String>()
+        for (c in listOf("hindi", "punjabi", "south")) try {
+            val a = Api.rpc("language_top", JSONObject().put("p_lang", c).put("p_limit", 100).put("p_offset", 0)) as? JSONArray ?: continue
+            for (i in 0 until a.length()) a.getJSONObject(i).optString("artist").split(",", "&", " feat. ", " ft. ", " x ").forEach { indian.add(it.trim().replace(Regex("\\s+"), " ").lowercase()) }
+        } catch (e: Exception) { }
+        count.keys.removeAll(indian)
+    }
     val names = count.entries.sortedByDescending { it.value }.take(120).map { orig[it.key]!! }
     if (names.isEmpty()) return emptyList()
     val inList = names.joinToString(",") { "\"" + it.replace("\"", "") + "\"" }
@@ -132,6 +141,7 @@ fun ArtistPicker(taste: Taste?, onDone: () -> Unit) {
     val scope = rememberCoroutineScope()
     var q by remember { mutableStateOf("") }
     var limit by remember { mutableIntStateOf(30) }
+    var intlLimit by remember { mutableIntStateOf(30) }
     var artists by remember { mutableStateOf<List<ArtistItem>>(emptyList()) }
     val picked = remember { mutableStateListOf<String>() }
     var busy by remember { mutableStateOf(false) }; var err by remember { mutableStateOf<String?>(null) }
@@ -153,7 +163,7 @@ fun ArtistPicker(taste: Taste?, onDone: () -> Unit) {
             for (i in 0 until (ls.maxOfOrNull { it.size } ?: 0)) ls.forEach { l -> l.getOrNull(i)?.let { out.add(it) } }
             out
         }
-        src.distinctBy { it.id }.ifEmpty { if (codes.any { byLang[it] == null }) emptyList() else artists }
+        src.distinctBy { it.id }.ifEmpty { if (codes.any { byLang[it] == null }) emptyList() else artists }.let { l -> if (chip == "international") l.take(intlLimit) else l }
     }
     Box(Modifier.fillMaxSize().background(W.Bg)) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
@@ -189,6 +199,10 @@ fun ArtistPicker(taste: Taste?, onDone: () -> Unit) {
                             Spacer(Modifier.height(8.dp))
                             Text(a.name, style = ts(14, FontWeight.SemiBold), textAlign = TextAlign.Center, maxLines = 2)
                         }
+                    }
+                    if (langMode && chip == "international" && (byLang["international"]?.size ?: 0) > intlLimit) item {
+                        Box(Modifier.size(104.dp).clip(CircleShape).background(W.Pink).clickable { intlLimit += 30 }, contentAlignment = Alignment.Center) {
+                            Text("Show\nmore", style = ts(16, FontWeight.SemiBold), textAlign = TextAlign.Center) }
                     }
                     if (!langMode && q.isEmpty() && artists.size >= limit) item {
                         Box(Modifier.size(104.dp).clip(CircleShape).background(W.Pink).clickable { limit += 30 }, contentAlignment = Alignment.Center) {

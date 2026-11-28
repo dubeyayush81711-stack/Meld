@@ -332,8 +332,11 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                 .map { Triple(it.getLong("id"), it.optString("name"), if (it.isNull("cover_url")) null else it.optString("cover_url")) }
         } catch (e: Exception) { }
     }
-    LaunchedEffect(cat) {
-        if (cat == "Chill" && chill.isEmpty()) try { chill = (Api.rpc("search_all", JSONObject().put("p_q", "chill").put("p_limit", 30)) as? JSONObject)?.optJSONArray("songs").tracks() } catch (e: Exception) { }
+    var chillTry by remember { mutableIntStateOf(0) }
+    var chillFail by remember { mutableStateOf(false) }
+    LaunchedEffect(cat, chillTry) {
+        if (cat == "Chill" && chill.isEmpty()) { chillFail = false
+            try { chill = LangGuard.filter((Api.rpc("search_all", JSONObject().put("p_q", "chill").put("p_limit", 30)) as? JSONObject)?.optJSONArray("songs").tracks()); if (chill.isEmpty()) chillFail = true } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { chillFail = true } }
     }
     val st = rememberLazyListState()
     val shift = if (st.firstVisibleItemIndex == 0) st.firstVisibleItemScrollOffset else 4000
@@ -377,7 +380,8 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
             if (cat == "Mood") item { MoodAgentTab(pc) } else if (cat == "Podcasts") item { PodcastsTab(pc) } else if (cat == "Chill") item {
                 Column {
                     Text("Chill", Modifier.padding(start = 20.dp, bottom = 12.dp), style = ts(24, FontWeight.SemiBold))
-                    if (chill.isEmpty()) Text("Loading...", Modifier.padding(24.dp), style = ts(14, color = W.Dim))
+                    if (chill.isEmpty() && !chillFail) Text("Loading...", Modifier.padding(24.dp), style = ts(14, color = W.Dim))
+                    if (chill.isEmpty() && chillFail) Text("Could not load chill songs. Tap to retry.", Modifier.padding(24.dp).clickable { chillTry++ }, style = ts(14, FontWeight.SemiBold, W.Pink))
                     chill.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, chill, i, "Chill") } }
                 }
             } else {

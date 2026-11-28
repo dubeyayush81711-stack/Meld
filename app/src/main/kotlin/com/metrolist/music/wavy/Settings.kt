@@ -228,7 +228,7 @@ fun AboutSettings(onBack: () -> Unit, go: (String) -> Unit = {}) {
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF1A1620)).padding(20.dp)) {
                 Text("Open-source licenses", style = ts(18, FontWeight.SemiBold))
                 Text("Wavy is free software under the GNU General Public License v3.0. It is built on the open-source Metrolist music player (GPL-3.0) and other open-source libraries (Apache-2.0 and MIT) such as Jetpack Compose, Media3, OkHttp and Coil. The full license text is in the LICENSE file of the source code.", Modifier.padding(top = 10.dp), style = ts(14, color = Color(0xFFD6CCD3)))
-                Text("Source code and license", Modifier.padding(top = 14.dp).clickable { try { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/dubeyayush81711-stack/Meld")).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) {} }, style = ts(15, FontWeight.SemiBold, W.Pink))
+                Text("Source code and license", Modifier.padding(top = 14.dp), style = ts(15, FontWeight.Medium, W.Dim))
             }
         }
         SNav("Talk with agent", "Ask how Wavy works or report a bug.") { go("support") }
