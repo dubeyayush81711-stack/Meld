@@ -464,8 +464,12 @@ fun Hero(f: Feed, pc: PlayerConnection?) {
 
 private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc: PlayerConnection?) {
     val first = f.sections.firstOrNull { it.type == "made_for_you" } ?: f.sections.firstOrNull { it.type == "trending" }
-    fun render(s: Section) {
-        if (s.type == "artist_mix" || (s === first) || S.b("hide_" + s.id)) return
+    // one song shows once on Home: later sections drop songs already shown above (kept as is if fewer than 4 would remain)
+    val shown = HashSet<String>(); first?.tracks?.forEach { shown.add(normKey(it)) }
+    fun dd(s: Section): Section { if (s.tracks.isEmpty()) return s; val fr = s.tracks.filter { normKey(it) !in shown }; val use = if (fr.size >= 4) fr else s.tracks; use.forEach { shown.add(normKey(it)) }; return if (use.size == s.tracks.size) s else s.copy(tracks = use) }
+    fun render(s0: Section) {
+        if (s0.type == "artist_mix" || (s0 === first) || S.b("hide_" + s0.id)) return
+        val s = dd(s0)
         when {
             s.albums.isNotEmpty() -> col(s.id) {
                 SectionHeader(s.title)
@@ -525,7 +529,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc
     ml.getOrNull(0)?.let { render(it) }
     arts.getOrNull(0)?.let { render(it) }
     col { MoodsGrid(pc) }
-    if (trend != null && trend.tracks.size >= 3) col(trend.id) { PagedTracks("Hot for you", trend.tracks, pc, "Updated daily") }
+    val trendD = trend?.let { dd(it) }
+    if (trendD != null && trendD.tracks.size >= 3) col(trendD.id) { PagedTracks("Hot for you", trendD.tracks, pc, "Updated daily") }
     if (!S.b("hide_mood_top")) col { MoodRow("Biggest in India", "top", pc) }
     ml.getOrNull(1)?.let { render(it) }
     col { LiveRow(pc) }
