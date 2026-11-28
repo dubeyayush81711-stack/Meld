@@ -44,6 +44,7 @@ object Theming {
         WavyTheme("red", "Red", Color(0xFFEF4444), Color(0xFFB91C1C), Color(0xFF0B141A), "midnight"),
         WavyTheme("teal", "Teal", Color(0xFF14B8A6), Color(0xFF0F766E), Color(0xFF0B141A), "midnight"),
         WavyTheme("vice", "Vice (neon sunset)", Color(0xFFF76685), Color(0xFFFFA948), Color(0xFF120A1F), "aurora", Color(0xFF231338), Color(0xF51A0F2B), Color(0xFF0A0512)),
+        WavyTheme("leonida", "Leonida Sunset (GTA 6 style)", Color(0xFFFF4F8B), Color(0xFFFF9A3C), Color(0xFF1A0B2E), "aurora", Color(0xFF2A1240), Color(0xF5200E38), Color(0xFF0E0618)),
         WavyTheme("blackorange", "Black and orange", Color(0xFFFF7A1A), Color(0xFFC2410C), Color(0xFF000000), "midnight"),
     )
     private var loaded = false
@@ -52,7 +53,7 @@ object Theming {
     private fun load() { if (loaded) return; val sp = S.s("theme", ""); if (sp.isNotEmpty() || S.s("ui_font", "").isNotEmpty() || true) { loaded = true; themeId.value = S.s("theme", "pink"); fontId.value = S.s("ui_font", "figtree") } }
     fun cur(): WavyTheme { load(); return themes.firstOrNull { it.id == themeId.value } ?: themes[0] }
     fun fontKey(): String { load(); return fontId.value }
-    fun setTheme(t: WavyTheme) { load(); themeId.value = t.id; S.put("theme", t.id); S.put("home_look", t.home); if (t.id == "vice") setFont("outfit") }
+    fun setTheme(t: WavyTheme) { load(); themeId.value = t.id; S.put("theme", t.id); S.put("home_look", t.home); if (t.id == "vice" || t.id == "leonida") setFont("outfit") }
     fun setFont(id: String) { load(); fontId.value = id; S.put("ui_font", id) }
     fun reset() { setTheme(themes[0]); setFont("figtree") }
 
@@ -86,7 +87,7 @@ fun DisplaySettings(onBack: () -> Unit) {
             Row(Modifier.padding(start = 20.dp, top = 6.dp)) {
                 Text("\u25CF  ", style = ts(18, color = t.accent))
             }
-            SRadio(t.name, if (t.id == "aurora") "The colourful Home you had before." else if (t.id == "midnight") "Dark grey, calm and clean." else if (t.id == "vice") "Neon pink and sunset orange on deep purple, bold type." else "", sel == t.id) { Theming.setTheme(t) }
+            SRadio(t.name, if (t.id == "aurora") "The colourful Home you had before." else if (t.id == "midnight") "Dark grey, calm and clean." else if (t.id == "leonida") "Hot pink to orange sunset, teal glow, warm night purple. A different mood on every screen. Own colours, inspired by the Vice City look." else if (t.id == "vice") "Neon pink and sunset orange on deep purple, bold type." else "", sel == t.id) { Theming.setTheme(t) }
         }
         SSection("Font")
         Theming.fonts.forEach { (id, name) ->
@@ -128,6 +129,7 @@ object Wallpaper {
 
 @Composable
 fun WallpaperLayer(place: String = "home") {
+    if (Theming.cur().id == "leonida") { LeonidaBg(place); return }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val v = Wallpaper.version
     val bmp by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, v) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Wallpaper.load(ctx)?.asImageBitmap() } }
@@ -152,4 +154,20 @@ fun WallpaperSettings() {
         }
         SNav("Remove wallpaper", "Go back to the plain background") { Wallpaper.clear(ctx) }
     }
+}
+
+
+/** Leonida Sunset: each screen gets its own sunset mood from plain gradients (cheap to draw on a slow phone). Own colours only. */
+@Composable
+fun LeonidaBg(place: String) {
+    val stops: List<Pair<Float, Color>> = when (place) {
+        "search" -> listOf(0f to Color(0xFF0F2B3D), .45f to Color(0xFF2B1650), 1f to Color(0xFF1A0B2E))
+        "library" -> listOf(0f to Color(0xFF3A0F4D), .5f to Color(0xFF7A1C5E), 1f to Color(0xFF1A0B2E))
+        "player" -> listOf(0f to Color(0xFF2B1650), .5f to Color(0xFFB8265F), 1f to Color(0xFFFF8A3D))
+        "party" -> listOf(0f to Color(0xFF0E3B46), .5f to Color(0xFF8A1E6B), 1f to Color(0xFFFF4F8B))
+        else -> listOf(0f to Color(0xFF1A0B2E), .55f to Color(0xFF5A1A5E), 1f to Color(0xFFFF6A5C))
+    }
+    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(*stops.toTypedArray())))
+    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.radialGradient(listOf(Color(0x3300E5D0), Color.Transparent), center = androidx.compose.ui.geometry.Offset(0f, 0f), radius = 900f)))
+    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Color(0x66000000)))
 }
