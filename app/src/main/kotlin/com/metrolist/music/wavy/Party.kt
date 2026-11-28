@@ -249,6 +249,11 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                     }
                     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 24.dp)) {
                         if (q.length >= 2) items(found) { t -> TrackRow(t, null) { scope.launch { try { call("party_add_external_song", "p_party" to pid, "p_video_id" to t.id, "p_title" to t.title, "p_artist" to t.artist, "p_cover" to (t.cover ?: ""), "p_dur" to t.dur); q = ""; tick++ } catch (e: Exception) { Toast.makeText(ctx, humanErr(e), Toast.LENGTH_SHORT).show() } } } }
+                        else if (queue.length() == 0) item { Column(Modifier.fillMaxWidth().padding(top = 36.dp, start = 32.dp, end = 32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(painterResource(R.drawable.queue_music), null, Modifier.size(56.dp), tint = Color(0x66FFFFFF))
+                            Text("The queue is empty", Modifier.padding(top = 14.dp), style = ts(18, FontWeight.SemiBold))
+                            Text("Search a song above, or add one of your playlists. Everyone in the room can vote on what plays next.", Modifier.padding(top = 6.dp), style = ts(13, color = Color(0xFFCFC8D9)), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        } }
                         else items((0 until queue.length()).map { queue.getJSONObject(it) }) { it2 ->
                             val t = it2.getJSONObject("track").toTrack(); val id = it2.optLong("id")
                             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -364,7 +369,7 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                     }
                 }
             }
-            if (tab != 1) Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 168.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+            if (tab != 1) Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                 @Composable fun Ctl(icon: Int, label: String, on: Boolean = false, red: Boolean = false, click: () -> Unit) = Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.size(54.dp).clip(CircleShape).background(if (red) Color(0xFFE5354F) else if (on) W.Pink else Color(0x33FFFFFF)).clickable(onClick = click), contentAlignment = Alignment.Center) { Icon(painterResource(icon), null, Modifier.size(26.dp), tint = Color.White) }
                     Text(label, Modifier.padding(top = 4.dp), style = ts(11, color = Color(0xFFCFC8D9))) }
@@ -429,14 +434,14 @@ fun RoomPill(onGo: () -> Unit) {
     val ps = PartyState
     androidx.compose.animation.AnimatedVisibility(ps.active, enter = androidx.compose.animation.slideInVertically(androidx.compose.animation.core.spring(0.75f, 420f)) { -it } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(180)),
         exit = androidx.compose.animation.slideOutVertically(androidx.compose.animation.core.tween(200)) { -it } + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(150))) {
-        Box(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 6.dp, start = 12.dp, end = 12.dp), contentAlignment = Alignment.TopCenter) {
-            Row(Modifier.widthIn(max = 380.dp).fillMaxWidth().height(52.dp).clip(RoundedCornerShape(26.dp)).background(Color.Black).clickable(onClick = onGo).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                coil3.compose.AsyncImage(ps.thumb, null, Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0x22FFFFFF)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+        Box(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 2.dp, start = 12.dp, end = 12.dp), contentAlignment = Alignment.TopCenter) {
+            Row(Modifier.widthIn(max = 300.dp).fillMaxWidth().height(38.dp).clip(RoundedCornerShape(19.dp)).background(Color.Black).clickable(onClick = onGo).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                coil3.compose.AsyncImage(ps.thumb, null, Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0x22FFFFFF)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                 Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                    Text(if (ps.title.isEmpty()) "Party room" else ps.title, style = ts(13, androidx.compose.ui.text.font.FontWeight.SemiBold), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                    Text((if (ps.playing) "Playing" else "Paused") + " · " + ps.members + " in room" + (if (ps.artist.isNotEmpty()) " · " + ps.artist else ""), style = ts(11, color = Color(0xFFB9B2C4)), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text(if (ps.title.isEmpty()) "Party room" else ps.title, style = ts(12, androidx.compose.ui.text.font.FontWeight.SemiBold), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text((if (ps.playing) "Playing" else "Paused") + " · " + ps.members + " in room", style = ts(10, color = Color(0xFFB9B2C4)), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 }
-                Text("Go to room", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).padding(horizontal = 10.dp, vertical = 6.dp), style = ts(11, androidx.compose.ui.text.font.FontWeight.SemiBold))
+                Text("Open", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).padding(horizontal = 10.dp, vertical = 4.dp), style = ts(11, androidx.compose.ui.text.font.FontWeight.SemiBold))
             }
         }
     }
