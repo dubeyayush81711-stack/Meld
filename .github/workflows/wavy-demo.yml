@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Download released APK
-        run: curl -sL -o wavy.apk "https://github.com/dubeyayush81711-stack/Meld/releases/download/wavy-test-139/Wavy-test-139.apk" && ls -la wavy.apk
+        run: curl -sL -o wavy.apk "https://github.com/dubeyayush81711-stack/Meld/releases/download/wavy-test-146/Wavy-test-146.apk" && ls -la wavy.apk
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
