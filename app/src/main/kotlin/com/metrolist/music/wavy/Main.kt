@@ -177,7 +177,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
                 MusicFeed(pc, onSearch = { tab = 1 }, active = tab == 2)
                 if (tab != 2) Box(Modifier.fillMaxSize().pointerInput(Unit) {})
             }
-            AnimatedContent(tab, transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(160)) }, label = "tab") { t ->
+            AnimatedContent(tab, transitionSpec = { (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { w -> if (targetState > initialState) w / 7 else -w / 7 }) togetherWith (fadeOut(tween(140)) + slideOutHorizontally(tween(260)) { w -> if (targetState > initialState) -w / 7 else w / 7 }) }, label = "tab") { t ->
                 when (t) {
                     0 -> HomeScreen(pc, onSearch = { tab = 1 }, onSignOut = onSignOut, onProfile = { page = "editprofile" }, onParty = { page = "party" }, onSettings = { page = "set:hub" }, onPlaylist = { id, n -> page = "pl:$id:$n" })
                     1 -> SearchScreen(pc, onLang = { l -> page = "lang:" + l.lang + ":" + l.title }, onProfile = { page = "editprofile" }, initial = "")
@@ -226,7 +226,7 @@ if (!chat && !(PartyState.full && page == "party")) NavBar(tab, haze, onDouble =
         if (meta != null && pc != null && tab != 2 && !full && (page == "agent" || page == "support")) IslandPill(pc) { page = null; full = false; tab = 2 }
         SideEffect { PartyState.foreground = (page == "party") }
         if (PartyState.active && page != "party" && !full) { RoomPill { page = "party"; full = false }; Box(Modifier.size(0.dp)) { PartyScreen(pc) { page = null } } }
-        AnimatedVisibility(full && pc != null, enter = slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(200)),
+        AnimatedVisibility(full && pc != null, enter = slideInVertically(androidx.compose.animation.core.spring(0.86f, 380f)) { it } + fadeIn(tween(200)),
             exit = slideOutVertically(tween(300)) { it } + fadeOut(tween(200))) {
             if (pc != null) PlayerScreen(pc) { full = false }
         }
