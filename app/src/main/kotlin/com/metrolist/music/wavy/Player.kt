@@ -94,6 +94,8 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
     val pullY = remember { androidx.compose.animation.core.Animatable(0f) }
     val pullScope = rememberCoroutineScope()
     // the content column scrolls and eats vertical drags, so the pull-down is also caught as leftover scroll at the top (works from the art area and anywhere on the page)
+    val sheetOpenNow by rememberUpdatedState(showQueue || showOpts || showAdv || fullLy != null)
+    val closeNow by rememberUpdatedState(onClose)
     val pullNsc = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
@@ -101,11 +103,11 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                 return androidx.compose.ui.geometry.Offset.Zero
             }
             override fun onPostScroll(consumed: androidx.compose.ui.geometry.Offset, available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
-                if (available.y > 0f && source == NestedScrollSource.Drag) { val n = pullY.value + available.y; pullScope.launch(start = CoroutineStart.UNDISPATCHED) { pullY.snapTo(n) }; return androidx.compose.ui.geometry.Offset(0f, available.y) }
+                if (!sheetOpenNow && available.y > 0f && source == NestedScrollSource.Drag) { val n = pullY.value + available.y; pullScope.launch(start = CoroutineStart.UNDISPATCHED) { pullY.snapTo(n) }; return androidx.compose.ui.geometry.Offset(0f, available.y) }
                 return androidx.compose.ui.geometry.Offset.Zero
             }
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (pullY.value > 0f) { if (pullY.value > 160f || available.y > 1800f) onClose() else pullY.animateTo(0f, androidx.compose.animation.core.spring(0.8f, 400f)); return available }
+                if (pullY.value > 0f) { if (pullY.value > 160f || available.y > 1800f) closeNow() else pullY.animateTo(0f, androidx.compose.animation.core.spring(0.8f, 400f)); return available }
                 return Velocity.Zero
             }
         }
