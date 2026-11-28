@@ -22,9 +22,8 @@ done
 snap s2_login
 c=$(python3 .github/demo/ui.py edit 0) && { tap $c; sleep 1; adb shell input text "$DEMO_EMAIL"; sleep 1; }
 c=$(python3 .github/demo/ui.py edit 1) && { tap $c; sleep 1; adb shell input text "$DEMO_PASS"; sleep 1; }
-adb shell input keyevent 111 >/dev/null 2>&1
 snap s3_filled
-tapt '^Sign in$'; sleep 12
+adb shell input keyevent 66; sleep 14
 snap s4_after_login
 for k in 1 2 3; do sleep 6; snap s5_wait$k; done
 rec_stop 01_login
@@ -41,4 +40,11 @@ rec_stop 03_search
 rec_start 04_library
 tapt '^Library$'; sleep 3; snap s8_library
 rec_stop 04_library
+rec_start 05_search_play
+tapt '^Search$'; sleep 3
+c=$(python3 .github/demo/ui.py edit 0) && { tap $c; sleep 1; adb shell input text "kesariya"; sleep 1; adb shell input keyevent 66; }
+sleep 7; snap s9_results
+tapt 'Kesariya'; sleep 12; snap s10_player
+sleep 10; snap s11_player2
+rec_stop 05_search_play
 adb logcat -d > dumps/logcat.txt; ls -la clips
