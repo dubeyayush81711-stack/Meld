@@ -127,7 +127,9 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                 Icon(painterResource(R.drawable.tune), null, Modifier.size(30.dp).clickable { showOpts = true }, tint = Color.White)
             }
             Spacer(Modifier.height(10.dp))
-            Box(Modifier.fillMaxWidth().glass(RoundedCornerShape(26.dp), 1f).padding(6.dp)) {
+            // Apple Music behaviour: the art shrinks a little when paused and springs back to full size on play
+            val artScale by androidx.compose.animation.core.animateFloatAsState(if (playing) 1f else 0.88f, androidx.compose.animation.core.spring(0.55f, 260f), label = "artScale")
+            Box(Modifier.fillMaxWidth().graphicsLayer { scaleX = artScale; scaleY = artScale }.glass(RoundedCornerShape(26.dp), 1f).padding(6.dp)) {
                 AsyncImage(hiRes(m?.thumbnailUrl), null, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(20.dp)).background(W.Card), contentScale = ContentScale.Crop)
             }
             Spacer(Modifier.height(26.dp))

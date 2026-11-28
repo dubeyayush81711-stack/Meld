@@ -115,6 +115,15 @@ object Wallpaper {
     private fun file(c: Context) = java.io.File(c.filesDir, "wallpaper.jpg")
     fun has(c: Context) = file(c).exists()
     fun load(c: Context): android.graphics.Bitmap? = try { file(c).takeIf { it.exists() }?.let { android.graphics.BitmapFactory.decodeFile(it.path) } } catch (t: Throwable) { null }
+    fun blur(@Suppress("UNUSED_PARAMETER") v: Int): Float = S.s("wp_blur", "0.25").toFloatOrNull()?.coerceIn(0f, 1f) ?: 0.25f
+    fun setBlur(x: Float) { S.put("wp_blur", "%.2f".format(java.util.Locale.US, x)); version++ }
+    /** blur = shrink then let the GPU stretch it back (bilinear): cheap on a slow phone, approximate look */
+    fun loadBlurred(c: Context, b: Float): android.graphics.Bitmap? {
+        val src = load(c) ?: return null
+        if (b <= 0.01f) return src
+        val f = 1f / (1f + b * 14f)
+        return android.graphics.Bitmap.createScaledBitmap(src, maxOf(8, (src.width * f).toInt()), maxOf(8, (src.height * f).toInt()), true)
+    }
     fun import(c: Context, uri: android.net.Uri): Boolean = try {
         val o = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
         c.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, o) }
@@ -129,14 +138,17 @@ object Wallpaper {
 
 @Composable
 fun WallpaperLayer(place: String = "home") {
-    if (Theming.cur().id == "leonida") { LeonidaBg(place); return }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val v = Wallpaper.version
-    val bmp by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, v) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Wallpaper.load(ctx)?.asImageBitmap() } }
-    val b = bmp ?: return
-    if (place !in Wallpaper.places(v)) return
-    androidx.compose.foundation.Image(b, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Color(0xB3000000)))
+    val bl = Wallpaper.blur(v)
+    val bmp by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, v, bl) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Wallpaper.loadBlurred(ctx, bl)?.asImageBitmap() } }
+    val b = bmp
+    if (b != null && place in Wallpaper.places(v)) {
+        androidx.compose.foundation.Image(b, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Color(0xB3000000)))
+        return
+    }
+    if (Theming.cur().id == "leonida") LeonidaBg(place)
 }
 
 @Composable
@@ -144,14 +156,15 @@ fun WallpaperSettings() {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val v = Wallpaper.version
     val pick = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) { val ok = Wallpaper.import(ctx, uri); android.widget.Toast.makeText(ctx, if (ok) "Wallpaper set on Home" else "Could not use that photo.", android.widget.Toast.LENGTH_SHORT).show() }
+        if (uri != null) { val ok = Wallpaper.import(ctx, uri); if (ok && Theming.cur().id == "leonida") S.put("wp_places", "home,search,library,player"); android.widget.Toast.makeText(ctx, if (ok) "Wallpaper set on Home" else "Could not use that photo.", android.widget.Toast.LENGTH_SHORT).show() }
     }
-    SNav("Home wallpaper", if (Wallpaper.has(ctx)) "Your photo is behind Home. Tap to change." else "Pick a photo from your gallery for Home.") { pick.launch("image/*") }
+    SNav("Custom background", if (Wallpaper.has(ctx)) "Your photo, stored only on this phone. Tap to change." else "Pick any photo from your gallery. It stays on this phone.") { pick.launch("image/*") }
     if (v >= 0 && Wallpaper.has(ctx)) {
         val on = Wallpaper.places(v)
         listOf("home" to "Home", "library" to "Your Library", "search" to "Search", "party" to "Party room", "player" to "Player").forEach { (k, l) ->
             SNav("Show on $l", if (k in on) "On. Tap to turn off." else "Off. Tap to turn on.") { Wallpaper.toggle(k) }
         }
+        SSlider("Blur: " + (Wallpaper.blur(v) * 100).toInt() + "%", Wallpaper.blur(v)) { Wallpaper.setBlur(it) }
         SNav("Remove wallpaper", "Go back to the plain background") { Wallpaper.clear(ctx) }
     }
 }
@@ -166,6 +179,11 @@ fun LeonidaBg(place: String) {
         "player" -> listOf(0f to Color(0xFF2B1650), .5f to Color(0xFFB8265F), 1f to Color(0xFFFF8A3D))
         "party" -> listOf(0f to Color(0xFF0E3B46), .5f to Color(0xFF8A1E6B), 1f to Color(0xFFFF4F8B))
         else -> listOf(0f to Color(0xFF1A0B2E), .55f to Color(0xFF5A1A5E), 1f to Color(0xFFFF6A5C))
+    }
+    if (place != "party") {
+        androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.wavy_leonida_bg), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Color(0x33000000)))
+        return
     }
     androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(*stops.toTypedArray())))
     androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.radialGradient(listOf(Color(0x3300E5D0), Color.Transparent), center = androidx.compose.ui.geometry.Offset(0f, 0f), radius = 900f)))
