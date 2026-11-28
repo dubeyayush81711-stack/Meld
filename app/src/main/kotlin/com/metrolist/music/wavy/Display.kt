@@ -156,12 +156,12 @@ fun WallpaperSettings() {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val v = Wallpaper.version
     val pick = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) { val ok = Wallpaper.import(ctx, uri); if (ok) S.put("wp_places", "home,search,library,player,party"); android.widget.Toast.makeText(ctx, if (ok) "Wallpaper set on Home" else "Could not use that photo.", android.widget.Toast.LENGTH_SHORT).show() }
+        if (uri != null) { val ok = Wallpaper.import(ctx, uri); if (ok) S.put("wp_places", "home,search,library,player,party,artist"); android.widget.Toast.makeText(ctx, if (ok) "Wallpaper set on Home" else "Could not use that photo.", android.widget.Toast.LENGTH_SHORT).show() }
     }
     SNav("Custom background", if (Wallpaper.has(ctx)) "Your photo, stored only on this phone. Tap to change." else "Pick any photo from your gallery. It stays on this phone.") { pick.launch("image/*") }
     if (v >= 0 && Wallpaper.has(ctx)) {
         val on = Wallpaper.places(v)
-        listOf("home" to "Home", "library" to "Your Library", "search" to "Search", "party" to "Party room", "player" to "Player").forEach { (k, l) ->
+        listOf("home" to "Home", "library" to "Your Library", "search" to "Search", "party" to "Party room", "player" to "Player", "artist" to "Artist page").forEach { (k, l) ->
             SNav("Show on $l", if (k in on) "On. Tap to turn off." else "Off. Tap to turn on.") { Wallpaper.toggle(k) }
         }
         SSlider("Blur: " + (Wallpaper.blur(v) * 100).toInt() + "%", Wallpaper.blur(v)) { Wallpaper.setBlur(it) }

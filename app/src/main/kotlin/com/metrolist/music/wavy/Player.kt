@@ -142,7 +142,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                 var plDlg by remember { mutableStateOf(false) }
                 LaunchedEffect(m?.id) { m?.id?.let { id -> val r = isLiked(id); if (r != null) { likedNow = r; S.put("liked_$id", r) } } }
                 Icon(painterResource(R.drawable.add), null, Modifier.padding(start = 12.dp).size(34.dp).clip(CircleShape).clickable { plDlg = true }.padding(4.dp), tint = Color.White)
-                Icon(painterResource(if (likedNow) R.drawable.favorite else R.drawable.favorite_border), null, Modifier.padding(start = 8.dp).size(38.dp).clip(CircleShape).clickable { m?.let { x ->
+                Icon(painterResource(if (likedNow) R.drawable.favorite else R.drawable.favorite_border), null, Modifier.padding(start = 8.dp).size(38.dp).pressScale().clip(CircleShape).clickable { m?.let { x ->
                     val want = !likedNow; likedNow = want; S.put("liked_${x.id}", want)
                     scope.launch { val ok = if (want) likeTrack(x.id) else unlikeTrack(x.id); if (!ok) { likedNow = !want; S.put("liked_${x.id}", !want) } } } }.padding(4.dp), tint = if (likedNow) W.Pink else Color.White)
                 if (plDlg && m != null) AddToPlaylistDialog(m.id) { plDlg = false }
@@ -157,12 +157,12 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             }
             Spacer(Modifier.height(22.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Icon(painterResource(R.drawable.shuffle), null, Modifier.size(34.dp).clickable { pc.player.shuffleModeEnabled = !shuffle }, tint = if (shuffle) W.Pink else Color.White)
-                Icon(painterResource(R.drawable.skip_previous), null, Modifier.size(44.dp).clickable { pc.seekToPrevious() }, tint = Color.White)
-                Box(Modifier.size(78.dp).clip(CircleShape).background(Color.White).clickable { pc.togglePlayPause() }, contentAlignment = Alignment.Center) {
+                Icon(painterResource(R.drawable.shuffle), null, Modifier.size(34.dp).pressScale().clickable { pc.player.shuffleModeEnabled = !shuffle }, tint = if (shuffle) W.Pink else Color.White)
+                Icon(painterResource(R.drawable.skip_previous), null, Modifier.size(44.dp).pressScale().clickable { pc.seekToPrevious() }, tint = Color.White)
+                Box(Modifier.size(78.dp).pressScale().clip(CircleShape).background(Color.White).clickable { pc.togglePlayPause() }, contentAlignment = Alignment.Center) {
                     Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(42.dp), tint = Color.Black) }
-                Icon(painterResource(R.drawable.skip_next), null, Modifier.size(44.dp).clickable { pc.seekToNext() }, tint = Color.White)
-                Icon(painterResource(R.drawable.repeat), null, Modifier.size(34.dp).clickable {
+                Icon(painterResource(R.drawable.skip_next), null, Modifier.size(44.dp).pressScale().clickable { pc.seekToNext() }, tint = Color.White)
+                Icon(painterResource(R.drawable.repeat), null, Modifier.size(34.dp).pressScale().clickable {
                     pc.player.repeatMode = when (pc.player.repeatMode) { 0 -> 2; 2 -> 1; else -> 0 } },
                     tint = if (pc.player.repeatMode != 0) W.Pink else Color.White)
             }

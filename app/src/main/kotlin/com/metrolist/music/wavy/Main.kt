@@ -295,8 +295,8 @@ fun MiniPlayer(pc: PlayerConnection, onOpen: () -> Unit) {
                 Text(m.title, style = ts(14, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(m.artists.joinToString { it.name }, style = ts(11, color = Color(0xB0FFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(38.dp).clip(CircleShape).clickable { pc.togglePlayPause() }.padding(7.dp), tint = Color.White)
-            Icon(painterResource(R.drawable.skip_next), null, Modifier.size(38.dp).clip(CircleShape).clickable { pc.seekToNext() }.padding(7.dp), tint = Color.White)
+            Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(38.dp).pressScale().clip(CircleShape).clickable { pc.togglePlayPause() }.padding(7.dp), tint = Color.White)
+            Icon(painterResource(R.drawable.skip_next), null, Modifier.size(38.dp).pressScale().clip(CircleShape).clickable { pc.seekToNext() }.padding(7.dp), tint = Color.White)
         }
         Box(Modifier.align(Alignment.BottomStart).padding(horizontal = 18.dp).padding(bottom = 5.dp).fillMaxWidth().height(2.dp).clip(RoundedCornerShape(1.dp)).background(Color(0x2EFFFFFF))) {
             Box(Modifier.fillMaxWidth((pos.toFloat() / dur.coerceAtLeast(1)).coerceIn(0f, 1f)).fillMaxHeight().background(Brush.horizontalGradient(listOf(Color(0xFFFF7FAE), Color(0xFFFF2D78)))))

@@ -192,14 +192,14 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 Spacer(Modifier.height(14.dp))
             }
             // search page with an empty box: fill the space with real shortcuts (mood searches) and the real trending list
-            if (q.isEmpty() && page) col {
+            if (q.isEmpty()) col {
                 Text("Try searching", Modifier.padding(top = 8.dp, bottom = 10.dp), style = ts(20, FontWeight.SemiBold))
                 listOf("Romantic", "Party", "Sad songs", "Devotional", "Workout", "Chill", "Retro", "Dance", "Focus").chunked(3).forEach { row ->
                     Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         row.forEach { n -> Box(Modifier.clip(RoundedCornerShape(50)).background(Color(0x33FFFFFF)).clickable { go(if (n.endsWith("songs")) n else n + " songs") }.padding(horizontal = 16.dp, vertical = 9.dp)) { Text(n, style = ts(15, FontWeight.Medium)) } }
                     }
                 }
-                if (trending.isNotEmpty()) Text("Trending now", Modifier.padding(top = 14.dp, bottom = 4.dp), style = ts(20, FontWeight.SemiBold))
+                if (page && trending.isNotEmpty()) Text("Trending now", Modifier.padding(top = 14.dp, bottom = 4.dp), style = ts(20, FontWeight.SemiBold))
             }
             if (q.isEmpty() && page) trending.take(8).forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, trending, i, "Trending now") } } }
             if (q.isEmpty() && !page && trending.isNotEmpty()) col {
@@ -465,6 +465,14 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                         Column(Modifier.padding(start = 16.dp)) { Text(name, style = ts(17, FontWeight.SemiBold)); Text("Playlist", style = ts(14, color = W.Dim)) }
                     } } }
                 if (lists.size > 1) col { Text("Hold a playlist to move or delete it", Modifier.padding(20.dp, 6.dp), style = ts(13, color = W.Dim)) }
+                if (q.isEmpty()) col {
+                    LaunchedEffect(Unit) { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Recent.load() } }
+                    val rl = Recent.list.take(8)
+                    if (rl.isNotEmpty()) {
+                        Text("Recently played", Modifier.padding(20.dp, 20.dp, 20.dp, 6.dp), style = ts(20, FontWeight.Bold))
+                        rl.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, rl, i, "Recently played") } }
+                    }
+                }
                 if (lists.isEmpty()) col { Text("Songs you play land in Favourites. Playlists you add show here.", Modifier.padding(24.dp), style = ts(15, color = W.Dim)) }
             } else col {
                 val shown = (if (az) artists.sortedBy { it.name.lowercase() } else artists).filter { q.isEmpty() || it.name.lowercase().contains(q) }

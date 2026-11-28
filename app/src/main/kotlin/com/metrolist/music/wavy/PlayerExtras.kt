@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -169,11 +170,11 @@ fun PlayerDetails(pc: PlayerConnection, id: String, title: String, artistNames: 
 @Composable
 fun FullLyrics(pc: PlayerConnection, title: String, artist: String, lines: List<LyricLine>, onClose: () -> Unit) {
     var pos by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(Unit) { while (true) { pos = pc.player.currentPosition; delay(400) } }
+    LaunchedEffect(Unit) { while (true) { pos = pc.player.currentPosition; delay(250) } }
     val synced = lines.any { it.t >= 0 }
     val cur = if (synced) lines.indexOfLast { it.t in 0..pos }.coerceAtLeast(0) else -1
     val st = rememberLazyListState()
-    LaunchedEffect(cur) { if (cur >= 0) st.animateScrollToItem((cur - 2).coerceAtLeast(0)) }
+    LaunchedEffect(cur) { if (cur >= 0) st.animateScrollToItem((cur - 1).coerceAtLeast(0)) }
     Column(Modifier.fillMaxSize().background(PX.lyricsCard).statusBarsPadding().navigationBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(painterResource(R.drawable.expand_more), null, Modifier.size(32.dp).clickable(onClick = onClose), tint = Color.White)
@@ -184,7 +185,11 @@ fun FullLyrics(pc: PlayerConnection, title: String, artist: String, lines: List<
         }
         LazyColumn(Modifier.weight(1f).padding(horizontal = 22.dp), state = st) {
             itemsIndexed(lines) { i, l ->
-                Text(l.text, Modifier.padding(vertical = 10.dp).clickable(enabled = l.t >= 0) { pc.seekTo(l.t) }, style = ts(28, FontWeight.Bold, if (cur < 0 || i == cur) Color.White else Color(0x99FFFFFF)))
+                // Apple Music lyrics behaviour: the current line is large and bright, the others shrink and fade with distance; tap a line to seek
+                val on = cur < 0 || i == cur
+                val la by androidx.compose.animation.core.animateFloatAsState(if (on) 1f else if (kotlin.math.abs(i - cur) <= 2) 0.45f else 0.28f, androidx.compose.animation.core.tween(300), label = "lyA")
+                val ls by androidx.compose.animation.core.animateFloatAsState(if (on) 1f else 0.9f, androidx.compose.animation.core.spring(0.8f, 300f), label = "lyS")
+                Text(l.text, Modifier.padding(vertical = 12.dp).graphicsLayer { scaleX = ls; scaleY = ls; alpha = la; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f) }.clickable(enabled = l.t >= 0) { pc.seekTo(l.t) }, style = ts(30, FontWeight.ExtraBold, Color.White))
             }
             item { Spacer(Modifier.height(80.dp)) }
         }

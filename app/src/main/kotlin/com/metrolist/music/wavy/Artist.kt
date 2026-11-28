@@ -71,6 +71,7 @@ fun ArtistScreen(artistId: String?, name: String, pc: PlayerConnection?, onBack:
         } catch (e: Exception) { if (page == null) failed = true }
     }
     Box(Modifier.fillMaxSize().background(W.Bg)) {
+        WallpaperLayer("artist")
         val pg = page
         if (pg == null) {
             Box(Modifier.fillMaxSize().statusBarsPadding()) {
