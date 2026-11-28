@@ -36,7 +36,10 @@ jobs:
           java-version: "21"
           distribution: "temurin"
       - uses: gradle/actions/setup-gradle@v4
-      - run: mkdir -p ~/.android && cp .github/keys/debug.keystore ~/.android/debug.keystore
+      - name: Signing key (repo secret, not in the repo)
+        run: mkdir -p ~/.android && echo "$KS" | base64 -d > ~/.android/debug.keystore && test -s ~/.android/debug.keystore
+        env:
+          KS: ${{ secrets.WAVY_KEYSTORE_B64 }}
       - run: chmod +x gradlew
       - run: ./gradlew --console=plain assembleFossRelease -PwavyAbi=phone -x lint --warning-mode summary
         env:
