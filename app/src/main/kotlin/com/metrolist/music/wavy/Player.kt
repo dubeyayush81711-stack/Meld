@@ -169,7 +169,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                 val dev by WavyFx.device
                 Icon(painterResource(R.drawable.shuffle), null, Modifier.size(30.dp).pressScale().clickable { pc.player.shuffleModeEnabled = !shuffle }, tint = if (shuffle) W.Pink else Color.White)
-                Spacer(Modifier.width(20.dp))
+                Spacer(Modifier.width(14.dp))
                 Icon(painterResource(R.drawable.repeat), null, Modifier.size(30.dp).pressScale().clickable {
                     pc.player.repeatMode = when (pc.player.repeatMode) { 0 -> 2; 2 -> 1; else -> 0 } },
                     tint = if (pc.player.repeatMode != 0) W.Pink else Color.White)
@@ -181,11 +181,19 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                     Icon(painterResource(if (dev.first == "earbuds") R.drawable.bluetooth else R.drawable.cast), null, Modifier.size(24.dp), tint = if (dev.first == "earbuds") W.Pink else Color.White)
                     Text(dev.second, Modifier.padding(start = 8.dp), style = ts(14, FontWeight.Medium, if (dev.first == "earbuds") W.Pink else Color(0xFFE9E4EE)), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 }
+                Icon(painterResource(R.drawable.lyrics), null, Modifier.size(30.dp).pressScale().clip(CircleShape).clickable {
+                    val mm = m ?: return@clickable
+                    scope.launch {
+                        val l = fetchLyrics(ctx, mm.id, mm.title, mm.artists.joinToString { it.name }, mm.duration ?: 0, mm.album?.title)
+                        if (l.isEmpty()) android.widget.Toast.makeText(ctx, "No lyrics found for this song", android.widget.Toast.LENGTH_SHORT).show() else fullLy = l
+                    }
+                }, tint = Color.White)
+                Spacer(Modifier.width(14.dp))
                 Icon(painterResource(R.drawable.share), null, Modifier.size(30.dp).clickable {
                     val t = "${m?.title} - ${m?.artists?.joinToString { it.name }}\nhttps://music.youtube.com/watch?v=${m?.id}"
                     ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, t), "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 }, tint = Color.White)
-                Spacer(Modifier.width(24.dp))
+                Spacer(Modifier.width(16.dp))
                 Icon(painterResource(R.drawable.queue_music), null, Modifier.size(32.dp).clickable { showQueue = true }, tint = Color.White)
             }
             if (m != null) PlayerDetails(pc, m.id, m.title, m.artists.joinToString { it.name }, m.artists.map { it.name to it.id }, m.thumbnailUrl, m.album?.title, (m.duration ?: 0)) { fullLy = it }
