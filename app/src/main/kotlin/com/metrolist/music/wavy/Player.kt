@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
@@ -119,7 +120,8 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
         ) { _, d -> pullScope.launch { pullY.snapTo((pullY.value + d).coerceAtLeast(0f)) } } }) {
         WallpaperLayer("player")
         Column(Modifier.fillMaxSize().then(if ((showQueue || showOpts || showAdv || fullLy != null) && !Reduce.on) Modifier.blur(20.dp) else Modifier).statusBarsPadding().navigationBarsPadding().verticalScroll(scroll).padding(horizontal = 22.dp)) {
-            Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp).size(44.dp, 5.dp).clip(RoundedCornerShape(50)).background(Color(0x66FFFFFF)))
+            Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.expand_more), null, Modifier.size(34.dp).clickable(onClick = onClose), tint = Color.White)
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(qTitle ?: "Wavy", style = ts(15, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -129,14 +131,14 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             // Apple Music behaviour: the art shrinks a little when paused and springs back to full size on play
             val artScale by androidx.compose.animation.core.animateFloatAsState(if (playing) 1f else 0.88f, androidx.compose.animation.core.spring(0.55f, 260f), label = "artScale")
-            Box(Modifier.fillMaxWidth().graphicsLayer { scaleX = artScale; scaleY = artScale }.glass(RoundedCornerShape(26.dp), 1f).padding(6.dp)) {
-                AsyncImage(hiRes(m?.thumbnailUrl), null, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(20.dp)).background(W.Card), contentScale = ContentScale.Crop)
+            Box(Modifier.fillMaxWidth().graphicsLayer { scaleX = artScale; scaleY = artScale }.shadow(28.dp, RoundedCornerShape(22.dp), ambientColor = Color.Black, spotColor = Color.Black)) {
+                AsyncImage(hiRes(m?.thumbnailUrl), null, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(22.dp)).background(W.Card), contentScale = ContentScale.Crop)
             }
             Spacer(Modifier.height(26.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(m?.title ?: "", style = ts(26, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.basicMarquee())
-                    Text(m?.artists?.joinToString { it.name } ?: "", style = ts(16, color = Color(0xFFD6CCD3)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(m?.title ?: "", style = ts(28, FontWeight.ExtraBold), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.basicMarquee())
+                    Text(m?.artists?.joinToString { it.name } ?: "", style = ts(18, color = Color(0xFFD6CCD3)), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 var likedNow by remember(m?.id) { mutableStateOf(m?.id?.let { S.b("liked_$it") } ?: false) }
                 var plDlg by remember { mutableStateOf(false) }
@@ -145,6 +147,7 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                 Icon(painterResource(if (likedNow) R.drawable.favorite else R.drawable.favorite_border), null, Modifier.padding(start = 8.dp).size(38.dp).pressScale().clip(CircleShape).clickable { m?.let { x ->
                     val want = !likedNow; likedNow = want; S.put("liked_${x.id}", want)
                     scope.launch { val ok = if (want) likeTrack(x.id) else unlikeTrack(x.id); if (!ok) { likedNow = !want; S.put("liked_${x.id}", !want) } } } }.padding(4.dp), tint = if (likedNow) W.Pink else Color.White)
+                Icon(painterResource(R.drawable.more_vert), null, Modifier.padding(start = 8.dp).size(36.dp).pressScale().clip(CircleShape).clickable { showOpts = true }.padding(4.dp), tint = Color.White)
                 if (plDlg && m != null) AddToPlaylistDialog(m.id) { plDlg = false }
             }
             Spacer(Modifier.height(18.dp))
@@ -156,20 +159,22 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                 Text(fmt((frac * dur).toLong()), style = ts(12, color = Color(0xFFD6CCD3))); Spacer(Modifier.weight(1f)); Text("-" + fmt((dur - (frac * dur).toLong()).coerceAtLeast(0)), style = ts(12, color = Color(0xFFD6CCD3)))
             }
             Spacer(Modifier.height(22.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Icon(painterResource(R.drawable.shuffle), null, Modifier.size(34.dp).pressScale().clickable { pc.player.shuffleModeEnabled = !shuffle }, tint = if (shuffle) W.Pink else Color.White)
-                Icon(painterResource(R.drawable.skip_previous), null, Modifier.size(44.dp).pressScale().clickable { pc.seekToPrevious() }, tint = Color.White)
-                Box(Modifier.size(78.dp).pressScale().clip(CircleShape).background(Color.White).clickable { pc.togglePlayPause() }, contentAlignment = Alignment.Center) {
-                    Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(42.dp), tint = Color.Black) }
-                Icon(painterResource(R.drawable.skip_next), null, Modifier.size(44.dp).pressScale().clickable { pc.seekToNext() }, tint = Color.White)
-                Icon(painterResource(R.drawable.repeat), null, Modifier.size(34.dp).pressScale().clickable {
-                    pc.player.repeatMode = when (pc.player.repeatMode) { 0 -> 2; 2 -> 1; else -> 0 } },
-                    tint = if (pc.player.repeatMode != 0) W.Pink else Color.White)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
+                Icon(painterResource(R.drawable.skip_previous), null, Modifier.size(56.dp).pressScale().clickable { pc.seekToPrevious() }, tint = Color.White)
+                Box(Modifier.size(84.dp).pressScale().clip(CircleShape).background(Color.White).clickable { pc.togglePlayPause() }, contentAlignment = Alignment.Center) {
+                    Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(46.dp), tint = Color.Black) }
+                Icon(painterResource(R.drawable.skip_next), null, Modifier.size(56.dp).pressScale().clickable { pc.seekToNext() }, tint = Color.White)
             }
             Spacer(Modifier.height(26.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                 val dev by WavyFx.device
-                Row(Modifier.weight(1f).clip(RoundedCornerShape(50)).clickable {
+                Icon(painterResource(R.drawable.shuffle), null, Modifier.size(30.dp).pressScale().clickable { pc.player.shuffleModeEnabled = !shuffle }, tint = if (shuffle) W.Pink else Color.White)
+                Spacer(Modifier.width(20.dp))
+                Icon(painterResource(R.drawable.repeat), null, Modifier.size(30.dp).pressScale().clickable {
+                    pc.player.repeatMode = when (pc.player.repeatMode) { 0 -> 2; 2 -> 1; else -> 0 } },
+                    tint = if (pc.player.repeatMode != 0) W.Pink else Color.White)
+                Spacer(Modifier.width(14.dp))
+                Row(Modifier.weight(1f).padding(start = 6.dp).clip(RoundedCornerShape(50)).clickable {
                     val ok = try { ctx.startActivity(Intent("com.android.settings.panel.action.MEDIA_OUTPUT").putExtra("com.android.settings.panel.extra.PACKAGE_NAME", ctx.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true } catch (e: Exception) { false }
                     if (!ok) try { ctx.startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { }
                 }.padding(end = 12.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
