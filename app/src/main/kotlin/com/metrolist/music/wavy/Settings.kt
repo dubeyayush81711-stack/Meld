@@ -41,13 +41,13 @@ fun SPage(title: String, onBack: () -> Unit, content: @Composable ColumnScope.()
     }
 }
 
-@Composable fun SSection(t: String) = Text(t, Modifier.padding(start = 24.dp, top = 28.dp, bottom = 8.dp), style = ts(22, FontWeight.ExtraBold, if (Theming.cur().id == "vice") W.Pink else Color.White))
+@Composable fun SSection(t: String) = Text(t, Modifier.padding(start = 20.dp, top = 28.dp, bottom = 8.dp), style = ts(20, FontWeight.Bold, if (Theming.cur().id == "vice") W.Pink else Color.White))
 @Composable fun SNote(t: String) = Row(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) { Text("\u24D8  ", style = ts(13, color = W.Dim)); Text(t, style = ts(13, color = W.Dim)) }
 @Composable fun SDivider() = Box(Modifier.fillMaxWidth().padding(vertical = 8.dp).height(1.dp).background(Color(0x22FFFFFF)))
 
 @Composable
 fun SToggle(title: String, desc: String, state: MutableState<Boolean>) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp).clip(RoundedCornerShape(16.dp)).background(Color(0x14FFFFFF)).clickable { state.value = !state.value }.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp).clip(RoundedCornerShape(16.dp)).background(Color(0x14FFFFFF)).clickable { state.value = !state.value }.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f).padding(end = 16.dp)) { Text(title, style = ts(17, FontWeight.Medium)); Text(desc, style = ts(13, color = Color(0xFFB9B2C4))) }
         Switch2(state.value)
     }
@@ -71,7 +71,7 @@ fun SRadio(title: String, desc: String, selected: Boolean, onClick: () -> Unit) 
 
 @Composable
 fun SNav(title: String, desc: String = "", value: String? = null, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp).clip(RoundedCornerShape(16.dp)).background(Color(0x14FFFFFF)).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp).clip(RoundedCornerShape(16.dp)).background(Color(0x14FFFFFF)).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) { Text(title, style = ts(17, FontWeight.Medium)); if (desc.isNotEmpty()) Text(desc, style = ts(13, color = Color(0xFFB9B2C4))) }
         if (value != null) Text(value, style = ts(14, FontWeight.Medium, W.Pink))
     }

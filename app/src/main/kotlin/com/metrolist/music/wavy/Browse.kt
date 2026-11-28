@@ -469,7 +469,7 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                     LaunchedEffect(Unit) { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Recent.load() } }
                     val rl = Recent.list.take(8)
                     if (rl.isNotEmpty()) {
-                        Text("Recently played", Modifier.padding(20.dp, 20.dp, 20.dp, 6.dp), style = ts(20, FontWeight.Bold))
+                        Text("Recently played", Modifier.padding(16.dp, 20.dp, 16.dp, 6.dp), style = ts(22, FontWeight.Bold))
                         rl.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, rl, i, "Recently played") } }
                     }
                 }
