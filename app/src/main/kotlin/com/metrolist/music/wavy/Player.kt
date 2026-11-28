@@ -126,15 +126,15 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(qTitle ?: "Wavy", style = ts(15, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Icon(painterResource(R.drawable.tune), null, Modifier.size(30.dp).clickable { showOpts = true }, tint = Color.White)
+                Icon(painterResource(R.drawable.more_horiz), null, Modifier.size(30.dp).clickable { showOpts = true }, tint = Color.White)
             }
             Spacer(Modifier.height(10.dp))
             // Apple Music behaviour: the art shrinks a little when paused and springs back to full size on play
             val artScale by androidx.compose.animation.core.animateFloatAsState(if (playing) 1f else 0.88f, androidx.compose.animation.core.spring(0.55f, 260f), label = "artScale")
-            Box(Modifier.fillMaxWidth().padding(horizontal = 22.dp).graphicsLayer { scaleX = artScale; scaleY = artScale }.shadow(28.dp, RoundedCornerShape(22.dp), ambientColor = Color.Black, spotColor = Color.Black)) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = 30.dp).graphicsLayer { scaleX = artScale; scaleY = artScale }.shadow(28.dp, RoundedCornerShape(22.dp), ambientColor = Color.Black, spotColor = Color.Black)) {
                 androidx.compose.animation.Crossfade(hiRes(m?.thumbnailUrl), animationSpec = androidx.compose.animation.core.tween(300), label = "art") { u -> AsyncImage(u, null, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(22.dp)).background(W.Card), contentScale = ContentScale.Crop) }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(26.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     androidx.compose.animation.Crossfade(m?.title ?: "", animationSpec = androidx.compose.animation.core.tween(250), label = "tt") { tt -> Text(tt, style = ts(28, FontWeight.ExtraBold), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.basicMarquee()) }
@@ -143,14 +143,13 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                 var likedNow by remember(m?.id) { mutableStateOf(m?.id?.let { S.b("liked_$it") } ?: false) }
                 var plDlg by remember { mutableStateOf(false) }
                 LaunchedEffect(m?.id) { m?.id?.let { id -> val r = isLiked(id); if (r != null) { likedNow = r; S.put("liked_$id", r) } } }
-                Icon(painterResource(R.drawable.add), null, Modifier.padding(start = 12.dp).size(34.dp).clip(CircleShape).clickable { plDlg = true }.padding(4.dp), tint = Color.White)
-                Icon(painterResource(if (likedNow) R.drawable.favorite else R.drawable.favorite_border), null, Modifier.padding(start = 8.dp).size(38.dp).pressScale().clip(CircleShape).clickable { m?.let { x ->
+                Icon(painterResource(R.drawable.add), null, Modifier.padding(start = 18.dp).size(34.dp).clip(CircleShape).clickable { plDlg = true }.padding(4.dp), tint = Color.White)
+                Icon(painterResource(if (likedNow) R.drawable.favorite else R.drawable.favorite_border), null, Modifier.padding(start = 14.dp).size(38.dp).pressScale().clip(CircleShape).clickable { m?.let { x ->
                     val want = !likedNow; likedNow = want; S.put("liked_${x.id}", want)
                     scope.launch { val ok = if (want) likeTrack(x.id) else unlikeTrack(x.id); if (!ok) { likedNow = !want; S.put("liked_${x.id}", !want) } } } }.padding(4.dp), tint = if (likedNow) W.Pink else Color.White)
-                Icon(painterResource(R.drawable.more_vert), null, Modifier.padding(start = 8.dp).size(36.dp).pressScale().clip(CircleShape).clickable { showOpts = true }.padding(4.dp), tint = Color.White)
                 if (plDlg && m != null) AddToPlaylistDialog(m.id) { plDlg = false }
             }
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(22.dp))
             // seek bar
             var w by remember { mutableIntStateOf(1) }
             val frac = drag ?: (pos.toFloat() / dur.coerceAtLeast(1)).coerceIn(0f, 1f)
@@ -158,15 +157,15 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             Row(Modifier.fillMaxWidth()) {
                 Text(fmt((frac * dur).toLong()), style = ts(12, color = Color(0xFFD6CCD3))); Spacer(Modifier.weight(1f)); Text("-" + fmt((dur - (frac * dur).toLong()).coerceAtLeast(0)), style = ts(12, color = Color(0xFFD6CCD3)))
             }
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
                 Icon(painterResource(R.drawable.skip_previous), null, Modifier.size(56.dp).pressScale().clickable { pc.seekToPrevious() }, tint = Color.White)
                 Box(Modifier.size(68.dp).pressScale().clip(CircleShape).clickable { pc.togglePlayPause() }.padding(6.dp)) { androidx.compose.animation.Crossfade(playing, animationSpec = androidx.compose.animation.core.tween(160), label = "pp") { pl -> Icon(painterResource(if (pl) R.drawable.pause else R.drawable.play), null, Modifier.fillMaxSize(), tint = Color.White) } }
                 Icon(painterResource(R.drawable.skip_next), null, Modifier.size(56.dp).pressScale().clickable { pc.seekToNext() }, tint = Color.White)
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(20.dp))
             VolumeRow()
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(24.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 val dev by WavyFx.device
                 Row(Modifier.clip(RoundedCornerShape(50)).clickable {
