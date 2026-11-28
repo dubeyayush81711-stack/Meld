@@ -7,6 +7,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -199,10 +201,10 @@ fun MoodsGrid(pc: PlayerConnection?) {
     Column {
         HomeHead("Moods and styles")
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            MOODS.chunked(2).forEach { pair ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MOODS.chunked(10).forEach { pair ->
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     pair.forEach { m ->
-                        Box(Modifier.weight(1f).height(52.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x22FFFFFF)).clickable {
+                        Box(Modifier.height(40.dp).clip(RoundedCornerShape(20.dp)).background(Color(0x22FFFFFF)).clickable {
                             if (busy) return@clickable
                             busy = true; Toast.makeText(ctx, "Loading $m songs...", Toast.LENGTH_SHORT).show()
                             scope.launch {
@@ -213,9 +215,8 @@ fun MoodsGrid(pc: PlayerConnection?) {
                                 busy = false
                                 if (l.isEmpty()) Toast.makeText(ctx, "Could not load $m songs. Try again.", Toast.LENGTH_SHORT).show() else playTracks(pc, l, 0, m)
                             }
-                        }.padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) { Text(m, style = ts(16, FontWeight.Medium)) }
+                        }.padding(horizontal = 20.dp), contentAlignment = Alignment.Center) { Text(m, style = ts(15, FontWeight.Medium)) }
                     }
-                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
         }
