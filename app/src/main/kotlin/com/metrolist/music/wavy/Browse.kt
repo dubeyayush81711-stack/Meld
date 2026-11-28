@@ -414,7 +414,20 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                 if (chip == "Artists") Icon(painterResource(if (asList) R.drawable.grid_view else R.drawable.list), null, Modifier.size(24.dp).clickable { asList = !asList }, tint = Color.White)
             }
             Spacer(Modifier.height(6.dp)) }
-            if (chip == "Following") col {
+            if (chip == "Playlists" && q.isEmpty()) col { LibTiles(lists.firstOrNull { it.second == "Favourites" }?.first, onPlaylist) { chip = it } }
+            if (chip == "Top 50" || chip == "History") col {
+                LaunchedEffect(Unit) { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Recent.load() } }
+                val rl = Recent.list
+                val tl = if (chip == "Top 50") rl.filter { PlayCount.of(it.id) > 0 }.sortedByDescending { PlayCount.of(it.id) }.take(50) else rl
+                if (tl.isEmpty()) Text("Nothing here yet. Play some songs and they show up.", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
+                else {
+                    Row(Modifier.padding(20.dp, 4.dp, 20.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("${tl.size} songs", Modifier.weight(1f), style = ts(14, color = W.Dim))
+                        Text("Play all", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { playTracks(pc, tl, 0, chip) }.padding(20.dp, 9.dp), style = ts(14, FontWeight.SemiBold))
+                    }
+                    tl.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, tl, i, chip) } }
+                }
+            } else if (chip == "Following") col {
                 val fl = followedArtistIds().map { Triple(it, S.s("fname_$it"), S.s("fthumb_$it").ifBlank { null }) }.filter { it.second.isNotBlank() }
                 if (fl.isEmpty()) Text("Artists you follow show here. Open an artist and tap Follow. Their popular songs get extra weight in your picks.", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
                 else fl.forEach { (id, nm, th) -> Row(Modifier.fillMaxWidth().clickable { ArtistNav.open?.invoke(id, nm) }.padding(16.dp, 7.dp), verticalAlignment = Alignment.CenterVertically) {

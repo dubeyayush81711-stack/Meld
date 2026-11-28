@@ -41,7 +41,7 @@ fun SPage(title: String, onBack: () -> Unit, content: @Composable ColumnScope.()
     }
 }
 
-@Composable fun SSection(t: String) = Text(t, Modifier.padding(start = 20.dp, top = 26.dp, bottom = 6.dp), style = ts(24, FontWeight.Bold))
+@Composable fun SSection(t: String) = Text(t, Modifier.padding(start = 20.dp, top = 26.dp, bottom = 6.dp), style = ts(24, FontWeight.Bold, if (Theming.cur().id == "vice") W.Pink else Color.White))
 @Composable fun SNote(t: String) = Row(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) { Text("\u24D8  ", style = ts(13, color = W.Dim)); Text(t, style = ts(13, color = W.Dim)) }
 @Composable fun SDivider() = Box(Modifier.fillMaxWidth().padding(vertical = 8.dp).height(1.dp).background(Color(0x22FFFFFF)))
 

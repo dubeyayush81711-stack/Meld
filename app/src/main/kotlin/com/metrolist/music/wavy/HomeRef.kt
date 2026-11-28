@@ -254,3 +254,47 @@ fun WeddingRow(pc: PlayerConnection?) {
         }
     }
 }
+
+/** Vice theme sheets use the theme's glass colour; other themes keep their own colour. */
+fun viceOr(c: Color): Color = if (Theming.cur().id == "vice") GlassSheet else c
+
+/** Placeholder blocks that pulse while Home loads. */
+@Composable
+fun HomeShimmer() {
+    val a by androidx.compose.animation.core.rememberInfiniteTransition(label = "sh").animateFloat(0.25f, 0.6f,
+        androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(900), androidx.compose.animation.core.RepeatMode.Reverse), label = "a")
+    val c = Color.White.copy(alpha = a * 0.25f)
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Box(Modifier.width(150.dp).height(24.dp).clip(RoundedCornerShape(8.dp)).background(c))
+        repeat(4) { Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)).background(c))
+            Column(Modifier.padding(start = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.width(180.dp).height(14.dp).clip(RoundedCornerShape(6.dp)).background(c)); Box(Modifier.width(110.dp).height(11.dp).clip(RoundedCornerShape(6.dp)).background(c)) } } }
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) { repeat(2) { Box(Modifier.size(148.dp).clip(RoundedCornerShape(18.dp)).background(c)) } }
+    }
+}
+
+/** Library tiles: Liked songs, Downloaded, My top 50 (by real play counts on this phone) and History. */
+@Composable
+fun LibTiles(favId: Long?, onPlaylist: (Long, String) -> Unit, setChip: (String) -> Unit) {
+    data class T(val n: String, val sub: String, val icon: Int, val go: () -> Unit)
+    val all = buildList {
+        if (favId != null) add(T("Liked songs", "Your favourites", R.drawable.favorite) { onPlaylist(favId, "Favourites") })
+        add(T("Downloaded", "Plays offline", R.drawable.library_music) { setChip("Downloads") })
+        add(T("My top 50", "Most played here", R.drawable.shuffle) { setChip("Top 50") })
+        add(T("History", "Recently played", R.drawable.history) { setChip("History") })
+    }
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        all.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                pair.forEach { t ->
+                    Row(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(Color(0x22FFFFFF)).clickable(onClick = t.go).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(W.Grad), contentAlignment = Alignment.Center) { Icon(painterResource(t.icon), null, Modifier.size(22.dp), tint = Color.White) }
+                        Column(Modifier.padding(start = 10.dp)) { Text(t.n, style = ts(14, FontWeight.SemiBold), maxLines = 1); Text(t.sub, style = ts(11, color = Color(0xB3FFFFFF)), maxLines = 1) }
+                    }
+                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}

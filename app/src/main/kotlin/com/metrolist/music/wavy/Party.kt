@@ -440,3 +440,17 @@ fun RoomPill(onGo: () -> Unit) {
         }
     }
 }
+
+/** Home card shown only while you are in a live party (real: asked from the server). Tap to return to it. */
+@Composable
+fun PartyLive(onParty: () -> Unit) {
+    var nm by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        nm = try { val a = call("party_mine") as? JSONArray; if (a != null && a.length() > 0 && a.getJSONObject(0).optString("status") == "active") a.getJSONObject(0).optString("name").ifBlank { "Your party" } else null } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+    }
+    val n = nm ?: return
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).clip(RoundedCornerShape(16.dp)).background(W.Pink.copy(alpha = 0.22f)).clickable(onClick = onParty).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) { Text("Your party is live", style = ts(12, color = Color(0xB3FFFFFF))); Text(n, style = ts(18, FontWeight.SemiBold), maxLines = 1) }
+        Text("Rejoin", style = ts(14, FontWeight.SemiBold, W.Pink))
+    }
+}

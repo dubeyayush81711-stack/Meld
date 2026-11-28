@@ -359,7 +359,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                         Text(if (hr < 5) "Late night vibes" else if (hr < 12) "Good morning" else if (hr < 17) "Good afternoon" else "Good evening", style = ts(13, color = Color(0x99FFFFFF)))
                         Text("Home", style = ts(34, FontWeight.Bold))
                     }
-                    listOf(Triple(R.drawable.search, onSearch, 0), Triple(R.drawable.group_outlined, onParty, 1), Triple(R.drawable.settings, onSettings, 2)).forEach { (ic, f, _) ->
+                    listOf(Triple(R.drawable.history, { RecentNav.open?.invoke(); Unit }, 0), Triple(R.drawable.group_outlined, onParty, 1), Triple(R.drawable.settings, onSettings, 2)).forEach { (ic, f, _) ->
                         Box(Modifier.padding(start = 6.dp).size(40.dp).glass(CircleShape).clickable(onClick = f), contentAlignment = Alignment.Center) {
                             Icon(painterResource(ic), null, Modifier.size(20.dp), tint = Color.White) }
                     }
@@ -386,6 +386,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                 }
             } else {
                 if (cat == "All") { item { RecentList(pc) }; item { SpeedDial(pc) }; item { KeepListening(pc) } }
+                if (cat == "All") item { PartyLive(onParty) }
                 if (cat == "All" && f != null) item { QuickTiles(f.favouritesId, tiles, onPlaylist, onParty, f.sections.firstOrNull { it.type == "made_for_you" && it.tracks.isNotEmpty() }?.let { m -> { playTracks(pc, m.tracks, 0, m.title) } }) }
                 if (f != null) item { Hero(f, pc) }
                 if (f != null && cat == "All") item { ForYouShelf(pc) }
@@ -394,7 +395,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                         if (err != null) Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(err!!, style = ts(14, color = W.Dim)); Spacer(Modifier.height(12.dp))
                             Text("Try again", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { reload++ }.padding(20.dp, 10.dp), style = ts(14, FontWeight.SemiBold))
-                        } else Text("Loading...", style = ts(14, color = W.Dim))
+                        } else HomeShimmer()
                     }
                 } else feedItems(f, pc)
             }
@@ -510,13 +511,16 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc
     val rest = f.sections.filter { it.type != "artist_mix" && it !== first && !S.b("hide_" + it.id) }
     val ml = rest.filter { it.type == "more_like" }
     val trend = rest.firstOrNull { it.type == "trending" }
-    val others = rest.filter { it.type != "more_like" && it !== trend }
+    val arts = rest.filter { it.artists.isNotEmpty() && it.type != "more_like" }
+    val others = rest.filter { it.type != "more_like" && it !== trend && it !in arts }
     ml.getOrNull(0)?.let { render(it) }
+    arts.getOrNull(0)?.let { render(it) }
     col { MoodsGrid(pc) }
     if (trend != null && trend.tracks.size >= 3) col(trend.id) { PagedTracks("Hot for you", trend.tracks, pc, "Updated daily") }
     if (!S.b("hide_mood_top")) col { MoodRow("Biggest in India", "top", pc) }
     ml.getOrNull(1)?.let { render(it) }
     col { LiveRow(pc) }
+    arts.drop(1).forEach { render(it) }
     ml.getOrNull(2)?.let { render(it) }
     col { WeddingRow(pc) }
     ml.drop(3).forEach { render(it) }
@@ -609,7 +613,7 @@ fun TrackRow(t: Track, pc: PlayerConnection?, onPlay: () -> Unit) {
                 androidx.compose.ui.window.Dialog(onDismissRequest = { menu = false; pick = false }, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
                     val sdM = rememberSheetDrag { menu = false; pick = false }
                     Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { menu = false; pick = false }) {
-                        Column(Modifier.align(Alignment.BottomCenter).then(sdM.mod).fillMaxWidth().clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(Color(0xF2121018)).clickable(enabled = false) {}.navigationBarsPadding().padding(bottom = 12.dp)) {
+                        Column(Modifier.align(Alignment.BottomCenter).then(sdM.mod).fillMaxWidth().clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(viceOr(Color(0xF2121018))).clickable(enabled = false) {}.navigationBarsPadding().padding(bottom = 12.dp)) {
                             Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp).size(width = 44.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x55FFFFFF)))
                             Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Cover(t.cover, 56.dp, 10)
