@@ -45,6 +45,7 @@ import android.widget.Toast
 import coil3.compose.AsyncImage
 import com.metrolist.music.R
 import kotlinx.coroutines.delay
+import com.metrolist.music.extensions.toMediaItem
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -188,7 +189,29 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
         else if (a > 50) p.setPlaybackSpeed(1f - (drift / 1500f).coerceIn(-0.04f, 0.04f))
         else p.setPlaybackSpeed(S.f("speed", 1f).coerceIn(0.5f, 2f))
     }
-    LaunchedEffect(s?.optBoolean("ended")) { if (s?.optBoolean("ended") == true) { Toast.makeText(ctx, "The party ended", Toast.LENGTH_SHORT).show(); leaveRoom() } }
+    // gapless: keep the room's next song loaded right behind the current one on every phone, so the change needs no new load
+    val nextTr = s?.optJSONArray("queue")?.optJSONObject(0)?.optJSONObject("track")?.toTrack()
+    val roomTr = s?.optJSONObject("playback")?.optJSONObject("track")?.toTrack()
+    LaunchedEffect(nextTr?.id, roomTr?.id) {
+        val p = pc?.player ?: return@LaunchedEffect
+        if (roomTr == null) return@LaunchedEffect
+        var tries = 0
+        while (p.currentMediaItem?.mediaId != roomTr.id && tries < 20) { delay(500); tries++ }
+        if (p.currentMediaItem?.mediaId != roomTr.id) return@LaunchedEffect
+        val i = p.currentMediaItemIndex
+        if (nextTr != null && p.mediaItemCount > i + 1 && p.getMediaItemAt(i + 1).mediaId == nextTr.id && p.mediaItemCount == i + 2) return@LaunchedEffect
+        if (p.mediaItemCount > i + 1) p.removeMediaItems(i + 1, p.mediaItemCount)
+        if (nextTr != null) p.addMediaItem(nextTr.toMeta().toMediaItem())
+    }
+    // the phone that controls the room moves it on as soon as this phone has rolled into the preloaded song
+    LaunchedEffect((s?.optBoolean("my_can_control") == true), nextTr?.id, roomTr?.id) {
+        val p = pc?.player ?: return@LaunchedEffect
+        while ((s?.optBoolean("my_can_control") == true) && nextTr != null && roomTr != null) {
+            delay(400)
+            if (p.currentMediaItem?.mediaId == nextTr.id) { try { call("party_next", "p_party" to pid, "p_ended_queue" to (s?.optJSONObject("playback")?.optLong("queue_id") ?: 0L)) } catch (e: Exception) { }; break }
+        }
+    }
+ if (s?.optBoolean("ended") == true) { Toast.makeText(ctx, "The party ended", Toast.LENGTH_SHORT).show(); leaveRoom() } }
     if (s == null || s.optString("my_status") != "active") { Backdrop { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(if (s?.optString("my_status") == "pending") "Waiting for the host to let you in..." else "Joining...", style = ts(16, color = W.Dim)) } }; return }
     val admin = s.optString("my_role") == "admin"; val can = s.optBoolean("my_can_control"); val muted = s.optBoolean("my_muted")
     val pb = s.getJSONObject("playback"); val cur = pb.optJSONObject("track")?.toTrack(); val playing = pb.optBoolean("is_playing"); val qid = pb.optLong("queue_id")
