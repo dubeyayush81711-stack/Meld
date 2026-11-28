@@ -81,7 +81,8 @@ fun SNav(title: String, desc: String = "", value: String? = null, onClick: () ->
 fun SSlider(title: String, v: Float, onChange: (Float) -> Unit) {
     Column(Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
         Text(title, style = ts(15, FontWeight.Medium))
-        Slider(v, onChange, colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = W.Pink, inactiveTrackColor = Color(0xFF444448)))
+        Spacer(Modifier.height(4.dp))
+        AppleBar(v.coerceIn(0f, 1f), onSeekTo = { onChange(it) }, onDrag = { f -> if (f != null) onChange(f) })
     }
 }
 
