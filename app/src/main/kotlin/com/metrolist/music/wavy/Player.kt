@@ -154,27 +154,22 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             // seek bar
             var w by remember { mutableIntStateOf(1) }
             val frac = drag ?: (pos.toFloat() / dur.coerceAtLeast(1)).coerceIn(0f, 1f)
-            WavySeek(frac, playing, androidx.compose.ui.graphics.lerp(bg, Color.White, 0.82f), onSeekTo = { pc.seekTo((it * dur).toLong()) }, onDrag = { drag = it })
+            AppleBar(frac, onSeekTo = { pc.seekTo((it * dur).toLong()) }, onDrag = { drag = it })
             Row(Modifier.fillMaxWidth()) {
                 Text(fmt((frac * dur).toLong()), style = ts(12, color = Color(0xFFD6CCD3))); Spacer(Modifier.weight(1f)); Text("-" + fmt((dur - (frac * dur).toLong()).coerceAtLeast(0)), style = ts(12, color = Color(0xFFD6CCD3)))
             }
             Spacer(Modifier.height(22.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
                 Icon(painterResource(R.drawable.skip_previous), null, Modifier.size(56.dp).pressScale().clickable { pc.seekToPrevious() }, tint = Color.White)
-                Box(Modifier.size(84.dp).pressScale().clip(CircleShape).background(Color.White).clickable { pc.togglePlayPause() }, contentAlignment = Alignment.Center) {
-                    Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(46.dp), tint = Color.Black) }
+                Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(84.dp).pressScale().clip(CircleShape).clickable { pc.togglePlayPause() }, tint = Color.White)
                 Icon(painterResource(R.drawable.skip_next), null, Modifier.size(56.dp).pressScale().clickable { pc.seekToNext() }, tint = Color.White)
             }
-            Spacer(Modifier.height(26.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.height(24.dp))
+            VolumeRow()
+            Spacer(Modifier.height(22.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 val dev by WavyFx.device
-                Icon(painterResource(R.drawable.shuffle), null, Modifier.size(30.dp).pressScale().clickable { pc.player.shuffleModeEnabled = !shuffle }, tint = if (shuffle) W.Pink else Color.White)
-                Spacer(Modifier.width(14.dp))
-                Icon(painterResource(R.drawable.repeat), null, Modifier.size(30.dp).pressScale().clickable {
-                    pc.player.repeatMode = when (pc.player.repeatMode) { 0 -> 2; 2 -> 1; else -> 0 } },
-                    tint = if (pc.player.repeatMode != 0) W.Pink else Color.White)
-                Spacer(Modifier.width(14.dp))
-                Row(Modifier.weight(1f).padding(start = 6.dp).clip(RoundedCornerShape(50)).clickable {
+                Row(Modifier.clip(RoundedCornerShape(50)).clickable {
                     val ok = try { ctx.startActivity(Intent("com.android.settings.panel.action.MEDIA_OUTPUT").putExtra("com.android.settings.panel.extra.PACKAGE_NAME", ctx.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true } catch (e: Exception) { false }
                     if (!ok) try { ctx.startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { }
                 }.padding(end = 12.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -188,12 +183,6 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
                         if (l.isEmpty()) android.widget.Toast.makeText(ctx, "No lyrics found for this song", android.widget.Toast.LENGTH_SHORT).show() else fullLy = l
                     }
                 }, tint = Color.White)
-                Spacer(Modifier.width(14.dp))
-                Icon(painterResource(R.drawable.share), null, Modifier.size(30.dp).clickable {
-                    val t = "${m?.title} - ${m?.artists?.joinToString { it.name }}\nhttps://music.youtube.com/watch?v=${m?.id}"
-                    ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, t), "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                }, tint = Color.White)
-                Spacer(Modifier.width(16.dp))
                 Icon(painterResource(R.drawable.queue_music), null, Modifier.size(32.dp).clickable { showQueue = true }, tint = Color.White)
             }
             if (m != null) PlayerDetails(pc, m.id, m.title, m.artists.joinToString { it.name }, m.artists.map { it.name to it.id }, m.thumbnailUrl, m.album?.title, (m.duration ?: 0)) { fullLy = it }
@@ -231,7 +220,11 @@ fun QueueSheet(pc: PlayerConnection, onClose: () -> Unit) {
     Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(onClick = onClose)) {
         Column(Modifier.align(Alignment.BottomCenter).then(sd.mod).fillMaxWidth().fillMaxHeight(0.78f).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(GlassSheet).clickable(enabled = false) {}.padding(top = 16.dp)) {
             Row(Modifier.fillMaxWidth().padding(end = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Queue", Modifier.padding(start = 22.dp).weight(1f), style = ts(22, FontWeight.Bold))
+                Text("Playing Next", Modifier.padding(start = 22.dp).weight(1f), style = ts(22, FontWeight.Bold))
+                var shufQ by remember { mutableStateOf(p.shuffleModeEnabled) }
+                var repQ by remember { mutableIntStateOf(p.repeatMode) }
+                Icon(painterResource(R.drawable.shuffle), null, Modifier.padding(end = 8.dp).size(36.dp).clip(CircleShape).background(if (shufQ) W.Pink else Color(0x22FFFFFF)).clickable { p.shuffleModeEnabled = !shufQ; shufQ = !shufQ }.padding(8.dp), tint = Color.White)
+                Icon(painterResource(if (repQ == 1) R.drawable.repeat_one else R.drawable.repeat), null, Modifier.padding(end = 8.dp).size(36.dp).clip(CircleShape).background(if (repQ != 0) W.Pink else Color(0x22FFFFFF)).clickable { p.repeatMode = when (repQ) { 0 -> 2; 2 -> 1; else -> 0 }; repQ = p.repeatMode }.padding(8.dp), tint = Color.White)
                 Text(if (locked) "Locked. Tap to unlock" else "Lock order", Modifier.clip(RoundedCornerShape(50)).background(if (locked) W.Pink else Color(0x22FFFFFF)).clickable { locked = !locked; S.put("queue_locked", locked) }.padding(14.dp, 7.dp), style = ts(12, FontWeight.Medium))
             }
             Text("${items.size} songs" + if (total > 0) " \u00B7 ${if (total >= 3600) "${total / 3600} hr " else ""}${(total % 3600) / 60} min" else "", Modifier.padding(start = 22.dp, bottom = 10.dp), style = ts(13, color = W.Dim))
