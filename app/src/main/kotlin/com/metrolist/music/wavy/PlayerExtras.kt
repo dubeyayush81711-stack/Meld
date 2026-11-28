@@ -93,7 +93,7 @@ fun PlayerDetails(pc: PlayerConnection, id: String, title: String, artistNames: 
     var page by remember(id) { mutableStateOf<com.metrolist.innertube.pages.ArtistPage?>(null) }
     LaunchedEffect(mainId) { if (mainId != null) page = withContext(Dispatchers.IO) { YouTube.artist(mainId).getOrNull() } }
     Column(Modifier.fillMaxWidth().padding(top = 28.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        if (lyrics.isNotEmpty()) {
+        if (false && lyrics.isNotEmpty()) {
             val synced = lyrics.any { it.t >= 0 }
             val cur = if (synced) lyrics.indexOfLast { it.t in 0..pos }.coerceAtLeast(0) else 0
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(PX.lyricsCard).padding(20.dp)) {
