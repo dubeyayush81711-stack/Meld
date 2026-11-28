@@ -1,5 +1,10 @@
 package com.metrolist.music.wavy
 
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
+import kotlinx.coroutines.CoroutineStart
 import android.content.Intent
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -88,7 +93,24 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
     // the player follows the finger when pulled down, then closes into the mini player past 160 px, or springs back
     val pullY = remember { androidx.compose.animation.core.Animatable(0f) }
     val pullScope = rememberCoroutineScope()
-    Box(Modifier.fillMaxSize().graphicsLayer { translationY = pullY.value; alpha = (1f - pullY.value / 1400f).coerceIn(0.4f, 1f) }.background(Brush.verticalGradient(listOf(bg, bg.copy(alpha = 0.55f).compositeOver(W.Base), W.Base)))
+    // the content column scrolls and eats vertical drags, so the pull-down is also caught as leftover scroll at the top (works from the art area and anywhere on the page)
+    val pullNsc = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
+                if (pullY.value > 0f && available.y < 0f) { val n = (pullY.value + available.y).coerceAtLeast(0f); val used = n - pullY.value; pullScope.launch(start = CoroutineStart.UNDISPATCHED) { pullY.snapTo(n) }; return androidx.compose.ui.geometry.Offset(0f, used) }
+                return androidx.compose.ui.geometry.Offset.Zero
+            }
+            override fun onPostScroll(consumed: androidx.compose.ui.geometry.Offset, available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
+                if (available.y > 0f && source == NestedScrollSource.Drag) { val n = pullY.value + available.y; pullScope.launch(start = CoroutineStart.UNDISPATCHED) { pullY.snapTo(n) }; return androidx.compose.ui.geometry.Offset(0f, available.y) }
+                return androidx.compose.ui.geometry.Offset.Zero
+            }
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (pullY.value > 0f) { if (pullY.value > 160f || available.y > 1800f) onClose() else pullY.animateTo(0f, androidx.compose.animation.core.spring(0.8f, 400f)); return available }
+                return Velocity.Zero
+            }
+        }
+    }
+    Box(Modifier.fillMaxSize().nestedScroll(pullNsc).graphicsLayer { translationY = pullY.value; val f = (pullY.value / 900f).coerceIn(0f, 1f); scaleX = 1f - 0.14f * f; scaleY = 1f - 0.14f * f; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f); shape = androidx.compose.foundation.shape.RoundedCornerShape((28f * f).dp); clip = f > 0f; alpha = (1f - pullY.value / 1400f).coerceIn(0.4f, 1f) }.background(Brush.verticalGradient(listOf(bg, bg.copy(alpha = 0.55f).compositeOver(W.Base), W.Base)))
         .pointerInput(showQueue || showOpts || showAdv || fullLy != null) { if (!(showQueue || showOpts || showAdv || fullLy != null)) detectVerticalDragGestures(
             onDragEnd = { if (pullY.value > 160f) onClose() else pullScope.launch { pullY.animateTo(0f, androidx.compose.animation.core.spring(0.8f, 400f)) } },
             onDragCancel = { pullScope.launch { pullY.animateTo(0f) } }
