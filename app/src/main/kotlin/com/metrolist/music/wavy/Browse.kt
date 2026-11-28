@@ -171,7 +171,7 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 Spacer(Modifier.height(16.dp))
             }
             if (q.isEmpty() && page && hist.isEmpty()) col {
-                Column(Modifier.fillMaxWidth().padding(top = 120.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.fillMaxWidth().padding(top = if (trending.isNotEmpty()) 8.dp else 120.dp, bottom = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Play what you love", style = ts(22, FontWeight.Bold))
                     Spacer(Modifier.height(6.dp))
                     Text("Search for artists, songs, playlists.", style = ts(15, color = W.Dim))
@@ -191,6 +191,17 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 }
                 Spacer(Modifier.height(14.dp))
             }
+            // search page with an empty box: fill the space with real shortcuts (mood searches) and the real trending list
+            if (q.isEmpty() && page) col {
+                Text("Try searching", Modifier.padding(top = 8.dp, bottom = 10.dp), style = ts(20, FontWeight.SemiBold))
+                listOf("Romantic", "Party", "Sad songs", "Devotional", "Workout", "Chill", "Retro", "Dance", "Focus").chunked(3).forEach { row ->
+                    Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        row.forEach { n -> Box(Modifier.clip(RoundedCornerShape(50)).background(Color(0x33FFFFFF)).clickable { go(if (n.endsWith("songs")) n else n + " songs") }.padding(horizontal = 16.dp, vertical = 9.dp)) { Text(n, style = ts(15, FontWeight.Medium)) } }
+                    }
+                }
+                if (trending.isNotEmpty()) Text("Trending now", Modifier.padding(top = 14.dp, bottom = 4.dp), style = ts(20, FontWeight.SemiBold))
+            }
+            if (q.isEmpty() && page) trending.take(8).forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, trending, i, "Trending now") } } }
             if (q.isEmpty() && !page && trending.isNotEmpty()) col {
                 Text("Trending now", Modifier.padding(bottom = 4.dp), style = ts(20, FontWeight.SemiBold))
             }
