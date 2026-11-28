@@ -349,6 +349,7 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                                 else Text(m.optString("name").take(1).uppercase(), style = ts(18, FontWeight.Bold)) }
                             Column(Modifier.weight(1f).padding(start = 12.dp)) { Text(m.optString("name"), style = ts(16, FontWeight.SemiBold))
                                 Text(when { m.optString("status") == "pending" -> "Wants to join"; m.optString("role") == "admin" -> "Host"; !m.optBoolean("can_control") -> "Listen only"; m.optBoolean("muted") -> "Muted"; else -> "Can control" }, style = ts(12, color = Color(0xFFB9B2C4))) }
+                            if (uid != Api.uid) FollowChip(uid)
                             if (admin && m.optString("role") != "admin") Box {
                                 if (m.optString("status") == "pending") Row { listOf("approve" to "Approve", "reject" to "Reject").forEach { (a, l) -> Text(l, Modifier.padding(start = 12.dp).clickable { scope.launch { try { call("party_member_action", "p_party" to pid, "p_user" to uid, "p_action" to a); tick++ } catch (e: Exception) { } } }, style = ts(14, FontWeight.SemiBold, if (a == "approve") W.Pink else Color.White)) } }
                                 else { Icon(painterResource(R.drawable.more_vert), null, Modifier.size(28.dp).clickable { menu = true }, tint = Color.White)

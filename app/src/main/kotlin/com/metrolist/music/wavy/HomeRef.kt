@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.metrolist.music.R
+import org.json.JSONObject
 import com.metrolist.music.playback.PlayerConnection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -298,4 +299,72 @@ fun LibTiles(favId: Long?, onPlaylist: (Long, String) -> Unit, setChip: (String)
             }
         }
     }
+}
+
+/** Friends listening now: people you follow who turned sharing on. Real rows from the now_playing table (RLS: only people you follow), last 10 minutes. */
+object NowPlaying {
+    private val iso = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+    suspend fun publish(m: com.metrolist.music.models.MediaMetadata?) {
+        val uid = Api.uid ?: return; val md = m ?: return
+        try {
+            Api.post("now_playing", JSONObject().put("user_id", uid).put("track_id", md.id.take(32)).put("title", md.title.take(200))
+                .put("artist", md.artists.joinToString { it.name }.take(200)).put("cover_url", (md.thumbnailUrl ?: "").take(500)).put("updated_at", iso.format(java.util.Date())), upsert = true)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+    }
+    @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
+    fun clearAsync() { kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) { clear() } }
+    suspend fun clear() { val uid = Api.uid ?: return; try { Api.delete("now_playing?user_id=eq.$uid") } catch (e: Exception) { } }
+    suspend fun friends(): List<Triple<String, String, Track>> = withContext(Dispatchers.IO) {
+        val uid = Api.uid ?: return@withContext emptyList()
+        val since = iso.format(java.util.Date(System.currentTimeMillis() - 600_000L))
+        val rows = (Api.get("now_playing?select=user_id,track_id,title,artist,cover_url&user_id=neq.$uid&updated_at=gte.$since&order=updated_at.desc&limit=20") as? org.json.JSONArray) ?: return@withContext emptyList()
+        if (rows.length() == 0) return@withContext emptyList()
+        val ids = (0 until rows.length()).joinToString(",") { rows.getJSONObject(it).getString("user_id") }
+        val names = HashMap<String, String>()
+        (Api.get("profiles?select=id,name&id=in.($ids)") as? org.json.JSONArray)?.let { a -> for (i in 0 until a.length()) a.getJSONObject(i).let { names[it.getString("id")] = it.optString("name") } }
+        (0 until rows.length()).map { rows.getJSONObject(it) }.map { r ->
+            Triple(r.getString("user_id"), names[r.getString("user_id")].orEmpty().ifBlank { "A friend" },
+                Track(r.getString("track_id"), r.optString("title"), r.optString("artist"), r.optString("cover_url").ifBlank { null }, 0, null, null))
+        }
+    }
+}
+
+@Composable
+fun FriendsNow(pc: PlayerConnection?) {
+    var l by remember { mutableStateOf<List<Triple<String, String, Track>>>(emptyList()) }
+    LaunchedEffect(HomeRefresh.n) { l = try { NowPlaying.friends() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() } }
+    if (l.isEmpty()) return
+    Column {
+        HomeHead("Friends listening now", "Live from people you follow")
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            itemsIndexed(l) { _, (_, name, t) ->
+                Row(Modifier.width(250.dp).clip(RoundedCornerShape(14.dp)).background(Color(0x22FFFFFF)).clickable { playTracks(pc, listOf(t), 0, "Friends listening now") }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Cover(t.cover, 56.dp, 8)
+                    Column(Modifier.padding(start = 10.dp)) {
+                        Text(name, style = ts(12, color = W.Pink), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(t.title, style = ts(15, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(t.artist, style = ts(12, color = Color(0xB3FFFFFF)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+/** Follow / Following chip for a person (used on party members). Writes the follows table; only you can add or remove your own follows. */
+@Composable
+fun FollowChip(uid: String) {
+    val scope = rememberCoroutineScope()
+    var on by remember(uid) { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(uid) { on = try { withContext(Dispatchers.IO) { ((Api.get("follows?select=followee_id&follower_id=eq.${Api.uid}&followee_id=eq.$uid") as? org.json.JSONArray)?.length() ?: 0) > 0 } } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null } }
+    val v = on ?: return
+    Text(if (v) "Following" else "Follow", Modifier.padding(start = 8.dp).clip(RoundedCornerShape(50)).background(if (v) Color(0x22FFFFFF) else W.Pink).clickable {
+        scope.launch {
+            try {
+                if (v) Api.delete("follows?follower_id=eq.${Api.uid}&followee_id=eq.$uid") else Api.post("follows", JSONObject().put("follower_id", Api.uid).put("followee_id", uid))
+                on = !v
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        }
+    }.padding(horizontal = 12.dp, vertical = 5.dp), style = ts(12, FontWeight.SemiBold))
 }

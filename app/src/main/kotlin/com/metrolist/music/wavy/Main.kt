@@ -114,6 +114,7 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
         val id = meta?.id ?: return@LaunchedEffect
         delay(15000)
         try { Api.post("plays", JSONObject().put("user_id", Api.uid).put("track_id", id)) } catch (e: Exception) { }
+        if (S.b("share_now")) NowPlaying.publish(meta)
     }
     // queue verifier (rule based): shortly after a song starts, upcoming auto-queued songs in another language or junk uploads are removed.
     // Skipped when the queue is locked, in a party, or when the song now playing is itself not in his languages (he chose it on purpose).
@@ -387,6 +388,7 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
             } else {
                 if (cat == "All" && f != null) item { QuickTiles(f.favouritesId, tiles, onPlaylist, onParty, f.sections.firstOrNull { it.type == "made_for_you" && it.tracks.isNotEmpty() }?.let { m -> { playTracks(pc, m.tracks, 0, m.title) } }) }
                 if (cat == "All") item { PartyLive(onParty) }
+                if (cat == "All") item { FriendsNow(pc) }
                 if (cat == "All") { item { RecentList(pc) } }
                 if (f != null) item { Hero(f, pc) }
                 if (f != null && cat == "All") item { ForYouShelf(pc) }

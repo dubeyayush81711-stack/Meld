@@ -33,6 +33,17 @@ suspend fun feedPage(titles: List<String>, offset: Int, seed: String): List<Trac
         for (t in Played.filter(raw)) if (seen.add(t.id)) out.add(t)
         off += raw.size; tries++
     }
+    // The server lists are small (Hindi has about 120 songs) and heard songs are removed, so when few are left, fill up from live YouTube Music searches (rotating topics), still limited to the selected languages and never heard before.
+    if (out.size < 20 && titles.isNotEmpty()) {
+        val topics = listOf("new %s songs 2026", "latest %s hit songs", "%s romantic songs", "%s sad songs", "%s party songs", "%s trending songs", "%s lofi chill songs", "%s old classic songs")
+        val base = Math.abs(seed.hashCode()) + FeedRot.n
+        val junk = Regex("(?i)cover|karaoke|slowed|reverb|8d|sped up|remix|instrumental")
+        val extra = try { kotlinx.coroutines.coroutineScope {
+            titles.flatMap { lg -> val l = when (lg.lowercase()) { "south" -> "tamil telugu"; "international" -> "english"; else -> lg.lowercase() }
+                (0 until 2).map { k -> async { try { kotlinx.coroutines.withTimeoutOrNull(8000) { liveSongs(topics[(base + k) % topics.size].format(l)).tracks() } ?: emptyList() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList<Track>() } } } }.map { it.await() }.flatten()
+        } } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
+        for (t in Played.filter(LangGuard.filter(extra.filter { !junk.containsMatchIn(it.title) }))) if (seen.add(t.id)) out.add(t)
+    }
     return out
 }
 

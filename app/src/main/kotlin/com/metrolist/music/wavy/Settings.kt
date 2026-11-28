@@ -122,6 +122,10 @@ fun ContentSettings(onBack: () -> Unit) {
             override var value: Boolean get() = !explicit; set(v) { explicit = !v }
             override fun component1() = value; override fun component2(): (Boolean) -> Unit = { value = it } })
         SNote("It may take some time for your experience to update.")
+        val shareNow = boolPref("share_now", false)
+        SToggle("Share what I'm listening to", "People you follow see the song you are playing under Friends listening now. Off by default. Turning it off removes it right away.", object : MutableState<Boolean> {
+            override var value: Boolean get() = shareNow.value; set(v) { shareNow.value = v; if (!v) NowPlaying.clearAsync() }
+            override fun component1() = value; override fun component2(): (Boolean) -> Unit = { value = it } })
         SToggle("Include kids and family music in taste profile", "Turning this off will exclude kids and family music from your taste profile, which influences your recommendations.", boolPref("kids", true))
         SToggle("Show unplayable songs", "Songs that aren't available (e.g., due to artist removal or region) are still visible.", boolPref("unplayable", false))
         SDivider()
