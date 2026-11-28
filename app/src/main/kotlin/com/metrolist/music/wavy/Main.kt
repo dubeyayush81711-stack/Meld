@@ -133,6 +133,13 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
                 val up = (cur + 1 until pl.mediaItemCount).filter { it <= cur + 12 }
                 if (up.count { Devotion.isDevotional(tr(it)) } >= 2) for (k in up.reversed()) if (!Devotion.isDevotional(tr(k))) pl.removeMediaItem(k)
             }
+            // approximate mood continuity (keyword rule): songs tagged with a different mood than the one playing are dropped, untagged songs stay. Skipped if fewer than 3 upcoming songs would remain.
+            run {
+                val mc = Devotion.mood(tr(cur)); if (mc == null || Devotion.isDevotional(tr(cur))) return@run
+                val up = (cur + 1 until pl.mediaItemCount).filter { it <= cur + 12 }
+                val bad = up.filter { val mk = Devotion.mood(tr(it)); mk != null && mk != mc }
+                if (bad.isNotEmpty() && up.size - bad.size >= 3) for (k in bad.reversed()) pl.removeMediaItem(k)
+            }
             // AI check (wavy-verify): asks the model which of the next songs do not fit the chosen languages or are low-quality uploads. Silent if the function is not reachable.
             val last = minOf(cur + 10, pl.mediaItemCount - 1)
             if (last > cur && !S.b("verify_ai_off")) {
