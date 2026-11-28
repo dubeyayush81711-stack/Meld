@@ -262,9 +262,8 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                 val hm = hist.filter { it.lowercase().contains(ql) && !it.equals(q.trim(), true) }.take(3)
                 val fy = if (ql.isEmpty()) TasteProfile.forYouSuggestions(6) else emptyList()
                 val rows = if (ql.isEmpty()) fy.map { it to hist.any { h -> h.equals(it, true) } } else (hm.map { it to true } + sugg.filter { s0 -> hm.none { it.equals(s0, true) } }.map { it to false }).take(8)
-                if (ql.isNotEmpty()) liveSongs.forEachIndexed { i, t -> col(key = "ls_" + t.id) { TrackRow(t, pc) { try { kbc?.hide() } catch (e: Exception) { }; playTracks(pc, liveSongs, i, "Search") } } }
                 col {
-                    (if (ql.isNotEmpty() && liveSongs.isNotEmpty()) rows.take(3) else rows).forEach { (sg, isHist) ->
+                    (if (ql.isNotEmpty() && liveSongs.isNotEmpty()) rows.take(4) else rows).forEach { (sg, isHist) ->
                         Row(Modifier.fillMaxWidth().clickable { go(sg) }.padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(painterResource(if (isHist) R.drawable.history else R.drawable.search), null, Modifier.size(20.dp), tint = W.Dim)
                             Text(sg, Modifier.weight(1f).padding(start = 14.dp), style = ts(16), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -272,6 +271,8 @@ fun SearchScreen(pc: PlayerConnection?, onLang: (LangTile) -> Unit, onProfile: (
                         }
                     }
                 }
+                // text suggestions stay right under the search bar; song results follow below
+                if (ql.isNotEmpty()) liveSongs.forEachIndexed { i, t -> col(key = "ls_" + t.id) { TrackRow(t, pc) { try { kbc?.hide() } catch (e: Exception) { }; playTracks(pc, liveSongs, i, "Search") } } }
             } else {
                 col {
                     Row(Modifier.padding(bottom = 14.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
