@@ -150,6 +150,8 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
     LaunchedEffect(pid) { PartyState.active = true; try { pc?.player?.let { it.pause(); it.clearMediaItems() } } catch (_: Exception) { } }
     var st by remember { mutableStateOf<JSONObject?>(null) }
     var tab by remember { mutableIntStateOf(0) }
+    val syncT = remember { longArrayOf(0L, 0L) }  // [0] round trip ms of the last poll, [1] when it arrived
+    var driftMs by remember { mutableIntStateOf(0) }
     var msg by remember { mutableStateOf("") }; var q by remember { mutableStateOf("") }
     var found by remember { mutableStateOf<List<Track>>(emptyList()) }
     var tick by remember { mutableIntStateOf(0) }
@@ -159,7 +161,7 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
     LaunchedEffect(pid, tick) { try { lockInfo = call("party_locks", "p_party" to pid) as? JSONObject } catch (e: Exception) { } }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { PartyState.full = false } }
     val partyLife = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(pid, tick) { partyLife.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) { while (true) { try { st = call("party_state", "p_party" to pid) as? JSONObject } catch (e: Exception) { }; delay(if (PartyState.foreground) 1800L else 4500L) } } }
+    LaunchedEffect(pid, tick) { partyLife.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) { while (true) { try { val t0 = android.os.SystemClock.elapsedRealtime(); val r = call("party_state", "p_party" to pid) as? JSONObject; val t1 = android.os.SystemClock.elapsedRealtime(); syncT[0] = t1 - t0; syncT[1] = t1; st = r } catch (e: Exception) { }; delay(if (PartyState.foreground) 1800L else 4500L) } } }
     LaunchedEffect(q) { if (q.length < 2) { found = emptyList(); return@LaunchedEffect }; delay(350)
         try { found = ((Api.rpc("search_all", JSONObject().put("p_q", q).put("p_limit", 20)) as? JSONObject)?.optJSONArray("tracks")).tracks() } catch (e: Exception) { }
         if (found.isEmpty()) found = try { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.metrolist.innertube.YouTube.search(q, com.metrolist.innertube.YouTube.SearchFilter.FILTER_SONG).getOrNull()?.items?.mapNotNull { it.asTrack() } ?: emptyList() } } catch (e: Exception) { emptyList() } }
@@ -171,6 +173,20 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
         if (pc.mediaMetadata.value?.id != tr.id) playTracks(pc, listOf(tr), 0, "Party")
         val pos = pb.optLong("position_ms"); if (kotlin.math.abs(pc.player.currentPosition - pos) > 2500) pc.player.seekTo(pos)
         if (pb.optBoolean("is_playing")) pc.player.play() else pc.player.pause()
+    }
+    // continuous drift correction: the server position is as of the reply; add half the round trip, compare with this phone, nudge the speed a little instead of jumping
+    LaunchedEffect(st) {
+        val pb = st?.optJSONObject("playback") ?: return@LaunchedEffect
+        val tr = pb.optJSONObject("track")?.toTrack() ?: return@LaunchedEffect
+        val p = pc?.player ?: return@LaunchedEffect
+        if (!pb.optBoolean("is_playing") || pc?.mediaMetadata?.value?.id != tr.id || p.playbackState != androidx.media3.common.Player.STATE_READY || syncT[0] > 800L) return@LaunchedEffect
+        val expected = pb.optLong("position_ms") + syncT[0] / 2
+        val drift = (p.currentPosition - expected).toInt()
+        driftMs = drift
+        val a = kotlin.math.abs(drift)
+        if (a > 1500) { p.seekTo(expected); p.setPlaybackSpeed(S.f("speed", 1f).coerceIn(0.5f, 2f)) }
+        else if (a > 50) p.setPlaybackSpeed(1f - (drift / 1500f).coerceIn(-0.04f, 0.04f))
+        else p.setPlaybackSpeed(S.f("speed", 1f).coerceIn(0.5f, 2f))
     }
     LaunchedEffect(s?.optBoolean("ended")) { if (s?.optBoolean("ended") == true) { Toast.makeText(ctx, "The party ended", Toast.LENGTH_SHORT).show(); leaveRoom() } }
     if (s == null || s.optString("my_status") != "active") { Backdrop { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(if (s?.optString("my_status") == "pending") "Waiting for the host to let you in..." else "Joining...", style = ts(16, color = W.Dim)) } }; return }
@@ -229,6 +245,7 @@ fun PartyRoom(pc: PlayerConnection?, pid: String, onLeft: () -> Unit, onBack: ()
                 }
             }
             if (cur != null && !can) Text("Skip votes ${skip.optInt("votes")}/${skip.optInt("needed")}", Modifier.padding(start = 20.dp, top = 6.dp), style = ts(12, color = Color(0xFFCFC8D9)))
+            Text("Sync: this phone is about ${kotlin.math.abs(driftMs)} ms ${if (driftMs >= 0) "ahead of" else "behind"} the room (estimate)", Modifier.padding(start = 20.dp, top = 6.dp), style = ts(11, color = Color(0xFFCFC8D9)))
             Text(if (PartyState.full) "Exit full screen" else "Full screen", Modifier.padding(start = 20.dp, top = 6.dp).clickable { PartyState.full = !PartyState.full }, style = ts(12, color = W.Pink))
             Row(Modifier.padding(16.dp, 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 listOf("Queue", "Chat", "People").forEachIndexed { i, n -> Box(Modifier.clip(RoundedCornerShape(50)).background(if (tab == i) W.Pink else Color(0x2EFFFFFF)).clickable { tab = i }.padding(horizontal = 20.dp, vertical = 9.dp)) { Text(n, style = ts(15, FontWeight.SemiBold)) } }
