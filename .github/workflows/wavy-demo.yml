@@ -1,0 +1,39 @@
+name: Wavy demo clips
+on:
+  workflow_dispatch:
+  push:
+    branches: [wavy]
+    paths: [".github/demo.trigger"]
+permissions:
+  contents: read
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download released APK
+        run: curl -sL -o wavy.apk "https://github.com/dubeyayush81711-stack/Meld/releases/download/wavy-test-139/Wavy-test-139.apk" && ls -la wavy.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        env:
+          DEMO_EMAIL: ${{ secrets.DEMO_EMAIL }}
+          DEMO_PASS: ${{ secrets.DEMO_PASS }}
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          profile: pixel_5
+          disable-animations: false
+          script: bash .github/demo/record.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wavy-demo
+          path: |
+            clips
+            dumps
