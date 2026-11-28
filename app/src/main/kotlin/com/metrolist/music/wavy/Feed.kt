@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.layout.onSizeChanged
@@ -186,14 +187,18 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean 
     var reloading by remember { mutableStateOf(false) }
     var langSkip by remember { mutableStateOf(true) }
     var note by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(note) { if (note != null) { delay(2200); note = null } }
+    LaunchedEffect(note) { if (note != null) { delay(3500); note = null } }
     LaunchedEffect(refreshN, langs) {
         var attempt = 0
         reloading = refreshN > 0 || !langSkip
         while (true) {
             try {
                 if (refreshN > 0 && attempt == 0) TasteProfile.invalidate()
-                val got = TasteProfile.blend(mixFollowed(feedPage(langs, 0, seed), followedSongs()), TasteProfile.recommendQuick())
+                // one attempt may never hang the refresh: 25 s at most, then it counts as a failed try
+                val got = kotlinx.coroutines.withTimeoutOrNull(25000L) { TasteProfile.blend(mixFollowed(feedPage(langs, 0, seed), followedSongs()), TasteProfile.recommendQuick()) } ?: emptyList()
+                // a refresh must bring songs that are not on screen already; otherwise look deeper and try again
+                val curIds = feed.map { it.id }.toHashSet()
+                if (refreshN > 0 && got.isNotEmpty() && got.count { it.id !in curIds } < 3) { FeedRot.next(); attempt++; if (attempt >= 4) { note = "No new songs right now. Try again in a minute."; break }; delay(600L); continue }
                 if (got.isNotEmpty()) { if (refreshN > 0) { first = null; feedGen++; note = "Songs updated" }; feed = got; err = null; saveFeedCache(langs.joinToString(","), got); break }
                 if (feed.isNotEmpty() && refreshN == 0) break
                 if (refreshN > 0) FeedRot.next()   // nothing new in this slice (all already heard): look deeper on the next try instead of repeating the same fetch
@@ -393,7 +398,7 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                         Icon(painterResource(R.drawable.expand_more), null, Modifier.size(22.dp), tint = Color.White)
                     }
                     Spacer(Modifier.weight(1f))
-                    Icon(painterResource(R.drawable.refresh), null, Modifier.clickable(enabled = !reloading) { FeedRot.next(); seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; first = null; refreshN++ }.padding(8.dp).size(24.dp), tint = if (reloading) W.Pink else Color.White)
+                    if (reloading) androidx.compose.material3.CircularProgressIndicator(Modifier.padding(8.dp).size(24.dp), color = W.Pink, strokeWidth = 2.dp) else Icon(painterResource(R.drawable.refresh), null, Modifier.clickable(enabled = !reloading) { FeedRot.next(); seed = System.currentTimeMillis().toString(); queueOwned = false; userMoved = true; first = null; refreshN++ }.padding(8.dp).size(24.dp), tint = if (reloading) W.Pink else Color.White)
                     Icon(painterResource(R.drawable.search), null, Modifier.clickable { onSearch() }.padding(8.dp).size(24.dp), tint = Color.White)
                     Icon(painterResource(R.drawable.more_vert), null, Modifier.clickable { showFx = true }.padding(8.dp).size(24.dp), tint = Color.White)
                 }
@@ -418,8 +423,8 @@ if (synced.isNotEmpty() && ci >= 0) LyricsView(synced, ci, pos, lyricStyle, Modi
                 }
             }
         }
-        note?.let { n -> Text(n, Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 64.dp).clip(RoundedCornerShape(50)).background(Color(0xCC14080F)).padding(horizontal = 16.dp, vertical = 7.dp), style = ts(13, FontWeight.Medium)) }
-        if (reloading) Text("Updating songs...", Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 64.dp).clip(RoundedCornerShape(50)).background(Color(0xCC14080F)).padding(horizontal = 16.dp, vertical = 7.dp), style = ts(13, FontWeight.Medium))
+        note?.let { n -> Text(n, Modifier.align(Alignment.TopCenter).zIndex(9f).statusBarsPadding().padding(top = 64.dp).clip(RoundedCornerShape(50)).background(Color(0xE614080F)).padding(horizontal = 16.dp, vertical = 7.dp), style = ts(13, FontWeight.Medium)) }
+        if (reloading) Text("Updating songs...", Modifier.align(Alignment.TopCenter).zIndex(9f).statusBarsPadding().padding(top = 64.dp).clip(RoundedCornerShape(50)).background(Color(0xE614080F)).padding(horizontal = 16.dp, vertical = 7.dp), style = ts(13, FontWeight.Medium))
         var cutOpen by remember { mutableStateOf(false) }
         if (cutOpen) { val ct0 = tracks.getOrNull(pager.currentPage); if (ct0 != null) RingtoneCutter(ct0, pc) { cutOpen = false } }
         run {
