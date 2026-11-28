@@ -9,7 +9,7 @@ tap(){ adb shell input tap $1 $2; }
 tapt(){ for i in 1 2 3 4 5 6; do c=$(python3 .github/demo/ui.py find "$1") && { tap $c; return 0; }; sleep 2; done; echo "NOT FOUND $1"; return 1; }
 swipe_up(){ adb shell input swipe 540 1700 540 600 700; }
 adb shell settings put global window_animation_scale 1; adb shell settings put global transition_animation_scale 1; adb shell settings put global animator_duration_scale 1
-adb shell pm grant $P android.permission.POST_NOTIFICATIONS 2>/dev/null
+adb install -r wavy.apk | tail -1; adb shell pm grant $P android.permission.POST_NOTIFICATIONS 2>/dev/null; adb shell cmd statusbar collapse
 adb shell monkey -p $P -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 sleep 12; snap s0_launch
 # ---- login clip
@@ -29,4 +29,4 @@ sleep 4; for i in 1 2 3 4 5; do swipe_up; sleep 2.5; done
 for i in 1 2 3 4 5; do adb shell input swipe 540 600 540 1700 700; sleep 2; done
 snap s5_home
 rec_stop 02_home
-ls -la clips
+adb logcat -d > dumps/logcat.txt; ls -la clips
