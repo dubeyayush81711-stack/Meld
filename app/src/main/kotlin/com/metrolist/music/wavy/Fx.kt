@@ -31,7 +31,7 @@ import kotlin.math.sqrt
 
 /** Reduce effects: no blur, no drifting backdrop, no moving wave. On by default for a smooth feel. */
 object Reduce {
-    var on by mutableStateOf(true)
+    var on by mutableStateOf(false)
     val state: MutableState<Boolean> = object : MutableState<Boolean> {
         override var value: Boolean get() = on; set(v) { on = v; S.put("reduce_fx", v) }
         override fun component1() = value
@@ -42,7 +42,7 @@ object Reduce {
 /** Simple persisted settings. Keys are plain strings. */
 object S {
     private var sp: android.content.SharedPreferences? = null
-    fun init(ctx: Context) { if (sp == null) { sp = ctx.applicationContext.getSharedPreferences("wavy_settings", Context.MODE_PRIVATE); if (!sp!!.getBoolean("fx_v110", false)) sp!!.edit().putBoolean("reduce_fx", true).putBoolean("fx_v110", true).apply(); Reduce.on = sp!!.getBoolean("reduce_fx", true) } }
+    fun init(ctx: Context) { if (sp == null) { sp = ctx.applicationContext.getSharedPreferences("wavy_settings", Context.MODE_PRIVATE); if (!sp!!.getBoolean("fx_v110", false)) sp!!.edit().putBoolean("reduce_fx", true).putBoolean("fx_v110", true).apply(); if (!sp!!.getBoolean("fx_v151", false)) sp!!.edit().putBoolean("reduce_fx", false).putBoolean("fx_v151", true).apply(); Reduce.on = sp!!.getBoolean("reduce_fx", false) } }
     fun clearPrefix(vararg p: String) { val e = sp?.edit() ?: return; sp?.all?.keys?.filter { k -> p.any { k.startsWith(it) } }?.forEach { e.remove(it) }; e.apply() }
     fun keysWithPrefix(p: String): List<String> = sp?.all?.keys?.filter { it.startsWith(p) } ?: emptyList()
     fun b(k: String, d: Boolean = false) = sp?.getBoolean(k, d) ?: d
