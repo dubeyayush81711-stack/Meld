@@ -385,8 +385,8 @@ fun HomeScreen(pc: PlayerConnection?, onSearch: () -> Unit, onSignOut: () -> Uni
                     chill.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, chill, i, "Chill") } }
                 }
             } else {
+                if (cat == "All") { item { RecentList(pc) }; item { SpeedDial(pc) }; item { KeepListening(pc) } }
                 if (cat == "All" && f != null) item { QuickTiles(f.favouritesId, tiles, onPlaylist, onParty, f.sections.firstOrNull { it.type == "made_for_you" && it.tracks.isNotEmpty() }?.let { m -> { playTracks(pc, m.tracks, 0, m.title) } }) }
-                if (cat == "All") item { RecentShelf(pc) }
                 if (f != null) item { Hero(f, pc) }
                 if (f != null && cat == "All") item { ForYouShelf(pc) }
                 if (f == null) item {
@@ -454,28 +454,8 @@ fun Hero(f: Feed, pc: PlayerConnection?) {
 
 private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc: PlayerConnection?) {
     val first = f.sections.firstOrNull { it.type == "made_for_you" } ?: f.sections.firstOrNull { it.type == "trending" }
-    if (first != null && first.tracks.isNotEmpty()) col {
-        Column {
-            Text("Jump into a session based on your tastes", Modifier.padding(horizontal = 20.dp), style = ts(12, color = Color(0x94FFFFFF)))
-            Text("Start listening", Modifier.padding(horizontal = 20.dp, vertical = 2.dp), style = ts(20, FontWeight.SemiBold))
-            Spacer(Modifier.height(6.dp))
-            first.tracks.take(3).forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, first.tracks, i, first.title) } }
-            Spacer(Modifier.height(28.dp))
-        }
-    }
-    col { MoodRow("Chill", "chill", pc) }
-    if (!S.b("hide_mood_party")) col { MoodRow("Party and dance", "party", pc) }
-    if (!S.b("hide_mood_top")) col { MoodRow("Top hits for you", "top", pc) }
-    val mixes = f.sections.filter { it.type == "artist_mix" }
-    if (mixes.isNotEmpty()) col {
-        SectionHeader("To get you started")
-        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            itemsIndexed(mixes) { _, s -> BigCard(s.tracks.firstOrNull()?.cover ?: s.cover, s.title, s.subtitle) { playTracks(pc, s.tracks, 0, s.title) } }
-        }
-        Spacer(Modifier.height(28.dp))
-    }
-    for (s in f.sections) {
-        if (s.type == "artist_mix" || (s === first) || S.b("hide_" + s.id)) continue
+    fun render(s: Section) {
+        if (s.type == "artist_mix" || (s === first) || S.b("hide_" + s.id)) return
         when {
             s.albums.isNotEmpty() -> col(s.id) {
                 SectionHeader(s.title)
@@ -526,6 +506,30 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedItems(f: Feed, pc
                 Spacer(Modifier.height(28.dp))
             }
         }
+    }
+    val rest = f.sections.filter { it.type != "artist_mix" && it !== first && !S.b("hide_" + it.id) }
+    val ml = rest.filter { it.type == "more_like" }
+    val trend = rest.firstOrNull { it.type == "trending" }
+    val others = rest.filter { it.type != "more_like" && it !== trend }
+    ml.getOrNull(0)?.let { render(it) }
+    col { MoodsGrid(pc) }
+    if (trend != null && trend.tracks.size >= 3) col(trend.id) { PagedTracks("Hot for you", trend.tracks, pc, "Updated daily") }
+    if (!S.b("hide_mood_top")) col { MoodRow("Biggest in India", "top", pc) }
+    ml.getOrNull(1)?.let { render(it) }
+    col { LiveRow(pc) }
+    ml.getOrNull(2)?.let { render(it) }
+    col { WeddingRow(pc) }
+    ml.drop(3).forEach { render(it) }
+    others.forEach { render(it) }
+    col { MoodRow("Chill", "chill", pc) }
+    if (!S.b("hide_mood_party")) col { MoodRow("Party and dance", "party", pc) }
+    val mixes = f.sections.filter { it.type == "artist_mix" }
+    if (mixes.isNotEmpty()) col {
+        SectionHeader("To get you started")
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            itemsIndexed(mixes) { _, s -> BigCard(s.tracks.firstOrNull()?.cover ?: s.cover, s.title, s.subtitle) { playTracks(pc, s.tracks, 0, s.title) } }
+        }
+        Spacer(Modifier.height(28.dp))
     }
     col { HomeEditor(f.sections.filter { it.type != "artist_mix" && it !== first }.map { it.id to it.title }) }
 }

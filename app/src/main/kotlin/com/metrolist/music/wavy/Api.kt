@@ -55,7 +55,7 @@ object Api {
 
     /** Everything the previous user taught this phone (history, taste, caches, language choice) must not reach the next account. */
     fun wipeUserData() {
-        try { S.clearPrefix("taste_v1", "played_hist", "recent_tracks_", "feed_cache_", "home_feed_cache_", "liked_", "hide_", "follow_", "fname_", "fthumb_", "feed_langs"); TasteProfile.reset(); Played.reset(); Recent.reset() } catch (e: Exception) { }
+        try { S.clearPrefix("taste_v1", "played_hist", "recent_tracks_", "feed_cache_", "home_feed_cache_", "liked_", "hide_", "follow_", "fname_", "fthumb_", "feed_langs"); TasteProfile.reset(); Played.reset(); Recent.reset(); PlayCount.reset() } catch (e: Exception) { }
     }
 
     fun signOut() {

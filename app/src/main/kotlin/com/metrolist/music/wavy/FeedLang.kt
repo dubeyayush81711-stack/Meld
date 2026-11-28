@@ -82,7 +82,7 @@ object Recent {
         list = try { val a = org.json.JSONArray(S.s(key(), "[]")); (0 until a.length()).map { val o = a.getJSONObject(it); Track(o.getString("i"), o.getString("t"), o.getString("a"), o.optString("c").ifBlank { null }, o.optInt("d"), o.optString("x").ifBlank { null }, o.optString("l").ifBlank { null }) } } catch (e: Exception) { emptyList() }
     }
     @Synchronized fun add(t: Track) {
-        load(); val n = (listOf(t) + list.filter { it.id != t.id }).take(100); list = n
+        load(); PlayCount.bump(t.id); val n = (listOf(t) + list.filter { it.id != t.id }).take(100); list = n
         val snap = org.json.JSONArray().also { a -> n.forEach { a.put(org.json.JSONObject().put("i", it.id).put("t", it.title).put("a", it.artist).put("c", it.cover ?: "").put("d", it.dur).put("x", it.artistId ?: "").put("l", it.album ?: "")) } }.toString()
         Thread { S.put(key(), snap) }.start()
     }

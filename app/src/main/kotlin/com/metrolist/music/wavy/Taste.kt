@@ -229,11 +229,8 @@ fun ForYouShelf(pc: PlayerConnection?) {
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             itemsIndexed(list) { i, t -> MiniCard(t.cover, t.title, t.artist) { playTracks(pc, list, i, "Picked for you") } }
         }
-        val quick = list.drop(10).take(4)
-        if (quick.size >= 3) {
-            Text("Quick picks", Modifier.padding(start = 20.dp, top = 24.dp, bottom = 8.dp), style = ts(20, androidx.compose.ui.text.font.FontWeight.SemiBold))
-            Column(Modifier.padding(horizontal = 20.dp)) { quick.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, quick, i, "Quick picks") } } }
-        }
+        val quick = list.drop(10)
+        if (quick.size >= 3) { Spacer(Modifier.height(24.dp)); PagedTracks("Fast picks", quick, pc, null) }
         Spacer(Modifier.height(28.dp))
     }
 }
