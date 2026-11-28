@@ -613,11 +613,11 @@ fun TrackRow(t: Track, pc: PlayerConnection?, onPlay: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     if (cutOpen) RingtoneCutter(t, pc) { cutOpen = false }
-    Row(Modifier.fillMaxWidth().clickable(onClick = onPlay).padding(horizontal = 20.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-        Cover(t.cover, 52.dp, 8)
+    Row(Modifier.fillMaxWidth().clickable(onClick = onPlay).padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Cover(t.cover, 56.dp, 10)
         Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-            Text(t.title, style = ts(15, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(t.artist, style = ts(12, color = Color(0xFFB9B2C4)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(t.title, style = ts(16, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(t.artist, style = ts(13, color = Color(0xFFB9B2C4)), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Box {
             Icon(painterResource(R.drawable.more_vert), null, Modifier.size(34.dp).clip(CircleShape).clickable { menu = true }.padding(4.dp), tint = Color(0xFFB9B2C4))

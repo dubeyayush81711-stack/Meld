@@ -347,7 +347,7 @@ fun TrackListScreen(title: String, pc: PlayerConnection?, onBack: () -> Unit, lo
             else if (l.isEmpty()) Text("Nothing here yet.", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
             else LazyColumn(contentPadding = PaddingValues(bottom = 210.dp)) {
                 if (title == "Favourites" && pc != null) col { FavPlayer(pc) }
-                col { Row(Modifier.padding(20.dp, 4.dp, 20.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                col { Row(Modifier.padding(16.dp, 4.dp, 16.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("${l.size} songs", Modifier.weight(1f), style = ts(14, color = W.Dim))
                     Text("Play all", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { playTracks(pc, l, 0, title) }.padding(20.dp, 9.dp), style = ts(14, FontWeight.SemiBold)) } }
                 l.forEachIndexed { i, t -> col { TrackRow(t, pc) { playTracks(pc, l, i, title) } } }
@@ -433,7 +433,7 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                 val tl = if (chip == "Top 50") rl.filter { PlayCount.of(it.id) > 0 }.sortedByDescending { PlayCount.of(it.id) }.take(50) else rl
                 if (tl.isEmpty()) Text("Nothing here yet. Play some songs and they show up.", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
                 else {
-                    Row(Modifier.padding(20.dp, 4.dp, 20.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.padding(16.dp, 4.dp, 16.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("${tl.size} songs", Modifier.weight(1f), style = ts(14, color = W.Dim))
                         Text("Play all", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { playTracks(pc, tl, 0, chip) }.padding(20.dp, 9.dp), style = ts(14, FontWeight.SemiBold))
                     }
@@ -451,7 +451,7 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
                 val tl by produceState(emptyList<Track>(), ids) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ids.mapNotNull { WDl.toTrack(it) } } }
                 if (tl.isEmpty()) Text("Open a song in the player, tap the tune icon and choose Download. Downloaded songs play offline.", Modifier.padding(24.dp), style = ts(15, color = W.Dim))
                 else {
-                    Row(Modifier.padding(20.dp, 4.dp, 20.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.padding(16.dp, 4.dp, 16.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("${tl.size} downloaded", Modifier.weight(1f), style = ts(14, color = W.Dim))
                         Text("Play all", Modifier.clip(RoundedCornerShape(50)).background(W.Pink).clickable { playTracks(pc, tl, 0, "Downloads") }.padding(20.dp, 9.dp), style = ts(14, FontWeight.SemiBold))
                     }
@@ -460,7 +460,7 @@ fun LibraryScreen(pc: PlayerConnection?, onProfile: () -> Unit, onPlaylist: (Lon
             } else if (chip == "Playlists") {
                 (if (az) lists.sortedBy { it.second.lowercase() } else lists).filter { q.isEmpty() || it.second.lowercase().contains(q) }.forEach { (id, name, cover) -> col {
                     Row(Modifier.fillMaxWidth().combinedClickable(onClick = { onPlaylist(id, name) }, onLongClick = { menuFor = Triple(id, name, cover) }).padding(horizontal = 16.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (cover != null) Cover(cover, 64.dp, 8) else Box(Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)).background(W.Grad), contentAlignment = Alignment.Center) {
+                        if (cover != null) Cover(cover, 64.dp, 12) else Box(Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)).background(W.Grad), contentAlignment = Alignment.Center) {
                             Icon(painterResource(R.drawable.favorite), null, Modifier.size(30.dp), tint = Color.White) }
                         Column(Modifier.padding(start = 16.dp)) { Text(name, style = ts(17, FontWeight.SemiBold)); Text("Playlist", style = ts(14, color = W.Dim)) }
                     } } }
