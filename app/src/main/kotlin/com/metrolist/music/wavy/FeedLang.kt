@@ -36,8 +36,8 @@ suspend fun feedPage(titles: List<String>, offset: Int, seed: String): List<Trac
     return out
 }
 
-/** Manual refresh moves the language lists deeper (8 songs per press, wraps after 3) so the Refresh button brings songs that were not on screen before. */
-object FeedRot { @Volatile var n = 0; fun next() { n = (n + 1) % 4 } }
+/** Manual refresh moves the language lists deeper (8 songs per press, wraps after 11) so the Refresh button brings songs that were not on screen before. */
+object FeedRot { @Volatile var n = 0; fun next() { n = (n + 1) % 12 } }
 
 private suspend fun rawPage(titles: List<String>, offset: Int, seed: String): List<Track> {
     if (titles.isEmpty()) return (Api.rpc("player_feed_ig", JSONObject().put("p_limit", 30).put("p_offset", offset).put("p_region", "IN").put("p_seed", seed)) as? JSONArray).tracks()

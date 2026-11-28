@@ -196,6 +196,7 @@ fun MusicFeed(pc: PlayerConnection?, onSearch: () -> Unit = {}, active: Boolean 
                 val got = TasteProfile.blend(mixFollowed(feedPage(langs, 0, seed), followedSongs()), TasteProfile.recommendQuick())
                 if (got.isNotEmpty()) { if (refreshN > 0) { first = null; feedGen++; note = "Songs updated" }; feed = got; err = null; saveFeedCache(langs.joinToString(","), got); break }
                 if (feed.isNotEmpty() && refreshN == 0) break
+                if (refreshN > 0) FeedRot.next()   // nothing new in this slice (all already heard): look deeper on the next try instead of repeating the same fetch
             } catch (e: ApiError) { err = humanErr(e) } catch (e: Exception) { err = "No connection. Retrying..." }
             attempt++; if (attempt >= 4) { if (refreshN > 0) note = "Could not update. Try again."; if (feed.isEmpty()) err = err ?: "Could not load songs. Pull down to try again."; break }
             delay(1200L * attempt)

@@ -85,8 +85,14 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
         } catch (e: Exception) { }
     }
     val bg by androidx.compose.animation.animateColorAsState(tint, tween(600), label = "bg")
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, bg.copy(alpha = 0.55f).compositeOver(W.Base), W.Base)))
-        .pointerInput(showQueue || showOpts || showAdv || fullLy != null) { if (!(showQueue || showOpts || showAdv || fullLy != null)) detectVerticalDragGestures { _, d -> if (d > 40f) onClose() } }) {
+    // the player follows the finger when pulled down, then closes into the mini player past 160 px, or springs back
+    val pullY = remember { androidx.compose.animation.core.Animatable(0f) }
+    val pullScope = rememberCoroutineScope()
+    Box(Modifier.fillMaxSize().graphicsLayer { translationY = pullY.value; alpha = (1f - pullY.value / 1400f).coerceIn(0.4f, 1f) }.background(Brush.verticalGradient(listOf(bg, bg.copy(alpha = 0.55f).compositeOver(W.Base), W.Base)))
+        .pointerInput(showQueue || showOpts || showAdv || fullLy != null) { if (!(showQueue || showOpts || showAdv || fullLy != null)) detectVerticalDragGestures(
+            onDragEnd = { if (pullY.value > 160f) onClose() else pullScope.launch { pullY.animateTo(0f, androidx.compose.animation.core.spring(0.8f, 400f)) } },
+            onDragCancel = { pullScope.launch { pullY.animateTo(0f) } }
+        ) { _, d -> pullScope.launch { pullY.snapTo((pullY.value + d).coerceAtLeast(0f)) } } }) {
         WallpaperLayer("player")
         Column(Modifier.fillMaxSize().then(if ((showQueue || showOpts || showAdv || fullLy != null)) Modifier.blur(20.dp) else Modifier).statusBarsPadding().navigationBarsPadding().verticalScroll(scroll).padding(horizontal = 22.dp)) {
             Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
