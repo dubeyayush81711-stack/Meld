@@ -61,6 +61,7 @@ fun normKey(t: Track) = (t.title.lowercase().replace(NK_JUNK, " ").replace(NK_WS
 /** Songs the user has already seen in the language feed; kept across refreshes so repeats do not come back. */
 object Played {
     private var mem: LinkedHashSet<String>? = null
+    @Synchronized fun reset() { mem = null }
     @Synchronized private fun load(): LinkedHashSet<String> = mem ?: LinkedHashSet(S.s("played_hist").split("\n").filter { it.isNotBlank() }).also { mem = it }
     @Synchronized fun mark(t: Track) { val h = load(); h.remove(t.id); h.add(t.id); h.remove("k:" + normKey(t)); h.add("k:" + normKey(t)); while (h.size > 4000) h.remove(h.first()); val snap = h.joinToString("\n"); Thread { S.put("played_hist", snap) }.start() }
     fun filter(list: List<Track>): List<Track> {
@@ -75,6 +76,7 @@ object Recent {
     var list by androidx.compose.runtime.mutableStateOf<List<Track>>(emptyList())
     private var loaded = false
     private fun key() = "recent_tracks_" + (Api.uid ?: "")
+    @Synchronized fun reset() { loaded = false; list = emptyList() }
     @Synchronized fun load() {
         if (loaded) return; loaded = true
         list = try { val a = org.json.JSONArray(S.s(key(), "[]")); (0 until a.length()).map { val o = a.getJSONObject(it); Track(o.getString("i"), o.getString("t"), o.getString("a"), o.optString("c").ifBlank { null }, o.optInt("d"), o.optString("x").ifBlank { null }, o.optString("l").ifBlank { null }) } } catch (e: Exception) { emptyList() }

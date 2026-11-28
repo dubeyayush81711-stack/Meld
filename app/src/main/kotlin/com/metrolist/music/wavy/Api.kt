@@ -53,6 +53,11 @@ object Api {
     fun setRemember(v: Boolean) { prefs?.edit()?.putBoolean("remember", v)?.apply() }
     fun remember() = prefs?.getBoolean("remember", true) ?: true
 
+    /** Everything the previous user taught this phone (history, taste, caches, language choice) must not reach the next account. */
+    fun wipeUserData() {
+        try { S.clearPrefix("taste_v1", "played_hist", "recent_tracks_", "feed_cache_", "home_feed_cache_", "liked_", "hide_", "follow_", "fname_", "fthumb_", "feed_langs"); TasteProfile.reset(); Played.reset(); Recent.reset() } catch (e: Exception) { }
+    }
+
     fun signOut() {
         access = ""; refresh = ""; uid = ""; email = ""
         prefs?.let { clearSession(it) }
@@ -60,7 +65,8 @@ object Api {
 
     private fun saveSession(j: JSONObject) {
         access = j.getString("access_token"); refresh = j.getString("refresh_token")
-        val u = j.optJSONObject("user"); if (u != null) { uid = u.optString("id"); email = u.optString("email") }
+        val u = j.optJSONObject("user"); if (u != null) { val nid = u.optString("id"); val prev = S.s("pend_last_uid", ""); if (nid.isNotEmpty()) { if ((prev.isNotEmpty() && nid != prev) || (prev.isEmpty() && S.s("my_langs_" + nid).isEmpty())) wipeUserData(); S.put("pend_last_uid", nid) } }
+        if (u != null) { uid = u.optString("id"); email = u.optString("email") }
         prefs?.edit()?.putString("a", TokenVault.enc(access))?.putString("r", TokenVault.enc(refresh))?.putString("uid", uid)?.putString("email", email)?.apply()
     }
 

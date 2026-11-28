@@ -43,6 +43,7 @@ object Reduce {
 object S {
     private var sp: android.content.SharedPreferences? = null
     fun init(ctx: Context) { if (sp == null) { sp = ctx.applicationContext.getSharedPreferences("wavy_settings", Context.MODE_PRIVATE); if (!sp!!.getBoolean("fx_v110", false)) sp!!.edit().putBoolean("reduce_fx", true).putBoolean("fx_v110", true).apply(); Reduce.on = sp!!.getBoolean("reduce_fx", true) } }
+    fun clearPrefix(vararg p: String) { val e = sp?.edit() ?: return; sp?.all?.keys?.filter { k -> p.any { k.startsWith(it) } }?.forEach { e.remove(it) }; e.apply() }
     fun keysWithPrefix(p: String): List<String> = sp?.all?.keys?.filter { it.startsWith(p) } ?: emptyList()
     fun b(k: String, d: Boolean = false) = sp?.getBoolean(k, d) ?: d
     fun f(k: String, d: Float = 0f) = sp?.getFloat(k, d) ?: d

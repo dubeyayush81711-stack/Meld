@@ -120,6 +120,23 @@ object TasteProfile {
     fun recentSearches(n: Int): List<String> { load(); return terms.take(n).map { it.first } }
 
     fun invalidate() { cache = null }
+
+    /** New account on this phone: forget everything the previous user taught the profile. */
+    @Synchronized fun reset() { artists.clear(); good.clear(); terms.clear(); seen.clear(); loaded = false; cache = null }
+    fun hasHistory(): Boolean { load(); return good.isNotEmpty() }
+
+    /** First-run picks: the top songs of the artists chosen in the picker (YouTube Music artist page, popular songs), 4 per artist, interleaved. Empty if none were chosen. */
+    suspend fun pickedPicks(): Pair<List<String>, List<Track>> = withContext(Dispatchers.IO) {
+        val rows = try { Api.get("user_artists?select=artists(id,name)&order=created_at.asc") as? JSONArray } catch (e: Exception) { null } ?: return@withContext emptyList<String>() to emptyList()
+        val ar = (0 until rows.length()).mapNotNull { rows.optJSONObject(it)?.optJSONObject("artists") }.map { it.optString("id") to it.optString("name") }.filter { it.first.isNotBlank() }.take(6)
+        val lists = coroutineScope { ar.map { (id, _) -> async { try { kotlinx.coroutines.withTimeoutOrNull(8000) {
+            val pg = YouTube.artist(id).getOrNull() ?: return@withTimeoutOrNull emptyList<Track>()
+            val sec = pg.sections.firstOrNull { sc -> sc.items.any { it is com.metrolist.innertube.models.SongItem } && sc.items.none { it is com.metrolist.innertube.models.AlbumItem } }
+            sec?.items?.filterIsInstance<com.metrolist.innertube.models.SongItem>()?.map { it.toTrack() }?.take(4) ?: emptyList()
+        } ?: emptyList() } catch (e: Exception) { emptyList() } } }.map { it.await() } }
+        val out = ArrayList<Track>(); for (i in 0 until 4) lists.forEach { l -> l.getOrNull(i)?.let { out.add(it) } }
+        ar.map { it.second } to Played.filter(out)
+    }
     fun cached(): List<Track> = cache?.takeIf { System.currentTimeMillis() - it.first < 20 * 60_000L }?.second ?: emptyList()
 
     /** Picks for this user. Seeds = recently finished or liked songs from different artists; candidates = YouTube Music radio of each seed. */
@@ -198,15 +215,24 @@ object TasteProfile {
 @Composable
 fun ForYouShelf(pc: PlayerConnection?) {
     var list by remember { mutableStateOf<List<Track>>(LangGuard.filter(TasteProfile.cached())) }
-    LaunchedEffect(HomeRefresh.n) { try { list = TasteProfile.recommend(20) } catch (e: Exception) { } }
+    var pickedNames by remember { mutableStateOf<List<String>>(emptyList()) }
+    LaunchedEffect(HomeRefresh.n) {
+        try { list = TasteProfile.recommend(20) } catch (e: Exception) { }
+        if (list.isEmpty() && !TasteProfile.hasHistory()) try { val (n, l) = TasteProfile.pickedPicks(); if (l.isNotEmpty()) { pickedNames = n; list = l } } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+    }
     if (list.isEmpty()) return
     Column {
         Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp)) {
-            Text(TasteProfile.topArtists(2).let { a -> if (a.isEmpty()) "Based on what you play, like and skip" else "Because you play " + a.joinToString(" and ") }, style = ts(12, color = Color(0x94FFFFFF)))
+            Text(if (pickedNames.isNotEmpty()) "Because you picked " + pickedNames.take(2).joinToString(" and ") else TasteProfile.topArtists(2).let { a -> if (a.isEmpty()) "Based on what you play, like and skip" else "Because you play " + a.joinToString(" and ") }, style = ts(12, color = Color(0x94FFFFFF)))
             Text("Picked for you", style = ts(20, androidx.compose.ui.text.font.FontWeight.SemiBold))
         }
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             itemsIndexed(list) { i, t -> MiniCard(t.cover, t.title, t.artist) { playTracks(pc, list, i, "Picked for you") } }
+        }
+        val quick = list.drop(10).take(4)
+        if (quick.size >= 3) {
+            Text("Quick picks", Modifier.padding(start = 20.dp, top = 24.dp, bottom = 8.dp), style = ts(20, androidx.compose.ui.text.font.FontWeight.SemiBold))
+            Column(Modifier.padding(horizontal = 20.dp)) { quick.forEachIndexed { i, t -> TrackRow(t, pc) { playTracks(pc, quick, i, "Quick picks") } } }
         }
         Spacer(Modifier.height(28.dp))
     }

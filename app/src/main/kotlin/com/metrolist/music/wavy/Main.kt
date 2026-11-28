@@ -127,6 +127,11 @@ fun Shell(pc: PlayerConnection?, onSignOut: () -> Unit) {
             if (cur < 0 || cur >= pl.mediaItemCount || !LangGuard.ok(tr(cur))) return@LaunchedEffect
             var i = minOf(cur + 12, pl.mediaItemCount - 1)
             while (i > cur) { if (!LangGuard.ok(tr(i))) pl.removeMediaItem(i); i-- }
+            // mood continuity (keyword rule on title and artist, not a classifier): after a devotional song only devotional songs follow. Skipped if fewer than 2 upcoming songs would stay, so autoplay never runs dry.
+            if (Devotion.isDevotional(tr(cur))) {
+                val up = (cur + 1 until pl.mediaItemCount).filter { it <= cur + 12 }
+                if (up.count { Devotion.isDevotional(tr(it)) } >= 2) for (k in up.reversed()) if (!Devotion.isDevotional(tr(k))) pl.removeMediaItem(k)
+            }
             // AI check (wavy-verify): asks the model which of the next songs do not fit the chosen languages or are low-quality uploads. Silent if the function is not reachable.
             val last = minOf(cur + 10, pl.mediaItemCount - 1)
             if (last > cur && !S.b("verify_ai_off")) {
