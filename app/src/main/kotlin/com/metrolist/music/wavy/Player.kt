@@ -131,13 +131,13 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             // Apple Music behaviour: the art shrinks a little when paused and springs back to full size on play
             val artScale by androidx.compose.animation.core.animateFloatAsState(if (playing) 1f else 0.88f, androidx.compose.animation.core.spring(0.55f, 260f), label = "artScale")
-            Box(Modifier.fillMaxWidth().graphicsLayer { scaleX = artScale; scaleY = artScale }.shadow(28.dp, RoundedCornerShape(22.dp), ambientColor = Color.Black, spotColor = Color.Black)) {
-                AsyncImage(hiRes(m?.thumbnailUrl), null, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(22.dp)).background(W.Card), contentScale = ContentScale.Crop)
+            Box(Modifier.fillMaxWidth().padding(horizontal = 22.dp).graphicsLayer { scaleX = artScale; scaleY = artScale }.shadow(28.dp, RoundedCornerShape(22.dp), ambientColor = Color.Black, spotColor = Color.Black)) {
+                androidx.compose.animation.Crossfade(hiRes(m?.thumbnailUrl), animationSpec = androidx.compose.animation.core.tween(300), label = "art") { u -> AsyncImage(u, null, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(22.dp)).background(W.Card), contentScale = ContentScale.Crop) }
             }
-            Spacer(Modifier.height(26.dp))
+            Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(m?.title ?: "", style = ts(28, FontWeight.ExtraBold), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.basicMarquee())
+                    androidx.compose.animation.Crossfade(m?.title ?: "", animationSpec = androidx.compose.animation.core.tween(250), label = "tt") { tt -> Text(tt, style = ts(28, FontWeight.ExtraBold), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.basicMarquee()) }
                     Text(m?.artists?.joinToString { it.name } ?: "", style = ts(18, color = Color(0xFFD6CCD3)), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 var likedNow by remember(m?.id) { mutableStateOf(m?.id?.let { S.b("liked_$it") } ?: false) }
@@ -158,15 +158,15 @@ fun PlayerScreen(pc: PlayerConnection, onClose: () -> Unit) {
             Row(Modifier.fillMaxWidth()) {
                 Text(fmt((frac * dur).toLong()), style = ts(12, color = Color(0xFFD6CCD3))); Spacer(Modifier.weight(1f)); Text("-" + fmt((dur - (frac * dur).toLong()).coerceAtLeast(0)), style = ts(12, color = Color(0xFFD6CCD3)))
             }
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
                 Icon(painterResource(R.drawable.skip_previous), null, Modifier.size(56.dp).pressScale().clickable { pc.seekToPrevious() }, tint = Color.White)
-                Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), null, Modifier.size(84.dp).pressScale().clip(CircleShape).clickable { pc.togglePlayPause() }, tint = Color.White)
+                Box(Modifier.size(68.dp).pressScale().clip(CircleShape).clickable { pc.togglePlayPause() }.padding(6.dp)) { androidx.compose.animation.Crossfade(playing, animationSpec = androidx.compose.animation.core.tween(160), label = "pp") { pl -> Icon(painterResource(if (pl) R.drawable.pause else R.drawable.play), null, Modifier.fillMaxSize(), tint = Color.White) } }
                 Icon(painterResource(R.drawable.skip_next), null, Modifier.size(56.dp).pressScale().clickable { pc.seekToNext() }, tint = Color.White)
             }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(10.dp))
             VolumeRow()
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(14.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 val dev by WavyFx.device
                 Row(Modifier.clip(RoundedCornerShape(50)).clickable {
