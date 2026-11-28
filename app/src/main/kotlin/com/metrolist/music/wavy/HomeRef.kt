@@ -75,7 +75,7 @@ object PlayCount {
 
 @Composable
 fun HomeHead(title: String, sub: String? = null, onAll: (() -> Unit)? = null, arrow: (() -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             if (sub != null) Text(sub, style = ts(12, color = Color(0xB3FFFFFF)))
             Text(title, style = ts(22, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)

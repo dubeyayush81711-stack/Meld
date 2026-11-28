@@ -448,7 +448,7 @@ fun QuickTiles(favId: Long?, tiles: List<Triple<Long, String, String?>>, onPlayl
 fun Hero(f: Feed, pc: PlayerConnection?) {
     val s = f.sections.firstOrNull { it.type == "made_for_you" && it.tracks.isNotEmpty() } ?: f.sections.firstOrNull { it.type == "trending" && it.tracks.isNotEmpty() } ?: return
     Column(Modifier.padding(horizontal = 16.dp)) {
-        Text("Picked for you", Modifier.padding(bottom = 12.dp), style = ts(20, FontWeight.SemiBold))
+        Text("For you today", Modifier.padding(bottom = 12.dp), style = ts(22, FontWeight.Bold))
         Row(Modifier.fillMaxWidth().glass(RoundedCornerShape(26.dp)).clickable { playTracks(pc, s.tracks, 0, s.title) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Cover(s.tracks.first().cover ?: s.cover, 108.dp, 18)
             Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
@@ -577,7 +577,7 @@ fun SectionHeader(t: String) {
         t.startsWith("Chill") -> "Slow it down"; t.startsWith("Party") -> "Turn it up"; t.startsWith("Top hits") -> "Made from what you replay"
         t.startsWith("Albums") -> "From artists you play"; t.contains("favourite artists", true) -> "Most played"; t.contains("might like", true) -> "Fresh voices"
         t.startsWith("Recently") -> "Pick up where you left off"; t.startsWith("Trending") -> "Updated daily"; else -> null }
-    Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp)) {
+    Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
         if (sub != null) Text(sub, style = ts(12, color = Color(0x94FFFFFF)))
         Text(t, style = ts(20, FontWeight.SemiBold))
     }
@@ -698,7 +698,7 @@ fun RecentShelf(pc: PlayerConnection?) {
     val l = Recent.list
     if (l.isEmpty()) return
     Column {
-        Row(Modifier.fillMaxWidth().clickable { RecentNav.open?.invoke() }.padding(start = 20.dp, end = 20.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().clickable { RecentNav.open?.invoke() }.padding(start = 16.dp, end = 16.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Recently played", Modifier.weight(1f), style = ts(20, FontWeight.SemiBold))
             Text("Show all", style = ts(12, color = W.Pink))
         }
