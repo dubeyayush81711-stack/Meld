@@ -12,7 +12,7 @@ mode,pat=sys.argv[1],sys.argv[2]
 r=dump()
 if mode=='find':   # print center of first node whose text/desc matches
     for n,(x,y) in nodes(r):
-        if re.search(pat,(n.get('text') or '')+'|'+(n.get('content-desc') or ''),re.I):
+        if re.search(pat,n.get('text') or '',re.I) or re.search(pat,n.get('content-desc') or '',re.I):
             print(x,y); sys.exit(0)
     sys.exit(1)
 if mode=='edit':   # nth EditText
